@@ -70,6 +70,15 @@ fn title_bar(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, text: &str, active:
     c.text(tx, y + (h - 5) / 2, text, if active { AMBER } else { LABEL });
 }
 
+/// A title-bar piece with unbroken grooves from `from` to `to` (relative),
+/// so tiles join seamlessly.
+fn bar_piece(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, active: bool, from: i32, to: i32) {
+    c.vgrad(x, y, w, h, mix(BODY, BODY_HI, 0.25), BODY);
+    c.hline(x, y, w, BODY_HI);
+    c.hline(x, y + h - 1, w, BODY_LO);
+    grooves(c, x + from, y + h / 2 - 2, to - from, active);
+}
+
 /// A 9×9 title-bar button with a symbol.
 fn small_button(c: &mut Canvas, x: i32, y: i32, symbol: &[&str], down: bool) {
     c.rect(x, y, 9, 9, if down { BTN_DOWN } else { BTN });
@@ -203,8 +212,10 @@ fn titlebar_bmp() -> Canvas {
     let mut c = Canvas::new(344, 87, BODY);
     for (y, active) in [(0, true), (15, false), (57, true), (72, false)] {
         title_bar(&mut c, 27, y, 275, 14, "GAMP", active, 18, 34);
-        // Room for the options button on the left.
-        c.rect(27 + 5, y + 2, 11, 10, mix(BODY, BODY_HI, 0.2));
+        // The options and minimize buttons are part of the bar (only
+        // their pressed looks are separate sprites).
+        small_button(&mut c, 27 + 6, y + 3, SYM_MENU, false);
+        small_button(&mut c, 27 + 244, y + 3, SYM_MIN, false);
     }
     // Shade mode bars (with a mini display).
     for (y, active) in [(29, true), (42, false)] {
@@ -395,8 +406,11 @@ fn eqmain_bmp() -> Canvas {
     c.text(14, 104, "PREAMP", LABEL);
     lcd(&mut c, 86, 17, 113, 19);
     // Title bars.
-    title_bar(&mut c, 0, 134, 275, 14, "GAMP EQUALIZER", true, 6, 24);
-    title_bar(&mut c, 0, 149, 275, 14, "GAMP EQUALIZER", false, 6, 24);
+    for y in [134, 149] {
+        title_bar(&mut c, 0, y, 275, 14, "GAMP EQUALIZER", y == 134, 6, 24);
+        small_button(&mut c, 254, y + 3, SYM_SHADE, false);
+        small_button(&mut c, 264, y + 3, SYM_CLOSE, false);
+    }
     small_button(&mut c, 0, 116, SYM_CLOSE, false);
     small_button(&mut c, 0, 125, SYM_CLOSE, true);
     small_button(&mut c, 254, 152, SYM_UNSHADE, true);
@@ -444,8 +458,11 @@ fn eqmain_bmp() -> Canvas {
 
 fn eq_ex_bmp() -> Canvas {
     let mut c = Canvas::new(275, 56, BODY);
-    title_bar(&mut c, 0, 0, 275, 14, "", true, 6, 24);
-    title_bar(&mut c, 0, 15, 275, 14, "", false, 6, 24);
+    for y in [0, 15] {
+        title_bar(&mut c, 0, y, 275, 14, "", y == 0, 6, 24);
+        small_button(&mut c, 254, y + 3, SYM_UNSHADE, false);
+        small_button(&mut c, 264, y + 3, SYM_CLOSE, false);
+    }
     for y in [0, 15] {
         c.rect(61, y + 4, 97, 6, LCD);
         c.rect(164, y + 4, 43, 6, LCD);
@@ -465,17 +482,22 @@ fn eq_ex_bmp() -> Canvas {
 fn pledit_bmp() -> Canvas {
     let mut c = Canvas::new(280, 186, BODY);
     for (y, active) in [(0, true), (21, false)] {
-        // Corners and tiles of the top edge.
-        for (x, w) in [(0, 25), (127, 25), (153, 25)] {
-            title_bar(&mut c, x, y, w, 20, "", active, 0, 0);
-        }
+        // Corners and tiles of the top edge, grooves running through.
+        bar_piece(&mut c, 0, y, 25, 20, active, 6, 25);
+        bar_piece(&mut c, 127, y, 25, 20, active, 0, 25);
+        bar_piece(&mut c, 153, y, 25, 20, active, 0, 3);
         title_bar(&mut c, 26, y, 100, 20, "GAMP PLAYLIST", active, 0, 0);
+        // The right corner holds shade and close.
+        small_button(&mut c, 153 + 25 - 21, y + 3, SYM_SHADE, false);
+        small_button(&mut c, 153 + 25 - 11, y + 3, SYM_CLOSE, false);
         c.vline(0, y, 20, BODY_HI);
         c.vline(177, y, 20, BODY_LO);
     }
     // Left and right edges (the right one holds the scrollbar track).
     c.rect(0, 42, 12, 29, BODY);
-    c.raised(0, 42, 12, 29, BODY_HI, BODY_DARK);
+    c.vline(0, 42, 29, BODY_HI);
+    c.vline(10, 42, 29, BODY_LO);
+    c.vline(11, 42, 29, BODY_DARK);
     c.rect(31, 42, 20, 29, BODY);
     c.rect(36, 42, 10, 29, BODY_DARK);
     c.vline(36, 42, 29, BODY_LO);
@@ -546,13 +568,17 @@ fn pledit_bmp() -> Canvas {
 fn gen_bmp() -> Canvas {
     let mut c = Canvas::new(210, 104, BODY);
     for (y, active) in [(0, true), (21, false)] {
-        for x in [0, 26, 52, 78, 104, 130] {
-            title_bar(&mut c, x, y, 25, 20, "", active, 0, 0);
-        }
-        // The fills either side of the title text are plain.
-        for x in [52, 104] {
-            grooves(&mut c, x, y + 8, 25, active);
-        }
+        // Left corner, left end (beside the title), centre fill (behind it),
+        // right end, left/right fills, right corner (with close).
+        bar_piece(&mut c, 0, y, 25, 20, active, 6, 25);
+        bar_piece(&mut c, 26, y, 25, 20, active, 0, 21);
+        c.vgrad(52, y, 25, 20, mix(BODY, BODY_HI, 0.25), BODY);
+        c.hline(52, y, 25, BODY_HI);
+        c.hline(52, y + 19, 25, BODY_LO);
+        bar_piece(&mut c, 78, y, 25, 20, active, 4, 25);
+        bar_piece(&mut c, 104, y, 25, 20, active, 0, 25);
+        bar_piece(&mut c, 130, y, 25, 20, active, 0, 12);
+        small_button(&mut c, 130 + 14, y + 6, SYM_CLOSE, false);
         c.vline(0, y, 20, BODY_HI);
         c.vline(154, y, 20, BODY_LO);
     }
@@ -562,7 +588,8 @@ fn gen_bmp() -> Canvas {
     body(&mut c, 127, 72, 25, 14);
     for (x, w, y, h) in [(127, 11, 42, 29), (158, 11, 42, 24), (139, 8, 42, 29), (170, 8, 42, 24)] {
         c.rect(x, y, w, h, BODY);
-        c.raised(x, y, w, h, BODY_HI, BODY_DARK);
+        let left = x == 127 || x == 158;
+        c.vline(if left { x } else { x + w - 1 }, y, h, if left { BODY_HI } else { BODY_LO });
     }
     small_button(&mut c, 148, 42, SYM_CLOSE, true);
     // Title letters A–Z: active row 88, inactive row 96. Each letter sits on

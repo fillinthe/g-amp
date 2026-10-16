@@ -59,6 +59,24 @@ pub fn expand(paths: &[PathBuf]) -> Vec<PathBuf> {
     out
 }
 
+/// The files listed in an .m3u/.m3u8 or .pls playlist (relative paths
+/// are relative to the playlist).
+pub fn read_list(path: &Path) -> Vec<PathBuf> {
+    let Ok(text) = std::fs::read_to_string(path) else { return Vec::new() };
+    let base = path.parent().unwrap_or(Path::new("."));
+    text.lines()
+        .map(str::trim)
+        .filter_map(|l| if l.to_ascii_lowercase().starts_with("file") && l.contains('=') { l.split_once('=').map(|(_, v)| v.trim()) } else { Some(l) })
+        .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('['))
+        .filter(|l| !l.contains("://"))
+        .map(|l| {
+            let p = PathBuf::from(l);
+            if p.is_absolute() { p } else { base.join(p) }
+        })
+        .filter(|p| is_audio(p))
+        .collect()
+}
+
 #[derive(Default)]
 pub struct Playlist {
     pub entries: Vec<Entry>,
