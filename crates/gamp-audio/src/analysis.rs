@@ -85,9 +85,9 @@ pub fn bars(spectrum: &[f32], rate: u32, bars: usize, out: &mut Vec<f32>) {
         let i0 = ((f0 / hz_per_bin) as usize).min(n - 1);
         let i1 = ((f1 / hz_per_bin) as usize).clamp(i0 + 1, n);
         let peak = spectrum[i0..i1].iter().fold(0f32, |m, v| m.max(*v));
-        // dB scale, -60..0 dB → 0..1.
+        // dB scale, -70..-6 dB → 0..1, about as lively as Winamp's.
         let db = 20.0 * (peak + 1e-9).log10();
-        out.push(((db + 60.0) / 60.0).clamp(0.0, 1.0));
+        out.push(((db + 70.0) / 64.0).clamp(0.0, 1.0));
     }
 }
 
