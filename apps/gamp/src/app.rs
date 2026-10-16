@@ -108,6 +108,10 @@ pub struct App {
     pub(crate) last_save: Instant,
     pub(crate) media: Option<crate::media::Media>,
     pub(crate) media_at: Instant,
+    pub(crate) update: Option<crate::update::Release>,
+    pub(crate) update_rx: Option<std::sync::mpsc::Receiver<crate::update::Msg>>,
+    /// When a display message should go away by itself.
+    pub(crate) message_until: Option<Instant>,
 }
 
 /// Where settings and skins live (the same folder the earlier app used).
@@ -180,6 +184,9 @@ impl App {
             last_save: Instant::now(),
             media: None,
             media_at: Instant::now(),
+            update: None,
+            update_rx: None,
+            message_until: None,
         })
     }
 
@@ -423,12 +430,11 @@ impl App {
         match &entry.url {
             Some(path) => {
                 let Some(url) = self.backend.as_ref().map(|b| b.url(path)) else { return Err("no network".into()) };
-                let live = entry.live;
+                let duration = entry.duration.filter(|_| !entry.live);
                 Ok(Input::Later(Box::new(move || {
                     let src = crate::stream::HttpSource::open(&url)?;
-                    let ext = crate::stream::ext_of(&url);
-                    let _ = live;
-                    Ok(Input::Media { source: Box::new(src), ext })
+                    let ext = src.ext().or_else(|| crate::stream::ext_of(&url));
+                    Ok(Input::Media { source: Box::new(src), ext, duration })
                 })))
             }
             None => Input::file(&entry.path).map_err(|e| e.to_string()),
@@ -691,6 +697,14 @@ impl App {
     /// Animation and housekeeping, about 30 times a second while busy.
     pub fn tick(&mut self) {
         self.poll_audio();
+        self.update_poll();
+        if self.message_until.is_some_and(|t| Instant::now() >= t) {
+            self.message_until = None;
+            if self.main.pressed.is_none() {
+                self.main.message = None;
+                self.mark(Kind::Main);
+            }
+        }
         self.media_tick();
         if self.drop_visible() {
             self.mark(Kind::Vis);
@@ -1359,6 +1373,10 @@ impl App {
             ),
             Item::submenu("Visualization", self.vis_menu()),
             Item::Separator,
+            match &self.update {
+                Some(r) => Item::action("update:install", format!("Update to G-Amp {}…", r.version)),
+                None => Item::action("update:check", "Check for updates…"),
+            },
             Item::action("exit", "Exit"),
         ]
     }
@@ -1469,6 +1487,8 @@ impl App {
             "vis:scope" => self.main.vis_mode = VisMode::Oscilloscope,
             "vis:off" => self.main.vis_mode = VisMode::Off,
             "exit" => self.quit = true,
+            "update:check" => self.update_check(true),
+            "update:install" => self.update_install(),
             "preset:flat" => {
                 self.eq.preamp = 0.0;
                 self.eq.bands = [0.0; 10];

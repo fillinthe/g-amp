@@ -41,7 +41,8 @@ pub async fn sources() -> Vec<Source> {
         name: "SoundCloud".into(),
         group: "soundcloud".into(),
         roots: if sc { vec![("likes".into(), "Likes".into()), ("playlists".into(), "Playlists".into())] } else { vec![] },
-        search: sc,
+        // Links play without an account, so Search is always there.
+        search: true,
         needs_setup: !sc,
     });
     let sp = spotify::connected().await;
@@ -86,8 +87,26 @@ fn sc_track(v: &Value) -> Item {
 
 async fn sp_api(path: &str) -> Result<Value, ApiError> {
     let url = if path.starts_with("http") { path.to_owned() } else { format!("https://api.spotify.com/v1{path}") };
-    let (token, _) = spotify::access_token().await?;
-    let res = client().get(&url).bearer_auth(token).send().await.map_err(|e| err(StatusCode::BAD_GATEWAY, format!("Spotify: {e}")))?;
+    let (token, _, own) = spotify::api_token().await?;
+    let mut tries = 0;
+    let res = loop {
+        let res = client().get(&url).bearer_auth(&token).send().await.map_err(|e| err(StatusCode::BAD_GATEWAY, format!("Spotify: {e}")))?;
+        let wait = res.headers().get("retry-after").and_then(|v| v.to_str().ok()?.parse::<u64>().ok()).unwrap_or(1);
+        if res.status() != StatusCode::TOO_MANY_REQUESTS {
+            break res;
+        }
+        if !own {
+            return Err(err(
+                StatusCode::TOO_MANY_REQUESTS,
+                "Spotify is turning away the shared sign-in. For your Liked Songs, playlists and search, add your own Spotify Client ID in Settings › Spotify.",
+            ));
+        }
+        tries += 1;
+        if tries > 2 || wait > 10 {
+            return Err(err(StatusCode::TOO_MANY_REQUESTS, format!("Spotify asks to wait {wait} seconds. Try again then.")));
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+    };
     let status = res.status();
     let body: Value = res.json().await.unwrap_or(Value::Null);
     if !status.is_success() {
@@ -176,10 +195,32 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
 }
 
 pub async fn search(sid: &str, q: &str) -> Result<Listing, ApiError> {
+    // A SoundCloud link plays from any search box, no account needed.
+    if crate::soundcloud_web::is_link(q) {
+        return Ok(Listing::of(crate::soundcloud_web::resolve(q).await?));
+    }
     match sid {
-        "soundcloud" => Ok(Listing::of(soundcloud::search(q).await?.iter().map(sc_track).collect())),
+        "soundcloud" => {
+            if !soundcloud::status().await.1 {
+                return Err(err(StatusCode::BAD_REQUEST, "Paste a SoundCloud link to play it. Searching SoundCloud needs Connect (Settings › SoundCloud)."));
+            }
+            Ok(Listing::of(soundcloud::search(q).await?.iter().map(sc_track).collect()))
+        }
         "spotify" => {
-            let mut rows = Vec::new();
+            // Your own playlists whose names match come first.
+            let ql = q.to_lowercase();
+            let mut rows: Vec<Item> = match sp_pages("/me/playlists?limit=50", 500).await {
+                Ok(lists) => lists
+                    .iter()
+                    .filter(|p| !p.is_null() && s(&p["name"]).to_lowercase().contains(&ql))
+                    .map(|p| {
+                        let count = u(&p["items"]["total"]).or(u(&p["tracks"]["total"]));
+                        Item::folder(format!("playlist:{}", s(&p["id"])), s(&p["name"])).by(s(&p["owner"]["display_name"])).items(count)
+                    })
+                    .collect(),
+                Err(e) if e.0 == StatusCode::TOO_MANY_REQUESTS => return Err(e),
+                Err(_) => Vec::new(),
+            };
             for offset in (0..50).step_by(10) {
                 let r = sp_api(&format!("/search?type=track&limit=10&offset={offset}&q={}", urlencoding::encode(q))).await?;
                 rows.extend(arr(&r["tracks"]["items"]).iter().filter_map(sp_track));

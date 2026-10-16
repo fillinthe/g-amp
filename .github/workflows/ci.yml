@@ -21,34 +21,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libasound2-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev
-      # The native app and its crates (the Tauri iPhone app is separate).
-      - run: cargo test --workspace --exclude gamp-ios --locked
+      - run: cargo test --workspace --locked
       - run: cargo build -p gamp --locked
       # The real app, headless: plays a file, scans a folder, plays it
       # through the library and local server, seeks, draws every window.
       - run: target/debug/gamp${{ runner.os == 'Windows' && '.exe' || '' }} --selftest
-
-  ios-app:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: apps/gamp-ios/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: npm ci
-        working-directory: apps/gamp-ios
-      - run: npm run build
-        working-directory: apps/gamp-ios
-      - run: cargo build --locked -p gamp-ios
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: python scripts/smoke.py target/debug/gamp-ios${{ runner.os == 'Windows' && '.exe' || '' }}

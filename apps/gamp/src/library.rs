@@ -19,7 +19,8 @@ pub enum Target {
     Toggle(String),
     Open { sid: String, node: String, title: String },
     Search { sid: String, title: String },
-    Settings,
+    /// Settings, scrolled to the section whose heading starts so.
+    Settings(Option<&'static str>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -86,6 +87,7 @@ impl Default for LibState {
             ("share", "smb://diskstation/music", false),
             ("dbx_key", "App key", false),
             ("sc_id", "Client ID", false),
+            ("sp_id", "Your Spotify app's Client ID", false),
             ("sc_secret", "Client secret", true),
         ] {
             fields.insert(id.to_owned(), Field { placeholder: ph.into(), password: pw, ..Default::default() });
@@ -146,7 +148,7 @@ impl App {
                     self.lib.loading = false;
                     match result {
                         Ok(l) => {
-                            let play_now = self.pending_stream && !l.items.is_empty() && l.items.iter().all(|i| i.live);
+                            let play_now = self.pending_stream && !l.items.is_empty() && l.items.iter().all(|i| i.live || i.url.is_some());
                             self.pending_stream = false;
                             let items = l.items.clone();
                             self.lib.cache.insert(key.clone(), l);
@@ -173,6 +175,9 @@ impl App {
                     }
                     if let Some(k) = c["soundcloud"]["clientId"].as_str() {
                         self.lib_field_default("sc_id", k);
+                    }
+                    if let Some(k) = c["spotify"]["clientId"].as_str() {
+                        self.lib_field_default("sp_id", k);
                     }
                     self.lib.config = c;
                     if self.lib.page == Page::Settings {
@@ -239,7 +244,7 @@ impl App {
             let selected = match (&t, &here) {
                 (Target::Open { sid, node, .. }, Page::List { sid: s2, node: n2, .. }) => sid == s2 && node == n2,
                 (Target::Search { sid, .. }, Page::Search { sid: s2, .. }) => sid == s2,
-                (Target::Settings, Page::Settings) => true,
+                (Target::Settings(None), Page::Settings) => true,
                 _ => false,
             };
             rows.push(TreeRow { label: label.into(), depth, group: false, open: false, selected });
@@ -254,7 +259,8 @@ impl App {
                 leaf(rows, targets, Target::Search { sid: s.id.clone(), title: format!("{} › Search", s.name) }, "Search", depth);
             }
             if s.needs_setup {
-                leaf(rows, targets, Target::Settings, "Connect…", depth);
+                let section = if s.id == "spotify" { "Spotify" } else { "SoundCloud" };
+                leaf(rows, targets, Target::Settings(Some(section)), "Connect…", depth);
             }
         };
         if let Some(local) = src.iter().find(|s| s.id == "local") {
@@ -265,7 +271,7 @@ impl App {
         if group(&mut rows, &mut targets, "network", "Network & Cloud", 0) {
             let network: Vec<&Source> = src.iter().filter(|s| s.group == "network").collect();
             if network.is_empty() {
-                leaf(&mut rows, &mut targets, Target::Settings, "Add a server…", 1);
+                leaf(&mut rows, &mut targets, Target::Settings(Some("Media servers")), "Add a server…", 1);
             }
             for s in network {
                 if group(&mut rows, &mut targets, &format!("src:{}", s.id), &s.name, 1) {
@@ -287,7 +293,7 @@ impl App {
                 }
             }
         }
-        leaf(&mut rows, &mut targets, Target::Settings, "Settings", 0);
+        leaf(&mut rows, &mut targets, Target::Settings(None), "Settings", 0);
         self.lib.view.tree = rows;
         self.lib.targets = targets;
         self.mark(Kind::Library);
@@ -323,6 +329,8 @@ impl App {
                 self.lib.view.search.placeholder = match sid.as_str() {
                     "radio" => "Type a station or genre, or paste a stream address".into(),
                     "podcasts" => "Type a podcast name, or paste a feed address".into(),
+                    "soundcloud" => "Paste a SoundCloud link (track, playlist or artist), or search".into(),
+                    "spotify" => "Search Spotify: songs, artists, your playlists".into(),
                     _ => "Type and press Enter to search".into(),
                 };
                 self.lib.view.search.value.clear();
@@ -477,7 +485,10 @@ impl App {
                     }
                     Some(Target::Open { sid, node, title }) => self.lib_open(Page::List { sid, node, title }, true),
                     Some(Target::Search { sid, title }) => self.lib_open(Page::Search { sid, title }, true),
-                    Some(Target::Settings) => self.lib_open(Page::Settings, true),
+                    Some(Target::Settings(section)) => {
+                        self.lib_open(Page::Settings, true);
+                        self.lib.view.form_scroll = section.and_then(|p| lw::heading_scroll(&self.skin, &self.lib.view, p)).unwrap_or(0);
+                    }
                     None => {}
                 }
                 return;
@@ -799,7 +810,7 @@ impl App {
         true
     }
 
-    fn lib_submit(&mut self, focus: &str) {
+    pub(crate) fn lib_submit(&mut self, focus: &str) {
         match focus {
             "search" => {
                 if let Page::Search { sid, .. } = self.lib.page.clone() {
@@ -815,14 +826,16 @@ impl App {
                     if let Some(b) = &self.backend {
                         b.search(self.lib.page.key(), sid.clone(), q.clone());
                     }
-                    // A pasted stream address plays straight away.
-                    self.pending_stream = sid == "radio" && (q.starts_with("http://") || q.starts_with("https://"));
+                    // A pasted stream address or SoundCloud link plays straight away.
+                    let link = q.starts_with("http://") || q.starts_with("https://");
+                    self.pending_stream = link && (sid == "radio" || gamp_core::soundcloud_web::is_link(&q));
                 }
             }
             id if id.starts_with("srv_") => self.lib_form_action("srv:add"),
             "folder_path" => self.lib_form_action("folder:path"),
             "share" => self.lib_form_action("share:connect"),
             "dbx_key" => self.lib_form_action("dbx:save"),
+            "sp_id" => self.lib_form_action("sp:save"),
             "sc_id" | "sc_secret" => self.lib_form_action("sc:save"),
             _ => {}
         }
@@ -912,8 +925,27 @@ impl App {
 
         f.push(W::Heading("Spotify (Premium)".into()));
         f.push(W::Text("Sign in once in your web browser. Songs then play through G-Amp's equalizer and visualizers.".into()));
+        f.push(W::Text("For your Liked Songs, playlists and search, Spotify wants your own (free) app: at developer.spotify.com/dashboard choose Create app, tick Web API, add this Redirect URI, then paste the Client ID here.".into()));
+        let sp_redirect = c["spotify"]["redirectUri"].as_str().unwrap_or("").to_owned();
+        f.push(W::Item { id: format!("copy:{sp_redirect}"), label: sp_redirect.clone(), button: "Copy".into() });
+        f.push(W::Row(vec![self.field("sp_id"), W::button("sp:save", "Save")]));
         let sp = c["spotify"]["connected"] == true;
-        f.push(W::Row(vec![if sp { W::button("sp:disconnect", "Disconnect Spotify") } else { W::button("sp:connect", "Connect Spotify") }, W::Text(if sp { "Connected" } else { "Not connected" }.into())]));
+        let has_id = c["spotify"]["clientId"].as_str().is_some_and(|k| !k.is_empty());
+        let library = c["spotify"]["library"] == true;
+        let mut row = vec![if sp { W::button("sp:disconnect", "Disconnect Spotify") } else { W::button("sp:connect", "Connect Spotify") }];
+        if sp && has_id && !library {
+            row.push(W::button("sp:library", "Connect library"));
+        }
+        row.push(W::Text(
+            match (sp, library, has_id) {
+                (false, _, _) => "Not connected",
+                (true, true, _) => "Connected, with your library",
+                (true, false, true) => "Playback connected; connect the library too",
+                (true, false, false) => "Playback connected; add a Client ID for your library",
+            }
+            .into(),
+        ));
+        f.push(W::Row(row));
 
         f.push(W::Heading("SoundCloud".into()));
         f.push(W::Text("SoundCloud gives API keys to Artist Pro accounts. Register an app at soundcloud.com/you/apps with this Redirect URI:".into()));
@@ -998,6 +1030,8 @@ impl App {
             "dbx:save" => b.post("/api/config", json!({ "dropboxKey": self.value("dbx_key") }), true),
             "dbx:connect" => open_in_browser(&b.url("/auth/dropbox/login")),
             "sp:connect" => open_in_browser(&b.url("/auth/spotify/login")),
+            "sp:library" => open_in_browser(&b.url("/auth/spotify/library")),
+            "sp:save" => b.post("/api/config", json!({ "spotifyClientId": self.value("sp_id") }), true),
             "sp:disconnect" => b.post("/api/spotify/logout", json!({}), true),
             "sc:save" => {
                 let secret = self.lib.fields.get("sc_secret").map(|f| f.value.clone()).unwrap_or_default();

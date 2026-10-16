@@ -1,4 +1,4 @@
-//! Renders the windows with demo content for the website:
+//! Renders the windows with demo content, for screenshots:
 //! `cargo run -p gamp-ui --example shots -- out/`
 use gamp_skin::Skin;
 use gamp_ui::library_window::{self as lw, Row, TreeRow};

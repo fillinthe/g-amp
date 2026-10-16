@@ -73,6 +73,16 @@ pub fn run() -> anyhow::Result<()> {
     app.player.seek(2.0);
     wait(&mut app, 5, "seeking over HTTP", |a| a.main.elapsed >= 2.0)?;
 
+    // Online, when asked: a pasted SoundCloud link plays and seeks.
+    if let Ok(link) = std::env::var("GAMP_SELFTEST_LINK") {
+        app.lib_open(crate::library::Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() }, true);
+        app.lib.view.search.value = link;
+        app.lib_submit("search");
+        wait(&mut app, 30, "a SoundCloud link plays", |a| a.main.state == PlayState::Playing && a.main.elapsed > 1.0)?;
+        app.player.seek(120.0);
+        wait(&mut app, 30, "seeking in a SoundCloud stream", |a| a.main.elapsed >= 120.0)?;
+    }
+
     // Every window draws.
     for k in [crate::app::Kind::Main, crate::app::Kind::Eq, crate::app::Kind::Playlist, crate::app::Kind::Library, crate::app::Kind::Vis] {
         app.redraw(k);

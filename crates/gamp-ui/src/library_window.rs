@@ -320,6 +320,11 @@ pub fn wrap(text: &str, width: i32) -> Vec<String> {
 /// Lays out and draws a form inside `area`; returns its hot spots and its
 /// full height (for scrolling).
 fn form(frame: &mut Frame, skin: &Skin, area: R, items: &[W], scroll: i32, pressed: &Option<Hot>, hots: &mut Vec<(Hot, R)>) -> i32 {
+    form_marked(frame, skin, area, items, scroll, pressed, hots, &mut Vec::new())
+}
+
+/// Lays out a form, noting where each heading starts (unscrolled).
+fn form_marked(frame: &mut Frame, skin: &Skin, area: R, items: &[W], scroll: i32, pressed: &Option<Hot>, hots: &mut Vec<(Hot, R)>, marks: &mut Vec<(String, i32)>) -> i32 {
     let st = &skin.playlist;
     let (ax, ay, aw, ah) = area;
     let mut y = ay + 6 - scroll;
@@ -327,6 +332,7 @@ fn form(frame: &mut Frame, skin: &Skin, area: R, items: &[W], scroll: i32, press
     for item in items {
         match item {
             W::Heading(t) => {
+                marks.push((t.clone(), y + scroll - ay));
                 y += 4;
                 if clip(y, 16) {
                     font::draw(frame, ax + 6, y + 12, t, 12.0, st.current, aw - 12, true);
@@ -585,6 +591,21 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
     let sw = font::measure(&status, PX, false);
     font::draw(frame, t.0 + t.2 - sw - 2, by + 13, &status, PX, st.normal, sw + 4, false);
     hots
+}
+
+/// How far to scroll a settings form so the heading starting with
+/// `prefix` is at the top.
+pub fn heading_scroll(skin: &Skin, v: &View, prefix: &str) -> Option<i32> {
+    let items = v.form.as_ref()?;
+    let (w, h) = v.size();
+    let (ix, iy, iw, ih) = v.inner();
+    let tb_x = ix + TREE_W + 6;
+    let area = (tb_x, iy + 2, ix + iw - 2 - tb_x, ih - 4);
+    let mut scratch = Frame::new(w, h);
+    let mut marks = Vec::new();
+    let total = form_marked(&mut scratch, skin, area, items, 0, &None, &mut Vec::new(), &mut marks);
+    let y = marks.iter().find(|(t, _)| t.starts_with(prefix))?.1;
+    Some(y.min((total - area.3).max(0)).max(0))
 }
 
 /// The first row for a pointer y on the scrollbar.
