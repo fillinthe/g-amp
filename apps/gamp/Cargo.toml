@@ -12,6 +12,7 @@ gamp-audio = { path = "../../crates/gamp-audio" }
 gamp-core = { path = "../../crates/gamp-core" }
 gamp-skin = { path = "../../crates/gamp-skin" }
 gamp-ui = { path = "../../crates/gamp-ui" }
+gamp-vis = { path = "../../crates/gamp-vis" }
 anyhow = "1.0.104"
 env_logger = "0.11.11"
 lofty = "0.22"
@@ -25,3 +26,4 @@ axum = "0.8"
 symphonia = "0.5"
 serde_json = "1.0.154"
 arboard = { version = "3.7.0", default-features = false }
+serde = { version = "1.0.229", features = ["derive"] }

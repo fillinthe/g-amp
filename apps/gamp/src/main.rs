@@ -10,9 +10,11 @@
 mod app;
 mod backend;
 mod clipboard;
+mod drop;
 mod layout;
 mod library;
 mod playlist;
+mod session;
 mod stream;
 mod win;
 
@@ -31,6 +33,8 @@ use backend::{Backend, UserEvent};
 struct Shell {
     app: App,
     started: bool,
+    /// When animation next steps (marquee, visualizers, time).
+    next_tick: Instant,
 }
 
 impl ApplicationHandler<UserEvent> for Shell {
@@ -93,6 +97,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             _ => {}
         }
         if app.quit {
+            app.save_session();
             el.exit();
         }
     }
@@ -100,7 +105,13 @@ impl ApplicationHandler<UserEvent> for Shell {
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
         let app = &mut self.app;
         app.flush_drops();
-        app.tick();
+        // Animate on a clock, not on every event (redraws are events too).
+        let now = Instant::now();
+        if now >= self.next_tick {
+            app.tick();
+            let step = if app.drop_visible() { app::VIS_TICK } else { TICK };
+            self.next_tick = now + step;
+        }
         for k in app.dirty_kinds() {
             match k {
                 Kind::Menu(_) => app.redraw(k),
@@ -112,10 +123,15 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         if app.quit {
+            app.save_session();
             el.exit();
         }
+        if app.last_save.elapsed() > std::time::Duration::from_secs(30) {
+            app.last_save = Instant::now();
+            app.save_session();
+        }
         // Wake often only while something moves; idle is idle.
-        el.set_control_flow(if app.busy() { ControlFlow::WaitUntil(Instant::now() + TICK) } else { ControlFlow::Wait });
+        el.set_control_flow(if app.busy() { ControlFlow::WaitUntil(self.next_tick) } else { ControlFlow::Wait });
     }
 }
 
@@ -132,12 +148,13 @@ fn main() -> anyhow::Result<()> {
         }
     };
     let mut app = App::new(OutputKind::Device, backend)?;
+    app.session = app.load_session();
     let files: Vec<PathBuf> = std::env::args().skip(1).map(PathBuf::from).collect();
     if !files.is_empty() {
         app.open_files(files, true);
     }
     // Nothing to play yet: show where music comes from.
-    app.lib_open_at_start = app.playlist.entries.is_empty();
-    el.run_app(&mut Shell { app, started: false })?;
+    app.lib_open_at_start = app.playlist.entries.is_empty() && app.session.is_none();
+    el.run_app(&mut Shell { app, started: false, next_tick: Instant::now() })?;
     Ok(())
 }

@@ -1707,10 +1707,12 @@ dependencies = [
  "gamp-core",
  "gamp-skin",
  "gamp-ui",
+ "gamp-vis",
  "lofty",
  "log",
  "reqwest 0.12.28",
  "rfd",
+ "serde",
  "serde_json",
  "softbuffer",
  "symphonia",
@@ -1805,6 +1807,10 @@ dependencies = [
  "gamp-skin",
  "image",
 ]
+
+[[package]]
+name = "gamp-vis"
+version = "0.1.0"
 
 [[package]]
 name = "gdk"

@@ -24,6 +24,8 @@ use crate::playlist::{self, Entry, Playlist};
 use crate::win::Win;
 
 pub const TICK: Duration = Duration::from_millis(33);
+/// G-Drop animates at 60 frames a second.
+pub const VIS_TICK: Duration = Duration::from_millis(16);
 const MARQUEE_STEP: Duration = Duration::from_millis(220);
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 
@@ -33,6 +35,8 @@ pub enum Kind {
     Eq,
     Playlist,
     Library,
+    /// G-Drop, the visualizer.
+    Vis,
     /// A pop-up menu; the number is its depth (sub-menus are deeper).
     Menu(usize),
 }
@@ -85,6 +89,9 @@ pub struct App {
     pub(crate) pl_drag: Option<usize>,
     pub(crate) backend: Option<crate::backend::Backend>,
     pub(crate) lib: crate::library::LibState,
+    pub(crate) drop: crate::drop::DropState,
+    /// The skin file in use (None: the built-in skin).
+    pub(crate) skin_path: Option<PathBuf>,
     /// A pasted radio address: play it when the search answers.
     pub(crate) pending_stream: bool,
     /// When to refresh the source list (after a DLNA search).
@@ -96,6 +103,9 @@ pub struct App {
     pub(crate) drop_target: Option<Kind>,
     /// Show the library at start (first run, nothing to play yet).
     pub(crate) lib_open_at_start: bool,
+    /// The saved session, waiting for the windows to exist.
+    pub(crate) session: Option<crate::session::Session>,
+    pub(crate) last_save: Instant,
 }
 
 /// Where settings and skins live (the same folder the earlier app used).
@@ -126,7 +136,7 @@ impl App {
         let eq = eq_window::View { on: true, ..Default::default() };
         let pl = plw::View { width: plw::MIN_WIDTH, height: plw::MIN_HEIGHT + 29 * 2, running: "0:00/0:00".into(), ..Default::default() };
         let mut wins = HashMap::new();
-        for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library] {
+        for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis] {
             wins.insert(k, Win::headless());
         }
         Ok(App {
@@ -158,10 +168,14 @@ impl App {
             drop_target: None,
             backend,
             lib: Default::default(),
+            drop: Default::default(),
+            skin_path: None,
             pending_stream: false,
             pending_refresh: None,
             pending_scan: None,
             lib_open_at_start: false,
+            session: None,
+            last_save: Instant::now(),
         })
     }
 
@@ -179,6 +193,7 @@ impl App {
             Kind::Playlist => self.pl.size(),
             // The library isn't doubled (Winamp's wasn't either).
             Kind::Library => return LogicalSize::new(self.lib.view.size().0, self.lib.view.size().1),
+            Kind::Vis => return LogicalSize::new(self.drop.width, self.drop.height),
             Kind::Menu(i) => return self.menus.get(i).map(|m| menu::size(&m.items)).map(|(w, h)| LogicalSize::new(w, h)).unwrap_or(LogicalSize::new(1, 1)),
         };
         LogicalSize::new(w * z, h * z)
@@ -210,6 +225,13 @@ impl App {
         let mut w = Win::open(Some(el), "G-Amp Media Library", self.logical_size(Kind::Library), (lx, y), false);
         w.show(self.lib_open_at_start);
         self.wins.insert(Kind::Library, w);
+        // G-Drop opens beside the main window on demand.
+        let mut w = Win::open(Some(el), "G-Drop", self.logical_size(Kind::Vis), (lx, y), false);
+        w.show(false);
+        self.wins.insert(Kind::Vis, w);
+        if let Some(s) = self.session.take() {
+            self.place_windows(&s);
+        }
         self.lib_start();
     }
 
@@ -276,6 +298,7 @@ impl App {
                     w.present();
                 }
             }
+            Kind::Vis => self.drop_redraw(),
             Kind::Menu(i) => {
                 if let Some(m) = self.menus.get_mut(i) {
                     menu::draw(&mut m.win.frame, &m.items, m.hover);
@@ -317,7 +340,7 @@ impl App {
                 self.main.playlist_open = !self.main.playlist_open;
                 self.main.playlist_open
             }
-            Kind::Library => !self.wins.get(&Kind::Library).is_some_and(|w| w.visible),
+            Kind::Library | Kind::Vis => !self.wins.get(&k).is_some_and(|w| w.visible),
             _ => return,
         };
         if let Some(w) = self.wins.get_mut(&k) {
@@ -376,7 +399,7 @@ impl App {
         self.mark_all();
     }
 
-    fn toggle_on_top(&mut self) {
+    pub(crate) fn toggle_on_top(&mut self) {
         self.on_top = !self.on_top;
         let level = if self.on_top { WindowLevel::AlwaysOnTop } else { WindowLevel::Normal };
         for w in self.wins.values() {
@@ -434,7 +457,7 @@ impl App {
         }
     }
 
-    fn update_title(&mut self) {
+    pub(crate) fn update_title(&mut self) {
         self.main.title = match self.playlist.current() {
             Some(e) => {
                 let len = e.duration.map(|d| format!(" ({})", clock(d))).unwrap_or_default();
@@ -495,6 +518,11 @@ impl App {
         match result {
             Ok(s) => {
                 self.skin = s;
+                self.skin_path = path.as_ref().map(|p| {
+                    // Remember the kept copy in the skins folder.
+                    let kept = self.data_dir.join("skins").join(p.file_name().unwrap_or_default());
+                    if kept.exists() { kept } else { p.clone() }
+                });
                 // Keep it, so it is in the Skins menu next time.
                 if let Some(p) = &path {
                     let dir = self.data_dir.join("skins");
@@ -657,6 +685,9 @@ impl App {
     /// Animation and housekeeping, about 30 times a second while busy.
     pub fn tick(&mut self) {
         self.poll_audio();
+        if self.drop_visible() {
+            self.mark(Kind::Vis);
+        }
         self.lib_poll();
         if self.pending_scan.is_some_and(|t| Instant::now() >= t) {
             self.pending_scan = None;
@@ -707,7 +738,7 @@ impl App {
     }
 
     pub fn busy(&self) -> bool {
-        self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.title.chars().count() * 5 > 154 || self.drag.is_some()
+        self.drop_visible() || self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.title.chars().count() * 5 > 154 || self.drag.is_some()
     }
 
     // ---- pointer --------------------------------------------------------
@@ -724,6 +755,9 @@ impl App {
         }
         if self.resize.is_some() && k == Kind::Library {
             return self.resize_library();
+        }
+        if self.resize.is_some() && k == Kind::Vis {
+            return self.drop_resize();
         }
         let (cx, cy) = self.win(k).map(|w| w.cursor).unwrap_or((0, 0));
         match k {
@@ -746,7 +780,7 @@ impl App {
     /// to it).
     pub(crate) fn start_drag(&mut self, k: Kind) {
         let Some(start) = self.win(k).map(Win::global_cursor) else { return };
-        let kinds = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library];
+        let kinds = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis];
         let mut group = vec![(k, self.win(k).map(|w| w.pos).unwrap_or_default())];
         if k == Kind::Main {
             let visible: Vec<Kind> = kinds.iter().copied().filter(|k| self.rect(*k).is_some()).collect();
@@ -768,7 +802,7 @@ impl App {
             .iter()
             .filter_map(|(k, (x, y))| self.rect(*k).map(|r| Rect { x: x + dx, y: y + dy, ..r }))
             .collect();
-        let others: Vec<Rect> = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library].iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
+        let others: Vec<Rect> = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis].iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
         let screen = self.win(Kind::Main).and_then(|w| w.window.as_ref()).and_then(|w| w.current_monitor()).map(|m| {
             let (p, s) = (m.position(), m.size());
             Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 }
@@ -794,6 +828,7 @@ impl App {
             Kind::Eq => self.eq_press(x, y, el),
             Kind::Playlist => self.pl_press(x, y),
             Kind::Library => self.lib_press(x, y),
+            Kind::Vis => self.drop_press(x, y),
             Kind::Menu(_) => {}
         }
     }
@@ -807,6 +842,7 @@ impl App {
             Kind::Eq => self.eq_release(el),
             Kind::Playlist => self.pl_release(el),
             Kind::Library => self.lib_release(),
+            Kind::Vis => self.drop_release(),
             Kind::Menu(i) => self.menu_release(i, el),
         }
     }
@@ -1284,6 +1320,7 @@ impl App {
             Item::action("win:main", "Main window").checked(true).shortcut("Alt+W"),
             Item::action("win:playlist", "Playlist editor").checked(self.main.playlist_open).shortcut("Alt+E"),
             Item::action("win:eq", "Equalizer").checked(self.main.eq_open).shortcut("Alt+G"),
+            Item::action("win:vis", "G-Drop visualizer").checked(self.drop_visible()).shortcut("Alt+K"),
             Item::action("win:library", "Media Library").checked(self.wins.get(&Kind::Library).is_some_and(|w| w.visible)).shortcut("Alt+L"),
             Item::Separator,
             Item::submenu("Skins", skins),
@@ -1401,6 +1438,7 @@ impl App {
             "win:playlist" => self.toggle_window(Kind::Playlist),
             "win:eq" => self.toggle_window(Kind::Eq),
             "win:library" => self.toggle_window(Kind::Library),
+            "win:vis" => self.toggle_window(Kind::Vis),
             "skin:load" => {
                 if let Some(f) = rfd::FileDialog::new().add_filter("Winamp skins", &["wsz", "zip"]).pick_file() {
                     self.load_skin(Some(f));
@@ -1450,6 +1488,9 @@ impl App {
         if k == Kind::Library && self.lib_key(key, text) {
             return;
         }
+        if k == Kind::Vis && self.drop_key(key) {
+            return;
+        }
         let ctrl = self.modifiers.control_key() || self.modifiers.super_key();
         let alt = self.modifiers.alt_key();
         if let Kind::Menu(_) = k {
@@ -1462,6 +1503,7 @@ impl App {
             Key::Character(c) => match c.to_lowercase().as_str() {
                 "w" if alt => {}
                 "l" if alt => self.toggle_window(Kind::Library),
+                "k" if alt || (ctrl && self.modifiers.shift_key()) => self.toggle_window(Kind::Vis),
                 "e" if alt => self.toggle_window(Kind::Playlist),
                 "g" if alt => self.toggle_window(Kind::Eq),
                 "a" if ctrl && k == Kind::Playlist => self.pl.selected = (0..self.playlist.entries.len()).collect(),
@@ -1514,6 +1556,7 @@ impl App {
             Kind::Eq => self.eq.focused = focused,
             Kind::Playlist => self.pl.focused = focused,
             Kind::Library => self.lib.view.focused = focused,
+            Kind::Vis => self.drop.focused = focused,
             Kind::Menu(_) => {
                 if !focused {
                     self.menu_lost_focus(k);
