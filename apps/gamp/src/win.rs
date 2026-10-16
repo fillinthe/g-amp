@@ -11,6 +11,14 @@ use winit::window::{Window, WindowLevel};
 
 type Surface = softbuffer::Surface<Rc<Window>, Rc<Window>>;
 
+/// G-Amp's icon for the taskbar (Windows, Linux).
+fn icon() -> Option<winit::window::Icon> {
+    static PNG: &[u8] = include_bytes!("../../../assets/logo/gamp-icon-256.png");
+    let img = image::load_from_memory(PNG).ok()?.to_rgba8();
+    let (w, h) = img.dimensions();
+    winit::window::Icon::from_rgba(img.into_raw(), w, h).ok()
+}
+
 pub struct Win {
     pub window: Option<Rc<Window>>,
     surface: Option<Surface>,
@@ -43,6 +51,8 @@ impl Win {
             .with_position(PhysicalPosition::new(pos.0, pos.1));
         if popup {
             attrs = attrs.with_window_level(WindowLevel::AlwaysOnTop);
+        } else {
+            attrs = attrs.with_window_icon(icon());
         }
         match el.create_window(attrs) {
             Ok(window) => {
