@@ -1,0 +1,12 @@
+[package]
+name = "gamp-ui"
+description = "G-Amp's windows, drawn pixel for pixel from classic Winamp skins"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+gamp-skin = { path = "../gamp-skin" }
+image = { version = "0.25", default-features = false, features = ["png"] }

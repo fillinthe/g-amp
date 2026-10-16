@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "apps/gamp-ios/src-tauri"]
+members = ["crates/*", "apps/gamp", "apps/gamp-ios/src-tauri", "tools/*"]
 
 [workspace.package]
 version = "0.1.0"
