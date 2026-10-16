@@ -500,10 +500,20 @@ impl App {
             return;
         }
         if let Some(list) = paths.iter().find(|p| p.extension().is_some_and(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "m3u" | "m3u8" | "pls"))) {
-            let entries: Vec<Entry> = playlist::read_list(list).iter().map(|p| Entry::read(p)).collect();
-            self.playlist.set(entries);
-            self.sync_playlist();
-            self.load_current(true);
+            let entries: Vec<Entry> = playlist::read_list(list).into_iter().map(|l| self.listed_entry(l)).collect();
+            if entries.is_empty() {
+                self.main.message = Some("EMPTY PLAYLIST".into());
+                return;
+            }
+            if replace || self.playlist.entries.is_empty() {
+                self.playlist.set(entries);
+                self.sync_playlist();
+                self.load_current(true);
+            } else {
+                self.playlist.append(entries);
+                self.sync_playlist();
+                self.queue_after(self.playlist.current);
+            }
             return;
         }
         let entries: Vec<Entry> = playlist::expand(&paths).iter().map(|p| Entry::read(p)).collect();
@@ -519,6 +529,27 @@ impl App {
             self.sync_playlist();
             // Something new after the current track: line it up.
             self.queue_after(self.playlist.current);
+        }
+    }
+
+    /// A playlist line as a queue entry: a file is read for its tags; a
+    /// link to this app's own server is kept as it is (the session saves
+    /// the same `/media/...` paths); any other address plays through the
+    /// server like a pasted stream, so saved station lists work.
+    fn listed_entry(&self, l: playlist::Listed) -> Entry {
+        match l {
+            playlist::Listed::File(p) => Entry::read(&p),
+            playlist::Listed::Link { url, title, duration } => {
+                let (media, live) = match gamp_core::sources::own_media_path(&url) {
+                    Some(path) => (path.clone(), path.starts_with("/media/remote/radio/")),
+                    None => gamp_core::sources::link_media_url(&url),
+                };
+                let (artist, title) = match title.split_once(" - ") {
+                    Some((a, t)) if !live => (a.trim().to_owned(), t.trim().to_owned()),
+                    _ => (String::new(), title),
+                };
+                Entry::remote(media, title, artist, duration, live)
+            }
         }
     }
 
@@ -1242,17 +1273,24 @@ impl App {
 
     fn save_playlist(&mut self) {
         let Some(path) = rfd::FileDialog::new().add_filter("M3U playlist", &["m3u8"]).set_file_name("playlist.m3u8").save_file() else { return };
+        if let Err(e) = std::fs::write(&path, self.m3u()) {
+            self.main.message = Some(format!("CAN'T SAVE: {e}"));
+        }
+    }
+
+    /// The playlist as extended M3U. Network tracks are written as links
+    /// to this app's server, which plays them while G-Amp runs.
+    pub(crate) fn m3u(&self) -> String {
+        let port = self.backend.as_ref().map(|b| b.port).unwrap_or(8742);
         let mut out = String::from("#EXTM3U\n");
         for e in &self.playlist.entries {
             let place = match &e.url {
-                Some(u) => self.backend.as_ref().map(|b| b.url(u)).unwrap_or_else(|| u.clone()),
+                Some(u) => format!("http://127.0.0.1:{port}{u}"),
                 None => e.path.display().to_string(),
             };
             out.push_str(&format!("#EXTINF:{},{}\n{}\n", e.duration.map(|d| d.round() as i64).unwrap_or(-1), e.display(), place));
         }
-        if let Err(e) = std::fs::write(&path, out) {
-            self.main.message = Some(format!("CAN'T SAVE: {e}"));
-        }
+        out
     }
 
     fn resize_playlist(&mut self) {
@@ -1788,6 +1826,34 @@ mod tests {
         assert_eq!(app.playlist.current, 0, "the playing track keeps its place in the queue");
         // Resizing snaps to 25×29 steps.
         assert_eq!(plw::snap_size(275 + 30, 145 + 10), (300, 145));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn saved_playlists_keep_links() {
+        let dir = songs("m3u", 2, 2);
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.open_files(vec![dir.clone()], true);
+        settle(&mut app);
+        app.playlist.append(vec![
+            Entry::remote("/media/local/9?s=ab".into(), "Title".into(), "Art".into(), Some(200.0), false),
+            Entry::remote("/media/remote/radio/x?s=cd".into(), "SomaFM".into(), String::new(), None, true),
+        ]);
+        let text = app.m3u();
+        assert!(text.contains("http://127.0.0.1:8742/media/local/9?s=ab"), "{text}");
+        let list = dir.join("saved.m3u8");
+        std::fs::write(&list, &text).unwrap();
+        // A plain station address, as another program would write it.
+        std::fs::write(&list, text + "#EXTINF:-1,Groove Salad\nhttp://ice.somafm.com/groovesalad\n").unwrap();
+        app.open_files(vec![list], true);
+        settle(&mut app);
+        let e = &app.playlist.entries;
+        assert_eq!(e.len(), 5, "{e:?}");
+        assert_eq!(e[0].title, "01 Song 0");
+        assert_eq!((e[2].url.as_deref(), e[2].artist.as_str(), e[2].title.as_str(), e[2].duration, e[2].live), (Some("/media/local/9?s=ab"), "Art", "Title", Some(200.0), false));
+        assert_eq!((e[3].url.as_deref(), e[3].title.as_str(), e[3].live), (Some("/media/remote/radio/x?s=cd"), "SomaFM", true));
+        assert!(e[4].url.as_deref().unwrap().starts_with("/media/remote/radio/http"), "{:?}", e[4].url);
+        assert_eq!((e[4].title.as_str(), e[4].live), ("Groove Salad", true));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

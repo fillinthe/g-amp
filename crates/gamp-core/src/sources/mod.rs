@@ -516,7 +516,8 @@ pub fn sign(sid: &str, id: &str) -> String {
 
 fn media_url(sid: &str, item: &Item) -> String {
     // A file name at the end helps the player guess the format.
-    let ext = item.id.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).filter(|e| is_audio(&format!("x.{e}")));
+    let name = item.id.split(['?', '#']).next().unwrap_or("");
+    let ext = name.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).filter(|e| is_audio(&format!("x.{e}")));
     format!(
         "/media/remote/{}/{}?s={}{}",
         urlencoding::encode(sid),
@@ -524,6 +525,30 @@ fn media_url(sid: &str, item: &Item) -> String {
         sign(sid, &item.id),
         ext.map(|e| format!("&f=.{e}")).unwrap_or_default()
     )
+}
+
+/// A plain stream address (a station, or a file on the web) as a signed
+/// local media link, the way the library lists it: `/media/remote/...`.
+/// Addresses ending in an audio extension are seekable; others play live.
+pub fn link_media_url(url: &str) -> (String, bool) {
+    let path = url.split(['?', '#']).next().unwrap_or("");
+    let file = is_audio(path);
+    let sid = if file { "podcasts" } else { "radio" };
+    (media_url(sid, &Item::track(url, "")), !file)
+}
+
+/// The `/media/...` part of a link to this app's own server (any port),
+/// if that's what it is.
+pub fn own_media_path(url: &str) -> Option<String> {
+    let u = url::Url::parse(url).ok()?;
+    let local = matches!(u.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"));
+    if !local || !u.path().starts_with("/media/") {
+        return None;
+    }
+    Some(match u.query() {
+        Some(q) => format!("{}?{q}", u.path()),
+        None => u.path().to_owned(),
+    })
 }
 
 fn finish(sid: &str, mut listing: Listing) -> Listing {
@@ -744,6 +769,19 @@ mod tests {
         assert_eq!(normalize_url("https://cloud.example.com/remote.php/dav/files/me/").unwrap(), "https://cloud.example.com/remote.php/dav/files/me");
         assert!(normalize_url("ftp://x").is_err());
         assert!(normalize_url(" ").is_err());
+    }
+
+    #[test]
+    fn links() {
+        store::init(std::env::temp_dir().join(format!("gamp-core-links-{}", std::process::id())), None);
+        let (u, live) = link_media_url("http://ice.somafm.com/groovesalad");
+        assert!(u.starts_with("/media/remote/radio/") && u.contains("?s=") && live);
+        let (u, live) = link_media_url("https://example.com/a%20song.mp3?x=1");
+        assert!(u.starts_with("/media/remote/podcasts/") && u.ends_with("&f=.mp3") && !live);
+        assert_eq!(own_media_path("http://127.0.0.1:8742/media/local/42?s=abc").as_deref(), Some("/media/local/42?s=abc"));
+        assert_eq!(own_media_path("http://localhost:9000/media/spotify/x.ogg").as_deref(), Some("/media/spotify/x.ogg"));
+        assert_eq!(own_media_path("http://127.0.0.1:8742/api/x"), None);
+        assert_eq!(own_media_path("http://example.com/media/x"), None);
     }
 
     #[test]
