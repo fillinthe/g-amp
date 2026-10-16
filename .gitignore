@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+release/
+src-tauri/target/
+# Made by `tauri ios init` (and holds your signing team); regenerate it.
+src-tauri/gen/
+.aidex/
+.playwright-mcp/
+.DS_Store
+*.log
