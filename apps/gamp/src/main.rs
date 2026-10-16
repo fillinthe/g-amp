@@ -13,6 +13,7 @@ mod clipboard;
 mod drop;
 mod layout;
 mod library;
+mod media;
 mod playlist;
 mod session;
 mod stream;
