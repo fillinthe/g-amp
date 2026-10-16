@@ -106,6 +106,8 @@ pub struct App {
     /// The saved session, waiting for the windows to exist.
     pub(crate) session: Option<crate::session::Session>,
     pub(crate) last_save: Instant,
+    pub(crate) media: Option<crate::media::Media>,
+    pub(crate) media_at: Instant,
 }
 
 /// Where settings and skins live (the same folder the earlier app used).
@@ -176,6 +178,8 @@ impl App {
             lib_open_at_start: false,
             session: None,
             last_save: Instant::now(),
+            media: None,
+            media_at: Instant::now(),
         })
     }
 
@@ -232,6 +236,8 @@ impl App {
         if let Some(s) = self.session.take() {
             self.place_windows(&s);
         }
+        let main_window = self.win(Kind::Main).and_then(|w| w.window.clone());
+        self.media = crate::media::Media::start(main_window.as_deref());
         self.lib_start();
     }
 
@@ -685,6 +691,7 @@ impl App {
     /// Animation and housekeeping, about 30 times a second while busy.
     pub fn tick(&mut self) {
         self.poll_audio();
+        self.media_tick();
         if self.drop_visible() {
             self.mark(Kind::Vis);
         }
@@ -1502,6 +1509,7 @@ impl App {
         match key {
             Key::Character(c) => match c.to_lowercase().as_str() {
                 "w" if alt => {}
+                "q" if self.modifiers.super_key() => self.quit = true,
                 "l" if alt => self.toggle_window(Kind::Library),
                 "k" if alt || (ctrl && self.modifiers.shift_key()) => self.toggle_window(Kind::Vis),
                 "e" if alt => self.toggle_window(Kind::Playlist),
