@@ -18,18 +18,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: apps/gamp-ios/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
       - run: npm ci
+        working-directory: apps/gamp-ios
       - run: npm run build
-      - run: cargo test --lib --locked
-        working-directory: src-tauri
-      - run: cargo build --locked
-        working-directory: src-tauri
+        working-directory: apps/gamp-ios
+      - run: cargo test --workspace --lib --locked
+      - run: cargo build --locked -p gamp-ios
       # Runs the real app's server on this OS: page, scan, playback, safety.
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: python scripts/smoke.py src-tauri/target/debug/g-amp${{ runner.os == 'Windows' && '.exe' || '' }}
+      - run: python scripts/smoke.py target/debug/gamp-ios${{ runner.os == 'Windows' && '.exe' || '' }}

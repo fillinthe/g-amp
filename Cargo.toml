@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "apps/gamp-ios/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT"
+repository = "https://github.com/fillinthe/g-amp"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

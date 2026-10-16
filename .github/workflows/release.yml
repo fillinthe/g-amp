@@ -32,13 +32,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: apps/gamp-ios/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
       - run: npm ci
+        working-directory: apps/gamp-ios
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,4 +47,5 @@ jobs:
           releaseName: G-Amp ${{ github.ref_name }}
           releaseBody: "Unsigned builds. macOS: right-click › Open the first time. Windows: More info › Run anyway."
           releaseDraft: true
+          projectPath: apps/gamp-ios
           args: ${{ matrix.args }}

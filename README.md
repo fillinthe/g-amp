@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/gamp-icon.png" width="128" alt="G-Amp"></p>
+
 # G-Amp
 
 The classic Winamp 2 player, via [Webamp](https://webamp.org), as a small native
@@ -85,18 +87,26 @@ or a headless box), then open `http://127.0.0.1:8742` in a browser.
 
 ## Build
 
-Needs Node 20+ and Rust 1.90+.
+Needs Rust 1.90+ and Node 20+.
+
+The repository is a Cargo workspace:
+
+- `crates/gamp-core`: every music source, the library, Spotify, SoundCloud, the settings store and the local server.
+- `apps/gamp-ios`: the current app (Tauri with the Webamp page), used for the 0.1 releases and the iPhone build.
+- A fully native Rust player (its own skin engine, audio engine and visualizers) is being built in `crates/` and `apps/gamp`. See the roadmap in the issues.
 
 ```sh
+cd apps/gamp-ios
 npm install
 npm run app          # run it in development
-npm run release      # macOS .app (in src-tauri/target/release/bundle)
+npm run release      # macOS .app (in target/release/bundle at the repo root)
 npm run windows      # Windows installer from macOS (needs cargo-xwin, llvm, lld, makensis)
-cd src-tauri && cargo test --lib
+cd ../.. && cargo test --workspace --lib
+python3 scripts/smoke.py target/debug/gamp-ios
 ```
 
 For iPhone (needs Xcode and CocoaPods), set your Apple team and generate the
-Xcode project once:
+Xcode project once, from `apps/gamp-ios`:
 
 ```sh
 export APPLE_DEVELOPMENT_TEAM=YOURTEAMID
