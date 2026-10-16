@@ -1,0 +1,20 @@
+[package]
+name = "gamp-audio"
+description = "G-Amp's audio engine: decode, resample, Winamp EQ, output, analysis"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow = "1.0.104"
+cpal = "0.18.2"
+crossbeam-channel = "0.5.17"
+log = "0.4.34"
+rtrb = "0.4.0"
+rubato = "5.0.1"
+rustfft = "6.4.1"
+# The same decoder version librespot uses, so it's built once.
+symphonia = { version = "0.5", features = ["all-codecs", "all-formats"] }
+audioadapter-buffers = "5"
