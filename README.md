@@ -1,7 +1,7 @@
-# Winamp Hub
+# G-Amp
 
 The classic Winamp 2 player, via [Webamp](https://webamp.org), as a small native
-app for macOS, Windows, Linux and iOS. It plays everything you have: music
+app for macOS, Windows and iOS (Linux builds too, untested). It plays everything you have: music
 folders and network drives, your NAS and media servers, Dropbox, internet
 radio, podcasts, the Internet Archive, SoundCloud and Spotify. Winamp's
 equalizer, skins and MilkDrop visualizer work on every source.
@@ -42,6 +42,13 @@ Spotify playback uses [librespot](https://github.com/librespot-org/librespot),
 the open-source engine also used by spotifyd, ncspot and Spotifast. Spotify
 does not officially support third-party players, so use it at your own risk.
 
+## Download
+
+Builds for macOS (Apple silicon and Intel) and Windows are on the
+[Releases](https://github.com/fillinthe/g-amp/releases) page. They are
+unsigned: on a Mac, right-click › Open the first time; on Windows, More info ›
+Run anyway. iPhone builds need your own Apple developer account (see Build).
+
 ## Using it
 
 - Drag any Winamp title bar to move the app. Winamp's close button quits.
@@ -64,7 +71,8 @@ equalizer and visualizers see the real signal:
 - local files are served with byte ranges;
 - media servers, WebDAV, Dropbox, DLNA, podcasts and the Archive are proxied
   with byte ranges (`src-tauri/src/sources/`);
-- radio streams are passed through, including old SHOUTcast servers;
+- radio streams are passed through, including old SHOUTcast servers, and
+  the station's song titles show in Winamp's scrolling display;
 - SoundCloud's HLS is stitched into one seekable MP3;
 - Spotify is decoded by librespot into a seekable WAV stream.
 
@@ -72,7 +80,7 @@ The server only listens on 127.0.0.1, refuses requests from other web
 origins, and only fetches track addresses it signed itself. Passwords and
 tokens stay in the app's data folder, readable by your user alone.
 
-`winamp-hub --server <data-dir>` runs the server without a window (for a NAS
+`g-amp --server <data-dir>` runs the server without a window (for a NAS
 or a headless box), then open `http://127.0.0.1:8742` in a browser.
 
 ## Build
