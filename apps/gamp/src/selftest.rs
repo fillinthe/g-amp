@@ -75,12 +75,14 @@ pub fn run() -> anyhow::Result<()> {
 
     // Online, when asked: a pasted SoundCloud link plays and seeks.
     if let Ok(link) = std::env::var("GAMP_SELFTEST_LINK") {
+        app.player.stop();
         app.lib_open(crate::library::Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() }, true);
         app.lib.view.search.value = link;
         app.lib_submit("search");
-        wait(&mut app, 30, "a SoundCloud link plays", |a| a.main.state == PlayState::Playing && a.main.elapsed > 1.0)?;
+        let soundcloud = |a: &App| a.playlist.current().is_some_and(|e| e.url.as_deref().is_some_and(|u| u.contains("/soundcloud/")));
+        wait(&mut app, 30, "a SoundCloud link plays", |a| soundcloud(a) && a.main.state == PlayState::Playing && a.main.elapsed > 1.0)?;
         app.player.seek(120.0);
-        wait(&mut app, 30, "seeking in a SoundCloud stream", |a| a.main.elapsed >= 120.0)?;
+        wait(&mut app, 30, "seeking in a SoundCloud stream", |a| soundcloud(a) && a.main.elapsed >= 120.0)?;
     }
 
     // Every window draws.
