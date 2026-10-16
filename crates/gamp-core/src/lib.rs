@@ -4,6 +4,7 @@
 //! settings store, and the local server the iPhone app's page runs on.
 //! No UI here: the native desktop app and the iPhone app both build on it.
 
+pub mod catalog;
 pub mod http;
 pub mod library;
 pub mod server;

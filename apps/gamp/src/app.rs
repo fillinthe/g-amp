@@ -32,11 +32,12 @@ pub enum Kind {
     Main,
     Eq,
     Playlist,
+    Library,
     /// A pop-up menu; the number is its depth (sub-menus are deeper).
     Menu(usize),
 }
 
-struct MenuLevel {
+pub(crate) struct MenuLevel {
     items: Vec<Item>,
     hover: Option<usize>,
     win: Win,
@@ -44,51 +45,64 @@ struct MenuLevel {
     child_of: Option<usize>,
 }
 
-struct Drag {
+pub(crate) struct Drag {
     kind: Kind,
     start: (f64, f64),
     group: Vec<(Kind, (i32, i32))>,
 }
 
-struct Resize {
-    start: (f64, f64),
-    size: (u32, u32),
+pub(crate) struct Resize {
+    pub(crate) start: (f64, f64),
+    pub(crate) size: (u32, u32),
 }
 
 pub struct App {
     pub skin: Skin,
     pub player: Player,
     pub playlist: Playlist,
-    ids: HashMap<u64, usize>,
+    pub(crate) ids: HashMap<u64, usize>,
     pub main: main_window::View,
     pub eq: eq_window::View,
     pub pl: plw::View,
     pub wins: HashMap<Kind, Win>,
-    menus: Vec<MenuLevel>,
+    pub(crate) menus: Vec<MenuLevel>,
     pub double: bool,
     pub on_top: bool,
     pub modifiers: ModifiersState,
-    drag: Option<Drag>,
-    resize: Option<Resize>,
-    last_click: Option<(Instant, Kind, i32, i32)>,
-    marquee_at: Instant,
-    blink_at: Instant,
-    spectrum: Spectrum,
-    wave: Vec<f32>,
-    spec: Vec<f32>,
-    bars: Vec<f32>,
+    pub(crate) drag: Option<Drag>,
+    pub(crate) resize: Option<Resize>,
+    pub(crate) last_click: Option<(Instant, Kind, i32, i32)>,
+    pub(crate) marquee_at: Instant,
+    pub(crate) blink_at: Instant,
+    pub(crate) spectrum: Spectrum,
+    pub(crate) wave: Vec<f32>,
+    pub(crate) spec: Vec<f32>,
+    pub(crate) bars: Vec<f32>,
     pub data_dir: PathBuf,
     /// Set when the app should quit.
     pub quit: bool,
     /// The row a playlist drag started on (reordering).
-    pl_drag: Option<usize>,
+    pub(crate) pl_drag: Option<usize>,
+    pub(crate) backend: Option<crate::backend::Backend>,
+    pub(crate) lib: crate::library::LibState,
+    /// A pasted radio address: play it when the search answers.
+    pub(crate) pending_stream: bool,
+    /// When to refresh the source list (after a DLNA search).
+    pub(crate) pending_refresh: Option<Instant>,
+    /// When to ask how a folder scan is going.
+    pub(crate) pending_scan: Option<Instant>,
     /// Files dropped in one go (each arrives as its own event).
-    drops: Vec<PathBuf>,
-    drop_target: Option<Kind>,
+    pub(crate) drops: Vec<PathBuf>,
+    pub(crate) drop_target: Option<Kind>,
+    /// Show the library at start (first run, nothing to play yet).
+    pub(crate) lib_open_at_start: bool,
 }
 
 /// Where settings and skins live (the same folder the earlier app used).
 pub fn data_dir() -> PathBuf {
+    if let Some(d) = std::env::var_os("WINAMP_DATA") {
+        return PathBuf::from(d);
+    }
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).unwrap_or_default();
     let base = if cfg!(target_os = "macos") {
         home.join("Library/Application Support")
@@ -101,7 +115,7 @@ pub fn data_dir() -> PathBuf {
 }
 
 impl App {
-    pub fn new(output: OutputKind) -> anyhow::Result<App> {
+    pub fn new(output: OutputKind, backend: Option<crate::backend::Backend>) -> anyhow::Result<App> {
         let player = Player::new(output).or_else(|e| {
             log::warn!("no sound output ({e}); playing silently");
             Player::new(OutputKind::Null)
@@ -112,7 +126,7 @@ impl App {
         let eq = eq_window::View { on: true, ..Default::default() };
         let pl = plw::View { width: plw::MIN_WIDTH, height: plw::MIN_HEIGHT + 29 * 2, running: "0:00/0:00".into(), ..Default::default() };
         let mut wins = HashMap::new();
-        for k in [Kind::Main, Kind::Eq, Kind::Playlist] {
+        for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library] {
             wins.insert(k, Win::headless());
         }
         Ok(App {
@@ -142,6 +156,12 @@ impl App {
             pl_drag: None,
             drops: Vec::new(),
             drop_target: None,
+            backend,
+            lib: Default::default(),
+            pending_stream: false,
+            pending_refresh: None,
+            pending_scan: None,
+            lib_open_at_start: false,
         })
     }
 
@@ -157,6 +177,8 @@ impl App {
             Kind::Main => (main_window::WIDTH, if self.main.shade { main_window::SHADE_HEIGHT } else { main_window::HEIGHT }),
             Kind::Eq => (eq_window::WIDTH, if self.eq.shade { eq_window::SHADE_HEIGHT } else { eq_window::HEIGHT }),
             Kind::Playlist => self.pl.size(),
+            // The library isn't doubled (Winamp's wasn't either).
+            Kind::Library => return LogicalSize::new(self.lib.view.size().0, self.lib.view.size().1),
             Kind::Menu(i) => return self.menus.get(i).map(|m| menu::size(&m.items)).map(|(w, h)| LogicalSize::new(w, h)).unwrap_or(LogicalSize::new(1, 1)),
         };
         LogicalSize::new(w * z, h * z)
@@ -183,6 +205,12 @@ impl App {
             w.show(visible);
             self.wins.insert(k, w);
         }
+        // The library opens beside the stack when you ask for it.
+        let lx = x + (main_window::WIDTH as f64 * scale * self.zoom() as f64) as i32;
+        let mut w = Win::open(Some(el), "G-Amp Media Library", self.logical_size(Kind::Library), (lx, y), false);
+        w.show(self.lib_open_at_start);
+        self.wins.insert(Kind::Library, w);
+        self.lib_start();
     }
 
     pub fn win_mut(&mut self, k: Kind) -> Option<&mut Win> {
@@ -242,6 +270,12 @@ impl App {
                     w.present();
                 }
             }
+            Kind::Library => {
+                if let Some(w) = self.wins.get_mut(&k) {
+                    self.lib.hots = gamp_ui::library_window::draw(&mut w.frame, &self.skin, &self.lib.view);
+                    w.present();
+                }
+            }
             Kind::Menu(i) => {
                 if let Some(m) = self.menus.get_mut(i) {
                     menu::draw(&mut m.win.frame, &m.items, m.hover);
@@ -273,7 +307,7 @@ impl App {
         Some(Rect { x: w.pos.0, y: w.pos.1, w: sw, h: sh })
     }
 
-    fn toggle_window(&mut self, k: Kind) {
+    pub(crate) fn toggle_window(&mut self, k: Kind) {
         let on = match k {
             Kind::Eq => {
                 self.main.eq_open = !self.main.eq_open;
@@ -283,6 +317,7 @@ impl App {
                 self.main.playlist_open = !self.main.playlist_open;
                 self.main.playlist_open
             }
+            Kind::Library => !self.wins.get(&Kind::Library).is_some_and(|w| w.visible),
             _ => return,
         };
         if let Some(w) = self.wins.get_mut(&k) {
@@ -353,23 +388,47 @@ impl App {
 
     // ---- playback -------------------------------------------------------
 
-    fn load_current(&mut self, play: bool) {
+    /// What the audio engine plays for an entry: a file, or a network
+    /// track read from the local server (opened on the decoder thread).
+    fn input_for(&self, entry: &Entry) -> Result<Input, String> {
+        match &entry.url {
+            Some(path) => {
+                let Some(url) = self.backend.as_ref().map(|b| b.url(path)) else { return Err("no network".into()) };
+                let live = entry.live;
+                Ok(Input::Later(Box::new(move || {
+                    let src = crate::stream::HttpSource::open(&url)?;
+                    let ext = crate::stream::ext_of(&url);
+                    let _ = live;
+                    Ok(Input::Media { source: Box::new(src), ext })
+                })))
+            }
+            None => Input::file(&entry.path).map_err(|e| e.to_string()),
+        }
+    }
+
+    pub(crate) fn load_current(&mut self, play: bool) {
         let Some(entry) = self.playlist.current().cloned() else { return };
-        match Input::file(&entry.path) {
+        match self.input_for(&entry) {
             Ok(input) => {
                 let id = self.player.load(input, play);
                 self.ids.insert(id, self.playlist.current);
-                self.queue_after(self.playlist.current);
+                // An endless stream has no "next"; anything else lines up the next.
+                if !entry.live {
+                    self.queue_after(self.playlist.current);
+                }
             }
             Err(e) => self.main.message = Some(format!("CAN'T OPEN: {e}")),
         }
         self.update_title();
     }
 
-    fn queue_after(&mut self, index: usize) {
+    pub(crate) fn queue_after(&mut self, index: usize) {
         let Some(next) = self.playlist.after(index) else { return };
         let Some(entry) = self.playlist.entries.get(next).cloned() else { return };
-        if let Ok(input) = Input::file(&entry.path) {
+        if entry.live {
+            return;
+        }
+        if let Ok(input) = self.input_for(&entry) {
             let id = self.player.queue(input);
             self.ids.insert(id, next);
         }
@@ -389,7 +448,7 @@ impl App {
     }
 
     /// Copies the play queue into the playlist window's view.
-    fn sync_playlist(&mut self) {
+    pub(crate) fn sync_playlist(&mut self) {
         self.pl.tracks = self.playlist.entries.iter().map(|e| plw::Track { title: e.display(), length: e.duration.map(clock).unwrap_or_default() }).collect();
         self.pl.current = (!self.playlist.entries.is_empty()).then_some(self.playlist.current);
         self.pl.selected.retain(|i| *i < self.playlist.entries.len());
@@ -598,6 +657,20 @@ impl App {
     /// Animation and housekeeping, about 30 times a second while busy.
     pub fn tick(&mut self) {
         self.poll_audio();
+        self.lib_poll();
+        if self.pending_scan.is_some_and(|t| Instant::now() >= t) {
+            self.pending_scan = None;
+            if let Some(b) = &self.backend {
+                b.scan_status();
+            }
+        }
+        if self.pending_refresh.is_some_and(|t| Instant::now() >= t) {
+            self.pending_refresh = None;
+            if let Some(b) = &self.backend {
+                b.refresh_sources();
+                b.config();
+            }
+        }
         let now = Instant::now();
         if self.main.state == PlayState::Playing && self.main.vis_mode != VisMode::Off {
             self.player.waveform(&mut self.wave);
@@ -634,7 +707,7 @@ impl App {
     }
 
     pub fn busy(&self) -> bool {
-        self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.title.chars().count() * 5 > 154 || self.drag.is_some()
+        self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.title.chars().count() * 5 > 154 || self.drag.is_some()
     }
 
     // ---- pointer --------------------------------------------------------
@@ -649,17 +722,21 @@ impl App {
         if self.resize.is_some() && k == Kind::Playlist {
             return self.resize_playlist();
         }
+        if self.resize.is_some() && k == Kind::Library {
+            return self.resize_library();
+        }
         let (cx, cy) = self.win(k).map(|w| w.cursor).unwrap_or((0, 0));
         match k {
             Kind::Main if self.main.pressed.is_some() => self.main_drag(cx),
             Kind::Eq if self.eq.pressed.is_some() => self.eq_drag(cx, cy),
             Kind::Playlist => self.pl_move(cx, cy),
+            Kind::Library => self.lib_drag(cx, cy),
             Kind::Menu(i) => self.menu_hover(i, cx, cy, el),
             _ => {}
         }
     }
 
-    fn double_click(&mut self, k: Kind, x: i32, y: i32) -> bool {
+    pub(crate) fn double_click(&mut self, k: Kind, x: i32, y: i32) -> bool {
         let dbl = self.last_click.is_some_and(|(t, lk, lx, ly)| lk == k && t.elapsed() < DOUBLE_CLICK && (lx - x).abs() < 4 && (ly - y).abs() < 4);
         self.last_click = Some((Instant::now(), k, x, y));
         dbl
@@ -667,9 +744,9 @@ impl App {
 
     /// Starts moving a window (and, for the main window, everything docked
     /// to it).
-    fn start_drag(&mut self, k: Kind) {
+    pub(crate) fn start_drag(&mut self, k: Kind) {
         let Some(start) = self.win(k).map(Win::global_cursor) else { return };
-        let kinds = [Kind::Main, Kind::Eq, Kind::Playlist];
+        let kinds = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library];
         let mut group = vec![(k, self.win(k).map(|w| w.pos).unwrap_or_default())];
         if k == Kind::Main {
             let visible: Vec<Kind> = kinds.iter().copied().filter(|k| self.rect(*k).is_some()).collect();
@@ -691,7 +768,7 @@ impl App {
             .iter()
             .filter_map(|(k, (x, y))| self.rect(*k).map(|r| Rect { x: x + dx, y: y + dy, ..r }))
             .collect();
-        let others: Vec<Rect> = [Kind::Main, Kind::Eq, Kind::Playlist].iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
+        let others: Vec<Rect> = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library].iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
         let screen = self.win(Kind::Main).and_then(|w| w.window.as_ref()).and_then(|w| w.current_monitor()).map(|m| {
             let (p, s) = (m.position(), m.size());
             Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 }
@@ -716,6 +793,7 @@ impl App {
             Kind::Main => self.main_press(x, y, el),
             Kind::Eq => self.eq_press(x, y, el),
             Kind::Playlist => self.pl_press(x, y),
+            Kind::Library => self.lib_press(x, y),
             Kind::Menu(_) => {}
         }
     }
@@ -728,6 +806,7 @@ impl App {
             Kind::Main => self.main_release(el),
             Kind::Eq => self.eq_release(el),
             Kind::Playlist => self.pl_release(el),
+            Kind::Library => self.lib_release(),
             Kind::Menu(i) => self.menu_release(i, el),
         }
     }
@@ -991,7 +1070,7 @@ impl App {
         if delta == 0 {
             return;
         }
-        let current_path = self.playlist.current().map(|e| e.path.clone());
+        let current_path = self.playlist.current().map(Entry::key);
         let mut order: Vec<usize> = (0..n as usize).filter(|i| !self.pl.selected.contains(i)).collect();
         let insert_at = (lo + delta) as usize;
         let insert_at = insert_at.min(order.len());
@@ -1002,7 +1081,7 @@ impl App {
         self.playlist.entries = order.iter().map(|i| entries[*i].clone()).collect();
         self.pl.selected = (insert_at..insert_at + sel.len()).collect();
         if let Some(p) = current_path {
-            self.playlist.current = self.playlist.entries.iter().position(|e| e.path == p).unwrap_or(0);
+            self.playlist.current = self.playlist.entries.iter().position(|e| e.key() == p).unwrap_or(0);
         }
         self.playlist.reshuffle();
         self.ids.clear();
@@ -1039,7 +1118,13 @@ impl App {
     fn pl_menu_action(&mut self, m: PlMenu, i: usize, _el: Option<&ActiveEventLoop>) {
         let n = self.playlist.entries.len();
         match (m, i) {
-            (PlMenu::Add, 0) => self.main.message = Some("ADD URL: COMING WITH THE MEDIA LIBRARY".into()),
+            (PlMenu::Add, 0) => {
+                // Winamp's "Add URL": the library's radio search takes any address.
+                if !self.wins.get(&Kind::Library).is_some_and(|w| w.visible) {
+                    self.toggle_window(Kind::Library);
+                }
+                self.lib_open(crate::library::Page::Search { sid: "radio".into(), title: "Internet Radio › Search".into() }, true);
+            }
             (PlMenu::Add, 1) => self.pick_folder(false),
             (PlMenu::Add, 2) => self.pick_files(false),
             (PlMenu::Remove, 0) => self.clear_playlist(),
@@ -1047,7 +1132,7 @@ impl App {
             (PlMenu::Remove, 2) => self.remove_selected(),
             (PlMenu::Remove, 3) => {
                 // Remove files that are gone.
-                let keep: BTreeSet<usize> = (0..n).filter(|i| self.playlist.entries[*i].path.exists()).collect();
+                let keep: BTreeSet<usize> = (0..n).filter(|i| self.playlist.entries[*i].url.is_some() || self.playlist.entries[*i].path.exists()).collect();
                 self.keep_only(keep);
             }
             (PlMenu::Select, 0) => self.pl.selected = (0..n).filter(|i| !self.pl.selected.contains(i)).collect(),
@@ -1075,10 +1160,10 @@ impl App {
     }
 
     fn keep_only(&mut self, keep: BTreeSet<usize>) {
-        let current = self.playlist.current().map(|e| e.path.clone());
+        let current = self.playlist.current().map(Entry::key);
         let entries = std::mem::take(&mut self.playlist.entries);
         self.playlist.entries = entries.into_iter().enumerate().filter(|(i, _)| keep.contains(i)).map(|(_, e)| e).collect();
-        self.playlist.current = current.and_then(|p| self.playlist.entries.iter().position(|e| e.path == p)).unwrap_or(0);
+        self.playlist.current = current.and_then(|p| self.playlist.entries.iter().position(|e| e.key() == p)).unwrap_or(0);
         self.playlist.reshuffle();
         self.pl.selected.clear();
         self.ids.clear();
@@ -1091,9 +1176,9 @@ impl App {
     }
 
     fn sort_playlist(&mut self) {
-        let current = self.playlist.current().map(|e| e.path.clone());
+        let current = self.playlist.current().map(Entry::key);
         self.playlist.entries.sort_by_key(|e| e.display().to_lowercase());
-        self.playlist.current = current.and_then(|p| self.playlist.entries.iter().position(|e| e.path == p)).unwrap_or(0);
+        self.playlist.current = current.and_then(|p| self.playlist.entries.iter().position(|e| e.key() == p)).unwrap_or(0);
         self.playlist.reshuffle();
         self.ids.clear();
     }
@@ -1102,7 +1187,11 @@ impl App {
         let Some(path) = rfd::FileDialog::new().add_filter("M3U playlist", &["m3u8"]).set_file_name("playlist.m3u8").save_file() else { return };
         let mut out = String::from("#EXTM3U\n");
         for e in &self.playlist.entries {
-            out.push_str(&format!("#EXTINF:{},{}\n{}\n", e.duration.map(|d| d.round() as i64).unwrap_or(-1), e.display(), e.path.display()));
+            let place = match &e.url {
+                Some(u) => self.backend.as_ref().map(|b| b.url(u)).unwrap_or_else(|| u.clone()),
+                None => e.path.display().to_string(),
+            };
+            out.push_str(&format!("#EXTINF:{},{}\n{}\n", e.duration.map(|d| d.round() as i64).unwrap_or(-1), e.display(), place));
         }
         if let Err(e) = std::fs::write(&path, out) {
             self.main.message = Some(format!("CAN'T SAVE: {e}"));
@@ -1131,8 +1220,25 @@ impl App {
         self.resize_window(Kind::Playlist);
     }
 
+    fn resize_library(&mut self) {
+        let Some(r) = &self.resize else { return };
+        let Some(w) = self.win(Kind::Library) else { return };
+        let now = w.global_cursor();
+        let scale = w.scale();
+        let nw = (r.size.0 as f64 + (now.0 - r.start.0) / scale).max(gamp_ui::library_window::MIN_WIDTH as f64) as u32;
+        let nh = (r.size.1 as f64 + (now.1 - r.start.1) / scale).max(gamp_ui::library_window::MIN_HEIGHT as f64) as u32;
+        // Winamp's steps: 25 wide, 29 high.
+        let (nw, nh) = (275 + (nw.saturating_sub(275) + 12) / 25 * 25, 116 + (nh.saturating_sub(116) + 14) / 29 * 29);
+        if (nw, nh) != (self.lib.view.width, self.lib.view.height) {
+            self.lib.view.width = nw.max(gamp_ui::library_window::MIN_WIDTH);
+            self.lib.view.height = nh.max(gamp_ui::library_window::MIN_HEIGHT);
+            self.resize_window(Kind::Library);
+        }
+    }
+
     pub fn wheel(&mut self, k: Kind, lines: f64) {
         match k {
+            Kind::Library => self.lib_wheel(lines),
             Kind::Playlist => {
                 let top = self.pl.top as isize - (lines * 3.0).round() as isize;
                 self.pl.top = top.clamp(0, self.pl.max_top() as isize) as usize;
@@ -1178,6 +1284,7 @@ impl App {
             Item::action("win:main", "Main window").checked(true).shortcut("Alt+W"),
             Item::action("win:playlist", "Playlist editor").checked(self.main.playlist_open).shortcut("Alt+E"),
             Item::action("win:eq", "Equalizer").checked(self.main.eq_open).shortcut("Alt+G"),
+            Item::action("win:library", "Media Library").checked(self.wins.get(&Kind::Library).is_some_and(|w| w.visible)).shortcut("Alt+L"),
             Item::Separator,
             Item::submenu("Skins", skins),
             Item::submenu(
@@ -1293,6 +1400,7 @@ impl App {
             "open:folder" => self.pick_folder(true),
             "win:playlist" => self.toggle_window(Kind::Playlist),
             "win:eq" => self.toggle_window(Kind::Eq),
+            "win:library" => self.toggle_window(Kind::Library),
             "skin:load" => {
                 if let Some(f) = rfd::FileDialog::new().add_filter("Winamp skins", &["wsz", "zip"]).pick_file() {
                     self.load_skin(Some(f));
@@ -1338,7 +1446,10 @@ impl App {
     // ---- keys -----------------------------------------------------------------
 
     /// Winamp's keys, in any of the windows.
-    pub fn key(&mut self, k: Kind, key: &Key) {
+    pub fn key(&mut self, k: Kind, key: &Key, text: Option<&str>) {
+        if k == Kind::Library && self.lib_key(key, text) {
+            return;
+        }
         let ctrl = self.modifiers.control_key() || self.modifiers.super_key();
         let alt = self.modifiers.alt_key();
         if let Kind::Menu(_) = k {
@@ -1350,6 +1461,7 @@ impl App {
         match key {
             Key::Character(c) => match c.to_lowercase().as_str() {
                 "w" if alt => {}
+                "l" if alt => self.toggle_window(Kind::Library),
                 "e" if alt => self.toggle_window(Kind::Playlist),
                 "g" if alt => self.toggle_window(Kind::Eq),
                 "a" if ctrl && k == Kind::Playlist => self.pl.selected = (0..self.playlist.entries.len()).collect(),
@@ -1401,6 +1513,7 @@ impl App {
             Kind::Main => self.main.focused = focused,
             Kind::Eq => self.eq.focused = focused,
             Kind::Playlist => self.pl.focused = focused,
+            Kind::Library => self.lib.view.focused = focused,
             Kind::Menu(_) => {
                 if !focused {
                     self.menu_lost_focus(k);
@@ -1501,7 +1614,7 @@ mod tests {
     #[test]
     fn main_window_buttons_drive_the_player() {
         let dir = songs("main", 3, 4);
-        let mut app = App::new(OutputKind::Null).unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
         app.open_files(vec![dir.clone()], true);
         settle(&mut app);
         assert_eq!(app.playlist.entries.len(), 3);
@@ -1552,7 +1665,7 @@ mod tests {
 
     #[test]
     fn equalizer_sliders_and_presets() {
-        let mut app = App::new(OutputKind::Null).unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
         app.redraw(Kind::Eq);
         // Drag the 1 kHz band (x 150) to the top: +12 dB.
         at(&mut app, Kind::Eq, 155, 43);
@@ -1572,7 +1685,7 @@ mod tests {
     #[test]
     fn playlist_selection_menus_and_reordering() {
         let dir = songs("pl", 5, 2);
-        let mut app = App::new(OutputKind::Null).unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
         app.open_files(vec![dir.clone()], true);
         settle(&mut app);
         app.redraw(Kind::Playlist);
@@ -1609,7 +1722,7 @@ mod tests {
 
     #[test]
     fn menus_open_and_act() {
-        let mut app = App::new(OutputKind::Null).unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
         app.context_menu(Kind::Main, None);
         assert_eq!(app.menus.len(), 1);
         // Hover "Options" opens its sub-menu; pick "Double size".
@@ -1634,7 +1747,7 @@ mod tests {
     #[test]
     fn gapless_runs_through_the_list() {
         let dir = songs("gapless", 2, 1);
-        let mut app = App::new(OutputKind::Null).unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
         app.open_files(vec![dir.clone()], true);
         let start = Instant::now();
         let mut saw_second = false;

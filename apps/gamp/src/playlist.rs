@@ -2,9 +2,14 @@
 
 use std::path::{Path, PathBuf};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Entry {
+    /// A file; empty for network tracks.
     pub path: PathBuf,
+    /// A network track: its address on the local server (/media/...).
+    pub url: Option<String>,
+    /// Endless (radio).
+    pub live: bool,
     pub artist: String,
     pub title: String,
     pub duration: Option<f64>,
@@ -14,7 +19,7 @@ impl Entry {
     /// Reads the tags, falling back to the file name.
     pub fn read(path: &Path) -> Entry {
         use lofty::prelude::*;
-        let mut e = Entry { path: path.to_path_buf(), artist: String::new(), title: String::new(), duration: None };
+        let mut e = Entry { path: path.to_path_buf(), ..Default::default() };
         if let Ok(file) = lofty::read_from_path(path) {
             let d = file.properties().duration().as_secs_f64();
             if d > 0.0 {
@@ -29,6 +34,16 @@ impl Entry {
             e.title = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         }
         e
+    }
+
+    /// A track from the library's sources.
+    pub fn remote(url: String, title: String, artist: String, duration: Option<f64>, live: bool) -> Entry {
+        Entry { url: Some(url), title, artist, duration, live, ..Default::default() }
+    }
+
+    /// The same track (for keeping a place in the queue).
+    pub fn key(&self) -> String {
+        self.url.clone().unwrap_or_else(|| self.path.to_string_lossy().into_owned())
     }
 
     /// "Artist - Title", or just the title.

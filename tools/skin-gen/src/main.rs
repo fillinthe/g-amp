@@ -79,6 +79,20 @@ fn bar_piece(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, active: bool, from:
     grooves(c, x + from, y + h / 2 - 2, to - from, active);
 }
 
+/// A bottom-edge piece: lines only along the top and bottom, plus the
+/// outer side for corners, so tiles join without seams.
+fn edge_piece(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, left: bool, right: bool) {
+    c.vgrad(x, y, w, h, BODY, BODY_DARK);
+    c.hline(x, y, w, BODY_HI);
+    c.hline(x, y + h - 1, w, BODY_LO);
+    if left {
+        c.vline(x, y, h, BODY_HI);
+    }
+    if right {
+        c.vline(x + w - 1, y, h, BODY_LO);
+    }
+}
+
 /// A 9×9 title-bar button with a symbol.
 fn small_button(c: &mut Canvas, x: i32, y: i32, symbol: &[&str], down: bool) {
     c.rect(x, y, 9, 9, if down { BTN_DOWN } else { BTN });
@@ -516,10 +530,9 @@ fn pledit_bmp() -> Canvas {
         title_bar(&mut c, x, y, w, 14, "", active, 0, 0);
     }
     // Bottom edge: tile, corners, visualizer box.
-    for (x, w) in [(179, 25), (0, 125), (126, 150)] {
-        let y = if x == 179 { 0 } else { 72 };
-        body(&mut c, x, y, w, 38);
-    }
+    edge_piece(&mut c, 179, 0, 25, 38, false, false);
+    edge_piece(&mut c, 0, 72, 125, 38, true, false);
+    edge_piece(&mut c, 126, 72, 150, 38, false, true);
     body(&mut c, 205, 0, 75, 38);
     lcd(&mut c, 208, 3, 72, 32);
     for (i, label) in ["ADD", "REM", "SEL", "MISC"].iter().enumerate() {
@@ -578,14 +591,13 @@ fn gen_bmp() -> Canvas {
         bar_piece(&mut c, 78, y, 25, 20, active, 4, 25);
         bar_piece(&mut c, 104, y, 25, 20, active, 0, 25);
         bar_piece(&mut c, 130, y, 25, 20, active, 0, 12);
-        small_button(&mut c, 130 + 14, y + 6, SYM_CLOSE, false);
+        small_button(&mut c, 130 + 14, y + 3, SYM_CLOSE, false);
         c.vline(0, y, 20, BODY_HI);
         c.vline(154, y, 20, BODY_LO);
     }
-    for (y, _) in [(42, 0), (57, 0)] {
-        body(&mut c, 0, y, 125, 14);
-    }
-    body(&mut c, 127, 72, 25, 14);
+    edge_piece(&mut c, 0, 42, 125, 14, true, false);
+    edge_piece(&mut c, 0, 57, 125, 14, false, true);
+    edge_piece(&mut c, 127, 72, 25, 14, false, false);
     for (x, w, y, h) in [(127, 11, 42, 29), (158, 11, 42, 24), (139, 8, 42, 29), (170, 8, 42, 24)] {
         c.rect(x, y, w, h, BODY);
         let left = x == 127 || x == 158;
