@@ -74,22 +74,67 @@ pub fn expand(paths: &[PathBuf]) -> Vec<PathBuf> {
     out
 }
 
-/// The files listed in an .m3u/.m3u8 or .pls playlist (relative paths
-/// are relative to the playlist).
-pub fn read_list(path: &Path) -> Vec<PathBuf> {
+/// A line of a saved .m3u/.m3u8/.pls playlist.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Listed {
+    /// A file on disk.
+    File(PathBuf),
+    /// A stream or web address, with what the playlist says about it.
+    Link { url: String, title: String, duration: Option<f64> },
+}
+
+/// What an .m3u/.m3u8 or .pls playlist lists: files (relative paths are
+/// relative to the playlist) and addresses, with the titles and lengths
+/// the playlist gives them.
+pub fn read_list(path: &Path) -> Vec<Listed> {
     let Ok(text) = std::fs::read_to_string(path) else { return Vec::new() };
     let base = path.parent().unwrap_or(Path::new("."));
-    text.lines()
-        .map(str::trim)
-        .filter_map(|l| if l.to_ascii_lowercase().starts_with("file") && l.contains('=') { l.split_once('=').map(|(_, v)| v.trim()) } else { Some(l) })
-        .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('['))
-        .filter(|l| !l.contains("://"))
-        .map(|l| {
-            let p = PathBuf::from(l);
-            if p.is_absolute() { p } else { base.join(p) }
-        })
-        .filter(|p| is_audio(p))
-        .collect()
+    let pls = path.extension().is_some_and(|e| e.eq_ignore_ascii_case("pls")) || text.trim_start().to_ascii_lowercase().starts_with("[playlist]");
+    if pls { parse_pls(&text, base) } else { parse_m3u(&text, base) }
+}
+
+fn listed(place: &str, base: &Path, title: String, duration: Option<f64>) -> Option<Listed> {
+    if place.contains("://") {
+        let title = if title.is_empty() { place.to_owned() } else { title };
+        return Some(Listed::Link { url: place.to_owned(), title, duration });
+    }
+    let p = PathBuf::from(place);
+    let p = if p.is_absolute() { p } else { base.join(p) };
+    is_audio(&p).then_some(Listed::File(p))
+}
+
+fn parse_m3u(text: &str, base: &Path) -> Vec<Listed> {
+    let mut out = Vec::new();
+    let mut title = String::new();
+    let mut duration = None;
+    for l in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
+        if let Some(info) = l.strip_prefix("#EXTINF:") {
+            let (secs, name) = info.split_once(',').unwrap_or((info, ""));
+            duration = secs.trim().parse::<f64>().ok().filter(|d| *d > 0.0);
+            title = name.trim().to_owned();
+        } else if !l.starts_with('#') {
+            out.extend(listed(l, base, std::mem::take(&mut title), duration.take()));
+        }
+    }
+    out
+}
+
+fn parse_pls(text: &str, base: &Path) -> Vec<Listed> {
+    // File1=, Title1=, Length1= in any order.
+    let mut rows: std::collections::BTreeMap<usize, (String, String, Option<f64>)> = Default::default();
+    for l in text.lines().map(str::trim) {
+        let Some((k, v)) = l.split_once('=') else { continue };
+        let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
+        let field = |name: &str| k.strip_prefix(name).and_then(|n| n.parse::<usize>().ok());
+        if let Some(n) = field("file") {
+            rows.entry(n).or_default().0 = v.to_owned();
+        } else if let Some(n) = field("title") {
+            rows.entry(n).or_default().1 = v.to_owned();
+        } else if let Some(n) = field("length") {
+            rows.entry(n).or_default().2 = v.parse::<f64>().ok().filter(|d| *d > 0.0);
+        }
+    }
+    rows.into_values().filter(|(f, _, _)| !f.is_empty()).filter_map(|(f, t, d)| listed(&f, base, t, d)).collect()
 }
 
 #[derive(Default)]
@@ -171,5 +216,34 @@ impl Playlist {
         let pos = self.pos();
         self.current = if pos > 0 { self.order[pos - 1] } else if self.repeat { self.order[n - 1] } else { return false };
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lists_files_and_links() {
+        let dir = std::env::temp_dir().join(format!("gamp-lists-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.mp3"), b"").unwrap();
+        let m3u = dir.join("mix.m3u8");
+        std::fs::write(
+            &m3u,
+            "#EXTM3U\n#EXTINF:12,Local Song\na.mp3\n#EXTINF:-1,SomaFM\nhttp://ice.somafm.com/groovesalad\n#EXTINF:200,Art - Title\nhttp://127.0.0.1:8742/media/local/7?s=x\nnotes.txt\n",
+        )
+        .unwrap();
+        let got = read_list(&m3u);
+        assert_eq!(got.len(), 3, "{got:?}");
+        assert_eq!(got[0], Listed::File(dir.join("a.mp3")));
+        assert_eq!(got[1], Listed::Link { url: "http://ice.somafm.com/groovesalad".into(), title: "SomaFM".into(), duration: None });
+        assert_eq!(got[2], Listed::Link { url: "http://127.0.0.1:8742/media/local/7?s=x".into(), title: "Art - Title".into(), duration: Some(200.0) });
+
+        let pls = dir.join("mix.pls");
+        std::fs::write(&pls, "[playlist]\nNumberOfEntries=2\nFile1=a.mp3\nTitle1=Song\nLength1=12\nFile2=https://x.example/live\nTitle2=Live One\nLength2=-1\n").unwrap();
+        let got = read_list(&pls);
+        assert_eq!(got, vec![Listed::File(dir.join("a.mp3")), Listed::Link { url: "https://x.example/live".into(), title: "Live One".into(), duration: None }]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -55,6 +55,9 @@ Check for updates…).
 - In the library, double-click a folder, album or playlist to open it, and
   Backspace (or ‹ Back) to return. Double-click a track to play from there.
   Paste a SoundCloud link or a radio stream address into Search to play it.
+- The playlist's LIST button saves and opens `.m3u8` playlists (`.m3u` and
+  `.pls` open too). Saved lists keep radio stations and library tracks, not
+  only files, and a station address from any other program plays as well.
 - Drop any `.wsz` skin onto the player. Thousands are at
   [skins.webamp.org](https://skins.webamp.org).
 - G-Drop has 25 presets: H for a random one, F for full screen.
