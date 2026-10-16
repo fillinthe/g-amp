@@ -1802,7 +1802,8 @@ mod tests {
         app.open_files(vec![dir.clone()], true);
         let start = Instant::now();
         let mut saw_second = false;
-        while start.elapsed() < Duration::from_secs(4) {
+        // Generous: CI machines run every test at once.
+        while start.elapsed() < Duration::from_secs(20) {
             std::thread::sleep(Duration::from_millis(30));
             app.tick();
             saw_second |= app.playlist.current == 1 && app.main.state == PlayState::Playing;

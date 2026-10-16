@@ -111,7 +111,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         let now = Instant::now();
         if now >= self.next_tick {
             app.tick();
-            let step = if app.drop_visible() { app::VIS_TICK } else { TICK };
+            let step = if app.drop_visible() { app.drop_tick() } else { TICK };
             self.next_tick = now + step;
         }
         for k in app.dirty_kinds() {
