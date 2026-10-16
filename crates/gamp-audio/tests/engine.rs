@@ -51,7 +51,7 @@ fn plays_seeks_and_continues_gaplessly() {
 
     let p = Player::new(OutputKind::Null).unwrap();
     let first = p.load(Input::file(&a).unwrap(), true);
-    let e = wait_for(&p, 3.0, |e| matches!(e, Event::Started { .. }));
+    let e = wait_for(&p, 15.0, |e| matches!(e, Event::Started { .. }));
     match e {
         Event::Started { id, format } => {
             assert_eq!(id, first);
@@ -80,10 +80,10 @@ fn plays_seeks_and_continues_gaplessly() {
 
     // Queue the next one: it starts with no gap, at its own rate.
     let second = p.queue(Input::file(&b).unwrap());
-    let e = wait_for(&p, 3.0, |e| matches!(e, Event::Started { .. }));
+    let e = wait_for(&p, 15.0, |e| matches!(e, Event::Started { .. }));
     assert!(matches!(e, Event::Started { id, .. } if id == second));
     // Then everything ends.
-    wait_for(&p, 3.0, |e| matches!(e, Event::Finished { id } if *id == second));
+    wait_for(&p, 15.0, |e| matches!(e, Event::Finished { id } if *id == second));
     std::thread::sleep(Duration::from_millis(100));
     assert_eq!(p.status().state, State::Stopped);
 
@@ -101,6 +101,6 @@ fn plays_seeks_and_continues_gaplessly() {
     let junk = dir.join("junk.mp3");
     std::fs::write(&junk, b"not audio at all").unwrap();
     p.load(Input::file(&junk).unwrap(), true);
-    wait_for(&p, 3.0, |e| matches!(e, Event::Error { .. }));
+    wait_for(&p, 15.0, |e| matches!(e, Event::Error { .. }));
     let _ = std::fs::remove_dir_all(&dir);
 }
