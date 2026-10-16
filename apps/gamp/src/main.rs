@@ -15,6 +15,7 @@ mod layout;
 mod library;
 mod media;
 mod playlist;
+mod selftest;
 mod session;
 mod stream;
 mod win;
@@ -138,6 +139,13 @@ impl ApplicationHandler<UserEvent> for Shell {
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info,librespot=warn")).init();
+    if std::env::args().any(|a| a == "--selftest") {
+        return selftest::run();
+    }
+    if std::env::args().any(|a| a == "--version") {
+        println!("G-Amp {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     let el = EventLoop::<UserEvent>::with_user_event().build()?;
     let data = app::data_dir();
     // The sources, sign-ins and streaming; G-Amp still plays files without it.
@@ -150,7 +158,7 @@ fn main() -> anyhow::Result<()> {
     };
     let mut app = App::new(OutputKind::Device, backend)?;
     app.session = app.load_session();
-    let files: Vec<PathBuf> = std::env::args().skip(1).map(PathBuf::from).collect();
+    let files: Vec<PathBuf> = std::env::args().skip(1).filter(|a| !a.starts_with("--") && !a.starts_with("-psn_")).map(PathBuf::from).collect();
     if !files.is_empty() {
         app.open_files(files, true);
     }

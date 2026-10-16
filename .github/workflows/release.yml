@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag like v0.2.0 to build the installers and attach them to a
-# draft GitHub release.
+# Push a tag like v0.2.0: builds G-Amp for macOS, Windows and Linux and
+# attaches the installers to a draft GitHub release.
 on:
   push:
     tags: ["v*"]
@@ -11,41 +11,62 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  package:
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-            args: --target aarch64-apple-darwin --bundles app,dmg
+            formats: dmg
           - os: macos-latest
             target: x86_64-apple-darwin
-            args: --target x86_64-apple-darwin --bundles app,dmg
+            formats: dmg
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            args: --bundles nsis
+            formats: nsis
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            formats: deb,appimage
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: apps/gamp-ios/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: npm ci
-        working-directory: apps/gamp-ios
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: G-Amp ${{ github.ref_name }}
-          releaseBody: "Unsigned builds. macOS: right-click › Open the first time. Windows: More info › Run anyway."
-          releaseDraft: true
-          projectPath: apps/gamp-ios
-          args: ${{ matrix.args }}
+          key: ${{ matrix.target }}
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libasound2-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libfuse2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-packager
+      - run: cargo build --release --locked -p gamp --target ${{ matrix.target }}
+      - name: Package
+        working-directory: apps/gamp
+        shell: bash
+        run: cargo packager --release --target ${{ matrix.target }} --formats ${{ matrix.formats }}
+      - name: Name the files by platform
+        shell: bash
+        run: |
+          mkdir -p out
+          cd target/packages
+          for f in *.dmg *.exe *.deb *.AppImage; do
+            [ -e "$f" ] || continue
+            case "$f" in
+              *.dmg) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-macOS-$([ ${{ matrix.target }} = aarch64-apple-darwin ] && echo apple-silicon || echo intel).dmg" ;;
+              *.exe) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-Windows-setup.exe" ;;
+              *.deb) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-Linux-amd64.deb" ;;
+              *.AppImage) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-Linux-x86_64.AppImage" ;;
+            esac
+          done
+          ls -la ../../out
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: G-Amp ${{ github.ref_name }}
+          files: out/*
