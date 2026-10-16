@@ -64,6 +64,8 @@ pub struct Config {
     pub soundcloud: SoundCloudKeys,
     /// Your Dropbox app's key (Dropbox gives every app its own).
     pub dropbox_key: String,
+    /// The Client ID of your own Spotify app (for the library and search).
+    pub spotify_client_id: String,
 }
 
 static CONFIG: OnceLock<RwLock<Config>> = OnceLock::new();

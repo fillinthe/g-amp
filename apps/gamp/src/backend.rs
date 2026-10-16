@@ -11,7 +11,7 @@ use gamp_core::catalog::{self, Source};
 use gamp_core::sources::Listing;
 use winit::event_loop::EventLoopProxy;
 
-static SIGNED_IN: &str = include_str!("../../gamp-ios/web/public/signed-in.html");
+static SIGNED_IN: &str = include_str!("../assets/signed-in.html");
 
 /// Things sent to the window thread.
 #[derive(Debug)]

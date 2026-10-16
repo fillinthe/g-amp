@@ -269,6 +269,7 @@ struct Segment {
 struct Plan {
     segments: Vec<Segment>,
     size: u64,
+    mime: &'static str,
     at: Instant,
 }
 
@@ -306,12 +307,17 @@ async fn measure(url: String) -> Result<(String, u64, u64), ApiError> {
     Ok((url, id3_len(&head), total))
 }
 
-/// Pulls the segment URIs out of a media playlist.
+/// Pulls the segment URIs out of a media playlist. A fragmented-MP4
+/// stream's init segment (`#EXT-X-MAP`) comes first, so the pieces join
+/// into one playable file.
 pub fn segment_uris(m3u8_url: &str, body: &str) -> Vec<String> {
     let base = url::Url::parse(m3u8_url).ok();
     body.lines()
         .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .filter_map(|l| match l.strip_prefix("#EXT-X-MAP:") {
+            Some(attrs) => attrs.split("URI=\"").nth(1).and_then(|r| r.split('"').next()),
+            None => Some(l).filter(|l| !l.is_empty() && !l.starts_with('#')),
+        })
         .filter_map(|l| match &base {
             Some(b) => b.join(l).ok().map(String::from),
             None => Some(l.to_owned()),
@@ -319,15 +325,35 @@ pub fn segment_uris(m3u8_url: &str, body: &str) -> Vec<String> {
         .collect()
 }
 
+/// The pieces a track's stream comes in (HLS segments, or one file), and
+/// their format.
+async fn pieces(urn: &str) -> Result<(Vec<String>, &'static str), ApiError> {
+    let (url, hls, mime) = if let Some(id) = urn.strip_prefix("web:") {
+        // A pasted link (no account): the web player's stream.
+        crate::soundcloud_web::stream_url(id).await?
+    } else {
+        let streams = api(&format!("/tracks/{}/streams", urlencoding::encode(urn))).await?;
+        let (m3u8, mime) = match streams["hls_mp3_128_url"].as_str().or(streams["hls_mp3_standard_url"].as_str()) {
+            Some(u) => (u, "audio/mpeg"),
+            None => (
+                streams["hls_aac_160_url"]
+                    .as_str()
+                    .or(streams["hls_aac_96_url"].as_str())
+                    .ok_or_else(|| err(StatusCode::NOT_FOUND, "SoundCloud has no stream for this track."))?,
+                "audio/mp4",
+            ),
+        };
+        (m3u8.to_owned(), true, mime)
+    };
+    if !hls {
+        return Ok((vec![url], mime));
+    }
+    let list = client().get(&url).send().await?.text().await?;
+    Ok((segment_uris(&url, &list), mime))
+}
+
 async fn build_plan(urn: &str) -> Result<Plan, ApiError> {
-    let streams = api(&format!("/tracks/{}/streams", urlencoding::encode(urn))).await?;
-    let m3u8 = streams["hls_mp3_128_url"]
-        .as_str()
-        .or(streams["hls_mp3_standard_url"].as_str())
-        .ok_or_else(|| err(StatusCode::NOT_FOUND, "SoundCloud has no MP3 stream for this track."))?
-        .to_owned();
-    let list = client().get(&m3u8).send().await?.text().await?;
-    let uris = segment_uris(&m3u8, &list);
+    let (uris, mime) = pieces(urn).await?;
     let measured: Vec<Result<(String, u64, u64), ApiError>> =
         futures_util::stream::iter(uris.into_iter().map(measure)).buffered(24).collect().await;
     let mut segments = Vec::with_capacity(measured.len());
@@ -338,7 +364,7 @@ async fn build_plan(urn: &str) -> Result<Plan, ApiError> {
         segments.push(Segment { url, skip, start: offset, len });
         offset += len;
     }
-    Ok(Plan { segments, size: offset, at: Instant::now() })
+    Ok(Plan { segments, size: offset, mime, at: Instant::now() })
 }
 
 async fn plan(urn: &str, fresh: bool) -> Result<Plan, ApiError> {
@@ -373,10 +399,11 @@ pub async fn stream(urn: String, headers: HeaderMap) -> Result<Response, ApiErro
         .map(|(n, s)| (n, s.skip + start.saturating_sub(s.start), s.skip + (s.len - 1).min(end - s.start)))
         .collect();
     let size = p.size;
+    let mime = p.mime;
     let body = async_stream(urn, p, pieces);
     let mut res = Response::builder()
         .status(if partial { StatusCode::PARTIAL_CONTENT } else { StatusCode::OK })
-        .header(header::CONTENT_TYPE, "audio/mpeg")
+        .header(header::CONTENT_TYPE, mime)
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::CONTENT_LENGTH, end - start + 1)
         .header(header::CACHE_CONTROL, "no-store");
@@ -414,6 +441,12 @@ fn async_stream(urn: String, plan: Plan, pieces: Vec<(usize, u64, u64)>) -> Body
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fmp4_playlists_start_with_the_init_segment() {
+        let list = "#EXTM3U\n#EXT-X-MAP:URI=\"https://cdn/x/init.mp4?s=1\"\n#EXTINF:10,\ndata000.m4s\n#EXTINF:10,\ndata001.m4s\n#EXT-X-ENDLIST\n";
+        assert_eq!(segment_uris("https://cdn/x/playlist.m3u8", list), ["https://cdn/x/init.mp4?s=1", "https://cdn/x/data000.m4s", "https://cdn/x/data001.m4s"]);
+    }
 
     #[test]
     fn id3_lengths() {

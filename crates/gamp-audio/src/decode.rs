@@ -14,8 +14,9 @@ use symphonia::core::units::Time;
 
 /// Something to play.
 pub enum Input {
-    /// A file or stream to decode. `ext` ("mp3", "flac"...) helps detection.
-    Media { source: Box<dyn MediaSource>, ext: Option<String> },
+    /// A file or stream to decode. `ext` ("mp3", "flac"...) helps detection;
+    /// `duration` is used when the file doesn't say (fragmented MP4).
+    Media { source: Box<dyn MediaSource>, ext: Option<String>, duration: Option<f64> },
     /// PCM decoded elsewhere: interleaved f32 chunks. `seek` jumps the
     /// producer; chunks after a seek must start at the new position.
     Pcm { rate: u32, channels: u16, duration: Option<f64>, chunks: Receiver<Vec<f32>>, seek: Option<Box<dyn FnMut(f64) + Send>> },
@@ -28,12 +29,12 @@ impl Input {
     pub fn file(path: &std::path::Path) -> std::io::Result<Input> {
         let file = std::fs::File::open(path)?;
         let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase());
-        Ok(Input::Media { source: Box::new(file), ext })
+        Ok(Input::Media { source: Box::new(file), ext, duration: None })
     }
 
     /// An endless or unseekable stream (radio).
     pub fn stream(reader: impl std::io::Read + Send + Sync + 'static, ext: Option<String>) -> Input {
-        Input::Media { source: Box::new(ReadOnlySource::new(reader)), ext }
+        Input::Media { source: Box::new(ReadOnlySource::new(reader)), ext, duration: None }
     }
 }
 
@@ -77,7 +78,7 @@ impl Source {
                 info: Format { rate, channels, duration, kbps: Some(rate * channels as u32 * 16 / 1000), seekable: seek.is_some() },
                 seek,
             })),
-            Input::Media { source, ext } => {
+            Input::Media { source, ext, duration: told } => {
                 let seekable = source.is_seekable();
                 let bytes = source.byte_len();
                 let mss = MediaSourceStream::new(source, Default::default());
@@ -100,7 +101,7 @@ impl Source {
                 let params = track.codec_params.clone();
                 let decoder = symphonia::default::get_codecs().make(&params, &DecoderOptions::default())?;
                 let rate = params.sample_rate.unwrap_or(44100);
-                let duration = params.n_frames.map(|n| n as f64 / rate as f64);
+                let duration = params.n_frames.filter(|n| *n > 0).map(|n| n as f64 / rate as f64).or(told.filter(|d| *d > 0.0));
                 let kbps = match (bytes, duration) {
                     (Some(b), Some(d)) if d > 0.5 => Some((b as f64 * 8.0 / d / 1000.0).round() as u32),
                     _ => params.bits_per_coded_sample.map(|b| b * rate * params.channels.map(|c| c.count() as u32).unwrap_or(2) / 1000),

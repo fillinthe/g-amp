@@ -105,6 +105,7 @@ pub fn router(port: u16, page: Router) -> Router {
         }))
         .route("/api/mount", post(mount))
         .route("/auth/spotify/login", get(spotify_login))
+        .route("/auth/spotify/library", get(spotify_library_login))
         .route("/api/spotify/token", get(spotify::token_route))
         .route("/api/spotify/logout", post(|| async { spotify::logout().await.map(|_| Json(json!({"ok": true}))).map_err(ApiError::from) }))
         .route("/media/test-tone.wav", get(test_tone))
@@ -172,7 +173,12 @@ async fn public_config(sc_redirect: String) -> Value {
         "platform": std::env::consts::OS,
         "shell": crate::shell::shell(),
         "folders": c.folders,
-        "spotify": { "connected": spotify::connected().await },
+        "spotify": {
+            "connected": spotify::connected().await,
+            "clientId": c.spotify_client_id,
+            "library": spotify::library_connected().await,
+            "redirectUri": spotify::redirect_uri(),
+        },
         "soundcloud": {
             "clientId": c.soundcloud.client_id,
             "hasSecret": !c.soundcloud.client_secret.is_empty(),
@@ -195,6 +201,7 @@ struct ConfigPatch {
     folders: Option<Vec<String>>,
     soundcloud: Option<SoundCloudPatch>,
     dropbox_key: Option<String>,
+    spotify_client_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -227,6 +234,9 @@ async fn post_config(Json(patch): Json<ConfigPatch>, sc_redirect: String) -> Res
     }
     if let Some(k) = patch.dropbox_key {
         c.dropbox_key = k.trim().to_owned();
+    }
+    if let Some(id) = patch.spotify_client_id {
+        c.spotify_client_id = id.trim().to_owned();
     }
     store::save_config(c).await?;
     Ok(Json(public_config(sc_redirect).await))
@@ -448,6 +458,13 @@ async fn soundcloud_callback(Query(q): Query<HashMap<String, String>>) -> Redire
             .map_err(|e| e.1),
     };
     Redirect::to(&crate::shell::after_sign_in("SoundCloud", result))
+}
+
+async fn spotify_library_login() -> Redirect {
+    match spotify::library_login_url().await {
+        Ok(url) => Redirect::to(&url),
+        Err(e) => Redirect::to(&crate::shell::after_sign_in("Spotify", Err(e.1))),
+    }
 }
 
 async fn spotify_login() -> Redirect {

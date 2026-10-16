@@ -17,6 +17,7 @@ mod media;
 mod playlist;
 mod selftest;
 mod session;
+mod update;
 mod stream;
 mod win;
 
@@ -61,6 +62,10 @@ impl ApplicationHandler<UserEvent> for Shell {
         if !self.started {
             self.started = true;
             self.app.open_windows(el);
+            // Is there a newer G-Amp? (Quietly; it says so if there is.)
+            if std::env::var_os("GAMP_NO_UPDATE_CHECK").is_none() {
+                self.app.update_check(false);
+            }
         }
     }
 

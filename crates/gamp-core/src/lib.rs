@@ -10,6 +10,7 @@ pub mod library;
 pub mod server;
 pub mod shell;
 pub mod soundcloud;
+pub mod soundcloud_web;
 pub mod sources;
 pub mod spotify;
 pub mod store;

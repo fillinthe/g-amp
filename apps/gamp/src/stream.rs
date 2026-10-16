@@ -18,6 +18,7 @@ pub struct HttpSource {
     inner: Mutex<Inner>,
     len: Option<u64>,
     seekable: bool,
+    mime: Option<String>,
 }
 
 fn client() -> reqwest::blocking::Client {
@@ -43,7 +44,19 @@ impl HttpSource {
             .and_then(|v| v.rsplit('/').next()?.parse::<u64>().ok())
             .or_else(|| h.get("content-length").and_then(|v| v.to_str().ok()?.parse().ok()));
         let ranges = status == reqwest::StatusCode::PARTIAL_CONTENT || h.get("accept-ranges").is_some_and(|v| v.as_bytes() == b"bytes");
-        Ok(HttpSource { inner: Mutex::new(Inner { client, url: url.to_owned(), pos: 0, resp: Some(resp) }), len: total, seekable: ranges && total.is_some() })
+        let mime = h.get("content-type").and_then(|v| v.to_str().ok()).map(|m| m.split(';').next().unwrap_or("").trim().to_lowercase());
+        Ok(HttpSource { inner: Mutex::new(Inner { client, url: url.to_owned(), pos: 0, resp: Some(resp) }), len: total, seekable: ranges && total.is_some(), mime })
+    }
+
+    /// The format the server says it sent, when that's specific.
+    pub fn ext(&self) -> Option<String> {
+        let e = match self.mime.as_deref()? {
+            "audio/mp4" | "audio/m4a" | "audio/x-m4a" | "audio/aac" => "m4a",
+            "audio/flac" | "audio/x-flac" => "flac",
+            "audio/ogg" => "ogg",
+            _ => return None,
+        };
+        Some(e.to_owned())
     }
 }
 
