@@ -26,3 +26,10 @@ jobs:
       - run: npm run build
       - run: cargo test --lib --locked
         working-directory: src-tauri
+      - run: cargo build --locked
+        working-directory: src-tauri
+      # Runs the real app's server on this OS: page, scan, playback, safety.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python scripts/smoke.py src-tauri/target/debug/g-amp${{ runner.os == 'Windows' && '.exe' || '' }}
