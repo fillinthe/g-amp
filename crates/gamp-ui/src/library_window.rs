@@ -11,8 +11,8 @@ use crate::frame::{Frame, argb};
 
 pub const MIN_WIDTH: u32 = 400;
 pub const MIN_HEIGHT: u32 = 232;
-const PX: f32 = 11.0;
-const ROW: i32 = 15;
+pub(crate) const PX: f32 = 11.0;
+pub(crate) const ROW: i32 = 15;
 const TREE_W: i32 = 150;
 /// Classic grey for buttons and headers.
 const FACE: [u8; 3] = [196, 196, 208];
@@ -251,18 +251,18 @@ fn bevel(frame: &mut Frame, r: R, down: bool) {
     frame.fill(x + w - 1, y, 1, h, argb(b));
 }
 
-fn button(frame: &mut Frame, r: R, label: &str, down: bool, enabled: bool) {
+pub(crate) fn button(frame: &mut Frame, r: R, label: &str, down: bool, enabled: bool) {
     bevel(frame, r, down);
     let tw = font::measure(label, PX, false);
     let o = down as i32;
     font::draw(frame, r.0 + (r.2 - tw) / 2 + o, r.1 + r.3 - 4 + o, label, PX, if enabled { INK } else { INK_OFF }, r.2, false);
 }
 
-fn button_w(label: &str) -> i32 {
+pub(crate) fn button_w(label: &str) -> i32 {
     font::measure(label, PX, false) + 16
 }
 
-fn field(frame: &mut Frame, skin: &Skin, r: R, f: &Field) {
+pub(crate) fn field(frame: &mut Frame, skin: &Skin, r: R, f: &Field) {
     let st = &skin.playlist;
     frame.fill(r.0, r.1, r.2, r.3, argb(st.normal_bg));
     let edge = argb(mix(st.normal, st.normal_bg, 0.6));
@@ -293,7 +293,7 @@ fn field(frame: &mut Frame, skin: &Skin, r: R, f: &Field) {
     }
 }
 
-fn mix(a: [u8; 3], b: [u8; 3], t: f32) -> [u8; 3] {
+pub(crate) fn mix(a: [u8; 3], b: [u8; 3], t: f32) -> [u8; 3] {
     let f = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
     [f(a[0], b[0]), f(a[1], b[1]), f(a[2], b[2])]
 }

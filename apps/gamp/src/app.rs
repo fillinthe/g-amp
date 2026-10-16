@@ -37,6 +37,8 @@ pub enum Kind {
     Library,
     /// G-Drop, the visualizer.
     Vis,
+    /// Jump to File.
+    Jump,
     /// A pop-up menu; the number is its depth (sub-menus are deeper).
     Menu(usize),
 }
@@ -89,6 +91,7 @@ pub struct App {
     pub(crate) pl_drag: Option<usize>,
     pub(crate) backend: Option<crate::backend::Backend>,
     pub(crate) lib: crate::library::LibState,
+    pub(crate) jump: crate::jump::JumpState,
     pub(crate) drop: crate::drop::DropState,
     /// The skin file in use (None: the built-in skin).
     pub(crate) skin_path: Option<PathBuf>,
@@ -174,6 +177,7 @@ impl App {
             drop_target: None,
             backend,
             lib: Default::default(),
+            jump: Default::default(),
             drop: Default::default(),
             skin_path: None,
             pending_stream: false,
@@ -205,6 +209,7 @@ impl App {
             // The library isn't doubled (Winamp's wasn't either).
             Kind::Library => return LogicalSize::new(self.lib.view.size().0, self.lib.view.size().1),
             Kind::Vis => return LogicalSize::new(self.drop.width, self.drop.height),
+            Kind::Jump => return LogicalSize::new(gamp_ui::jump_window::WIDTH, gamp_ui::jump_window::HEIGHT),
             Kind::Menu(i) => return self.menus.get(i).map(|m| menu::size(&m.items)).map(|(w, h)| LogicalSize::new(w, h)).unwrap_or(LogicalSize::new(1, 1)),
         };
         LogicalSize::new(w * z, h * z)
@@ -240,6 +245,10 @@ impl App {
         let mut w = Win::open(Some(el), "G-Drop", self.logical_size(Kind::Vis), (lx, y), false);
         w.show(false);
         self.wins.insert(Kind::Vis, w);
+        // Jump to File opens over the main window when you press J.
+        let mut w = Win::open(Some(el), "G-Amp Jump to File", self.logical_size(Kind::Jump), (x + (20.0 * scale) as i32, y + (40.0 * scale) as i32), false);
+        w.show(false);
+        self.wins.insert(Kind::Jump, w);
         if let Some(s) = self.session.take() {
             self.place_windows(&s);
         }
@@ -312,6 +321,7 @@ impl App {
                 }
             }
             Kind::Vis => self.drop_redraw(),
+            Kind::Jump => self.jump_redraw(),
             Kind::Menu(i) => {
                 if let Some(m) = self.menus.get_mut(i) {
                     menu::draw(&mut m.win.frame, &m.items, m.hover);
@@ -354,6 +364,7 @@ impl App {
                 self.main.playlist_open
             }
             Kind::Library | Kind::Vis => !self.wins.get(&k).is_some_and(|w| w.visible),
+            Kind::Jump => return self.jump_toggle(),
             _ => return,
         };
         if let Some(w) = self.wins.get_mut(&k) {
@@ -484,6 +495,9 @@ impl App {
 
     /// Copies the play queue into the playlist window's view.
     pub(crate) fn sync_playlist(&mut self) {
+        if self.jump.open {
+            self.jump_filter();
+        }
         self.pl.tracks = self.playlist.entries.iter().map(|e| plw::Track { title: e.display(), length: e.duration.map(clock).unwrap_or_default() }).collect();
         self.pl.current = (!self.playlist.entries.is_empty()).then_some(self.playlist.current);
         self.pl.selected.retain(|i| *i < self.playlist.entries.len());
@@ -630,7 +644,7 @@ impl App {
         }
     }
 
-    fn play_index(&mut self, i: usize) {
+    pub(crate) fn play_index(&mut self, i: usize) {
         if i < self.playlist.entries.len() {
             self.playlist.current = i;
             self.load_current(true);
@@ -881,6 +895,7 @@ impl App {
             Kind::Playlist => self.pl_press(x, y),
             Kind::Library => self.lib_press(x, y),
             Kind::Vis => self.drop_press(x, y),
+            Kind::Jump => self.jump_press(x, y),
             Kind::Menu(_) => {}
         }
     }
@@ -895,6 +910,7 @@ impl App {
             Kind::Playlist => self.pl_release(el),
             Kind::Library => self.lib_release(),
             Kind::Vis => self.drop_release(),
+            Kind::Jump => self.jump_release(),
             Kind::Menu(i) => self.menu_release(i, el),
         }
     }
@@ -1334,6 +1350,7 @@ impl App {
     pub fn wheel(&mut self, k: Kind, lines: f64) {
         match k {
             Kind::Library => self.lib_wheel(lines),
+            Kind::Jump => self.jump_wheel(lines),
             Kind::Playlist => {
                 let top = self.pl.top as isize - (lines * 3.0).round() as isize;
                 self.pl.top = top.clamp(0, self.pl.max_top() as isize) as usize;
@@ -1375,6 +1392,7 @@ impl App {
             Item::Separator,
             Item::action("open:file", "Play file…").shortcut("L"),
             Item::action("open:folder", "Play folder…").shortcut("Shift+L"),
+            Item::action("jump", "Jump to file…").shortcut("J"),
             Item::Separator,
             Item::action("win:main", "Main window").checked(true).shortcut("Alt+W"),
             Item::action("win:playlist", "Playlist editor").checked(self.main.playlist_open).shortcut("Alt+E"),
@@ -1502,6 +1520,7 @@ impl App {
             "win:eq" => self.toggle_window(Kind::Eq),
             "win:library" => self.toggle_window(Kind::Library),
             "win:vis" => self.toggle_window(Kind::Vis),
+            "jump" => self.jump_toggle(),
             "skin:load" => {
                 if let Some(f) = rfd::FileDialog::new().add_filter("Winamp skins", &["wsz", "zip"]).pick_file() {
                     self.load_skin(Some(f));
@@ -1556,6 +1575,9 @@ impl App {
         if k == Kind::Vis && self.drop_key(key) {
             return;
         }
+        if k == Kind::Jump {
+            return self.jump_key(key, text);
+        }
         let ctrl = self.modifiers.control_key() || self.modifiers.super_key();
         let alt = self.modifiers.alt_key();
         if let Kind::Menu(_) = k {
@@ -1585,6 +1607,7 @@ impl App {
                 "l" => self.pick_files(true),
                 "s" => self.set_shuffle(!self.main.shuffle),
                 "r" => self.set_repeat(!self.main.repeat),
+                "j" => self.jump_toggle(),
                 _ => {}
             },
             Key::Named(NamedKey::ArrowLeft) => self.seek_by(-5.0),
@@ -1623,6 +1646,10 @@ impl App {
             Kind::Playlist => self.pl.focused = focused,
             Kind::Library => self.lib.view.focused = focused,
             Kind::Vis => self.drop.focused = focused,
+            Kind::Jump => {
+                self.jump.view.focused = focused;
+                self.jump.view.search.focused = focused;
+            }
             Kind::Menu(_) => {
                 if !focused {
                     self.menu_lost_focus(k);
@@ -1854,6 +1881,54 @@ mod tests {
         assert_eq!((e[3].url.as_deref(), e[3].title.as_str(), e[3].live), (Some("/media/remote/radio/x?s=cd"), "SomaFM", true));
         assert!(e[4].url.as_deref().unwrap().starts_with("/media/remote/radio/http"), "{:?}", e[4].url);
         assert_eq!((e[4].title.as_str(), e[4].live), ("Groove Salad", true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn jump_to_file_finds_and_plays() {
+        let dir = songs("jump", 5, 2);
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.open_files(vec![dir.clone()], true);
+        settle(&mut app);
+        let typed = |app: &mut App, t: &str| {
+            for c in t.chars() {
+                app.key(Kind::Jump, &Key::Character(c.to_string().into()), Some(&c.to_string()));
+            }
+        };
+        // J opens it listing everything, the playing track picked.
+        app.key(Kind::Main, &Key::Character("j".into()), Some("j"));
+        assert!(app.jump.open);
+        assert_eq!(app.jump.matches.len(), 5);
+        assert_eq!(app.jump.view.selected, Some(0));
+        assert!(app.jump.view.rows[0].current);
+        // Words match anywhere, in any case.
+        typed(&mut app, "SONG 4");
+        assert_eq!(app.jump.matches, vec![3, 4], "'4' is in '04 Song 3' too");
+        typed(&mut app, " 05");
+        assert_eq!(app.jump.matches, vec![4]);
+        assert_eq!(app.jump.view.status, "1 of 5");
+        app.key(Kind::Jump, &Key::Named(NamedKey::Enter), None);
+        settle(&mut app);
+        assert_eq!(app.playlist.current, 4);
+        assert!(!app.jump.open, "Enter plays and closes");
+        // No match: Enter does nothing; Escape closes.
+        app.jump_toggle();
+        typed(&mut app, "zzz");
+        assert!(app.jump.matches.is_empty() && app.jump.view.selected.is_none());
+        app.key(Kind::Jump, &Key::Named(NamedKey::Enter), None);
+        assert!(app.jump.open);
+        app.key(Kind::Jump, &Key::Named(NamedKey::Backspace), None);
+        app.key(Kind::Jump, &Key::Named(NamedKey::Backspace), None);
+        app.key(Kind::Jump, &Key::Named(NamedKey::Backspace), None);
+        assert_eq!(app.jump.matches.len(), 5);
+        assert_eq!(app.jump.view.selected, Some(4), "the playing track is picked");
+        app.key(Kind::Jump, &Key::Named(NamedKey::ArrowDown), None);
+        assert_eq!(app.jump.view.selected, Some(4), "clamped at the end");
+        app.key(Kind::Jump, &Key::Named(NamedKey::ArrowUp), None);
+        app.key(Kind::Jump, &Key::Named(NamedKey::ArrowUp), None);
+        assert_eq!(app.jump.view.selected, Some(2));
+        app.key(Kind::Jump, &Key::Named(NamedKey::Escape), None);
+        assert!(!app.jump.open);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
