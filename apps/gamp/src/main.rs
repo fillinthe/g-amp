@@ -8,8 +8,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod backend;
+mod clipboard;
 mod layout;
+mod library;
 mod playlist;
+mod stream;
 mod win;
 
 use std::path::PathBuf;
@@ -22,13 +26,31 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
 use app::{App, Kind, TICK};
+use backend::{Backend, UserEvent};
 
 struct Shell {
     app: App,
     started: bool,
 }
 
-impl ApplicationHandler for Shell {
+impl ApplicationHandler<UserEvent> for Shell {
+    fn user_event(&mut self, _el: &ActiveEventLoop, event: UserEvent) {
+        match event {
+            // A sign-in finished in the browser: come forward, refresh.
+            UserEvent::Focus => {
+                if let Some(w) = self.app.win(Kind::Main).and_then(|w| w.window.clone()) {
+                    w.focus_window();
+                }
+                if let Some(b) = &self.app.backend {
+                    b.refresh_sources();
+                    b.config();
+                }
+                self.app.lib_open(library::Page::Settings, true);
+            }
+            UserEvent::Wake => {}
+        }
+    }
+
     fn resumed(&mut self, el: &ActiveEventLoop) {
         if !self.started {
             self.started = true;
@@ -66,7 +88,7 @@ impl ApplicationHandler for Shell {
                 };
                 app.wheel(k, lines);
             }
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => app.key(k, &event.logical_key),
+            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => app.key(k, &event.logical_key, event.text.as_deref()),
             WindowEvent::DroppedFile(path) => app.dropped(k, path),
             _ => {}
         }
@@ -98,13 +120,24 @@ impl ApplicationHandler for Shell {
 }
 
 fn main() -> anyhow::Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    let mut app = App::new(OutputKind::Device)?;
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info,librespot=warn")).init();
+    let el = EventLoop::<UserEvent>::with_user_event().build()?;
+    let data = app::data_dir();
+    // The sources, sign-ins and streaming; G-Amp still plays files without it.
+    let backend = match Backend::start(data, Some(el.create_proxy())) {
+        Ok(b) => Some(b),
+        Err(e) => {
+            log::warn!("music sources unavailable: {e}");
+            None
+        }
+    };
+    let mut app = App::new(OutputKind::Device, backend)?;
     let files: Vec<PathBuf> = std::env::args().skip(1).map(PathBuf::from).collect();
     if !files.is_empty() {
         app.open_files(files, true);
     }
-    let el = EventLoop::new()?;
+    // Nothing to play yet: show where music comes from.
+    app.lib_open_at_start = app.playlist.entries.is_empty();
     el.run_app(&mut Shell { app, started: false })?;
     Ok(())
 }

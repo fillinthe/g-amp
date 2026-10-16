@@ -19,6 +19,9 @@ pub enum Input {
     /// PCM decoded elsewhere: interleaved f32 chunks. `seek` jumps the
     /// producer; chunks after a seek must start at the new position.
     Pcm { rate: u32, channels: u16, duration: Option<f64>, chunks: Receiver<Vec<f32>>, seek: Option<Box<dyn FnMut(f64) + Send>> },
+    /// Opened on the decoder thread when its turn comes (network sources:
+    /// connecting must not hold up the window).
+    Later(Box<dyn FnOnce() -> anyhow::Result<Input> + Send>),
 }
 
 impl Input {
@@ -68,6 +71,7 @@ pub struct Pcm {
 impl Source {
     pub fn open(input: Input) -> anyhow::Result<Source> {
         match input {
+            Input::Later(open) => Source::open(open()?),
             Input::Pcm { rate, channels, duration, chunks, seek } => Ok(Source::Pcm(Pcm {
                 chunks,
                 info: Format { rate, channels, duration, kbps: Some(rate * channels as u32 * 16 / 1000), seekable: seek.is_some() },

@@ -211,6 +211,31 @@ impl Skin {
         Ok(Skin { name: String::new(), sheets, playlist, viscolors, regions })
     }
 
+    /// The generic windows' title letters (GEN.BMP rows 88 and 96): each
+    /// letter's rectangle, found the way Winamp does, by the background
+    /// colour columns between letters. `active` picks the focused row.
+    pub fn gen_letter(&self, c: char, active: bool) -> Option<(&RgbaImage, Rect)> {
+        let img = self.sheets.get("GEN")?;
+        let y = if active { 88 } else { 96 };
+        if img.height() < y + 7 {
+            return None;
+        }
+        let index = (c.to_ascii_uppercase() as u32).checked_sub('A' as u32).filter(|i| *i < 26)?;
+        let bg = img.get_pixel(0, y);
+        let mut x = 1;
+        for i in 0..=index {
+            let mut end = x;
+            while end < img.width() && img.get_pixel(end, y) != bg {
+                end += 1;
+            }
+            if i == index {
+                return (end > x).then_some((img, Rect { x, y, width: end - x, height: 7 }));
+            }
+            x = end + 1;
+        }
+        None
+    }
+
     pub fn has(&self, sheet: &str) -> bool {
         self.sheets.contains_key(sheet)
     }
@@ -271,6 +296,9 @@ mod tests {
             assert!(s.has(sheet), "missing {sheet}");
         }
         assert_eq!(s.viscolors.len(), 24);
+        let (_, a) = s.gen_letter('A', true).expect("GEN letters");
+        assert_eq!((a.x, a.y, a.height), (1, 88, 7));
+        assert!(s.gen_letter('Z', false).is_some());
         for name in ["MAIN_WINDOW_BACKGROUND", "MAIN_PLAY_BUTTON", "MAIN_VOLUME_THUMB", "EQ_WINDOW_BACKGROUND", "PLAYLIST_TOP_TILE", "GEN_TOP_LEFT", "CHARACTER_65", "DIGIT_0"] {
             assert!(s.sprite(name).is_some(), "missing sprite {name}");
         }

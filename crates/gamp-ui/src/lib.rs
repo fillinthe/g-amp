@@ -4,6 +4,7 @@
 
 pub mod eq_window;
 pub mod font;
+pub mod library_window;
 pub mod frame;
 pub mod main_window;
 pub mod menu;
