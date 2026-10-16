@@ -6,6 +6,7 @@ pub mod eq_window;
 pub mod font;
 pub mod library_window;
 pub mod frame;
+pub mod jump_window;
 pub mod main_window;
 pub mod menu;
 pub mod playlist_window;

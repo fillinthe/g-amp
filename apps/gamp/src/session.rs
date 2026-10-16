@@ -54,6 +54,7 @@ fn name(k: Kind) -> &'static str {
         Kind::Playlist => "playlist",
         Kind::Library => "library",
         Kind::Vis => "gdrop",
+        Kind::Jump => "jump",
         Kind::Menu(_) => "menu",
     }
 }
