@@ -6,12 +6,13 @@ fn main() {
     let dir = std::env::args().nth(1).unwrap_or_else(|| ".".into());
     std::fs::create_dir_all(&dir).unwrap();
     for (i, p) in PRESETS.iter().enumerate() {
-        let mut g = GDrop::new(240, 180);
+        let (w, h) = std::env::var("SIZE").ok().and_then(|s| { let (a, b) = s.split_once('x')?; Some((a.parse().ok()?, b.parse().ok()?)) }).unwrap_or((240, 180));
+        let mut g = GDrop::new(w, h);
         g.auto = false;
         g.select(i, true);
         for f in 0..240 {
             let t = f as f32 / 30.0;
-            let wave: Vec<f32> = (0..512).map(|k| ((k as f32 * 0.05 + t * 7.0).sin() * 0.5 + (k as f32 * 0.31).sin() * 0.2)).collect();
+            let wave: Vec<f32> = (0..512).map(|k| (k as f32 * 0.05 + t * 7.0).sin() * 0.5 + (k as f32 * 0.31).sin() * 0.2).collect();
             let mut spec = vec![0.01f32; 256];
             if (t * 2.0).fract() < 0.12 {
                 spec[2] = 0.9;
