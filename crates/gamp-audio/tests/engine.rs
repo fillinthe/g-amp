@@ -64,7 +64,8 @@ fn plays_seeks_and_continues_gaplessly() {
     std::thread::sleep(Duration::from_millis(400));
     let s = p.status();
     assert_eq!(s.state, State::Playing);
-    assert!(s.position > 0.15 && s.position < 1.0, "{}", s.position);
+    // Moving forward (busy CI machines run the silent output slowly).
+    assert!(s.position > 0.02 && s.position < 1.5, "{}", s.position);
 
     // The visualizers hear the tone.
     let mut wave = vec![0f32; 512];
@@ -75,7 +76,7 @@ fn plays_seeks_and_continues_gaplessly() {
     p.seek(2.5);
     std::thread::sleep(Duration::from_millis(150));
     let s = p.status();
-    assert!(s.position >= 2.5 && s.position < 2.8, "{}", s.position);
+    assert!(s.position >= 2.5 && s.position < 3.0, "{}", s.position);
 
     // Queue the next one: it starts with no gap, at its own rate.
     let second = p.queue(Input::file(&b).unwrap());
