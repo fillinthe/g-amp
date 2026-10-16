@@ -25,6 +25,8 @@ pub struct DropState {
     /// Show the preset's name until then.
     pub name_until: Option<Instant>,
     pub pressed_close: bool,
+    /// Average time a frame takes to make and show, in ms.
+    pub cost_ms: f32,
 }
 
 impl Default for DropState {
@@ -41,6 +43,7 @@ impl Default for DropState {
             last: Instant::now(),
             name_until: None,
             pressed_close: false,
+            cost_ms: 0.0,
         }
     }
 }
@@ -56,7 +59,19 @@ impl App {
     }
 
     /// Draws a frame of the visualizer into the window.
+    /// 60 frames a second when the machine keeps up easily, else 30.
+    pub fn drop_tick(&self) -> std::time::Duration {
+        if self.drop.cost_ms > 7.0 { crate::app::TICK } else { crate::app::VIS_TICK }
+    }
+
     pub fn drop_redraw(&mut self) {
+        let started = Instant::now();
+        self.drop_redraw_inner();
+        let ms = started.elapsed().as_secs_f32() * 1000.0;
+        self.drop.cost_ms = self.drop.cost_ms * 0.95 + ms * 0.05;
+    }
+
+    fn drop_redraw_inner(&mut self) {
         let Some(w) = self.wins.get_mut(&Kind::Vis) else { return };
         let d = &mut self.drop;
         let (fw, fh) = if d.fullscreen { (w.frame.width.max(1), w.frame.height.max(1)) } else { (d.width, d.height) };
