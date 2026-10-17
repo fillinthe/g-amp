@@ -575,7 +575,8 @@ impl App {
 
     pub fn lib_wheel(&mut self, lines: f64) {
         if self.lib.view.form.is_some() {
-            self.lib.view.form_scroll = (self.lib.view.form_scroll - (lines * 30.0) as i32).max(0);
+            let max = lw::max_form_scroll(&self.skin, &self.lib.view);
+            self.lib.view.form_scroll = (self.lib.view.form_scroll - (lines * 30.0) as i32).clamp(0, max);
         } else {
             let (x, _) = self.win(Kind::Library).map(|w| w.cursor).unwrap_or((0, 0));
             if x < 11 + 152 {
