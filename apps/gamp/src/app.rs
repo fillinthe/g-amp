@@ -138,6 +138,13 @@ pub fn data_dir() -> PathBuf {
 
 impl App {
     pub fn new(output: OutputKind, backend: Option<crate::backend::Backend>) -> anyhow::Result<App> {
+        // The data folder is normally opened by the backend; without one
+        // (tests, or if the server failed) things that read it, like signed
+        // media addresses, must not find it missing.
+        if backend.is_none() {
+            let dir = if cfg!(test) { std::env::temp_dir().join(format!("gamp-test-{}", std::process::id())) } else { data_dir() };
+            gamp_core::store::init(dir, None);
+        }
         let player = Player::new(output).or_else(|e| {
             log::warn!("no sound output ({e}); playing silently");
             Player::new(OutputKind::Null)
