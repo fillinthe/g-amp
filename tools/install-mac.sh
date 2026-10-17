@@ -2,8 +2,11 @@
 # Builds Gamp in release and installs it as /Applications/Gamp.app,
 # replacing what's there. The bundle is laid out by hand (the same files
 # cargo-packager puts in the dmg), ad-hoc signed so macOS runs it.
+# GAMP_ALSO_INSTALL=user@host also copies the app to that Mac's
+# /Applications over ssh (key auth).
 set -e
 cd "$(dirname "$0")/.."
+PATH="$HOME/.cargo/bin:$PATH"
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 APP=/Applications/Gamp.app
 STAGE=target/Gamp.app
@@ -67,3 +70,11 @@ fi
 rm -rf "$APP" /Applications/G-Amp.app
 cp -R "$STAGE" "$APP"
 echo "Installed Gamp $VERSION at $APP"
+
+if [ -n "$GAMP_ALSO_INSTALL" ]; then
+  SSH="ssh -o BatchMode=yes -o ConnectTimeout=8"
+  $SSH "$GAMP_ALSO_INSTALL" 'pgrep -f Gamp.app/Contents/MacOS >/dev/null && { osascript -e "tell application \"Gamp\" to quit"; sleep 1; }; rm -rf /tmp/Gamp.app'
+  rsync -a -e "$SSH" "$APP" "$GAMP_ALSO_INSTALL:/tmp/"
+  $SSH "$GAMP_ALSO_INSTALL" 'rm -rf /Applications/Gamp.app && mv /tmp/Gamp.app /Applications/ && xattr -cr /Applications/Gamp.app'
+  echo "Installed Gamp $VERSION on $GAMP_ALSO_INSTALL"
+fi
