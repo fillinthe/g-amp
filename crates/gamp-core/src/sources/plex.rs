@@ -10,7 +10,7 @@ use serde_json::Value;
 
 use super::*;
 
-const PRODUCT: &str = "G-Amp";
+const PRODUCT: &str = "Gamp";
 
 fn client_id() -> String {
     format!("g-amp-{}", super::jellyfin::device_id())

@@ -1,4 +1,4 @@
-//! Draws GAMP Classic, G-Amp's default skin, as a standard Winamp 2 `.wsz`
+//! Draws GAMP Classic, Gamp's default skin, as a standard Winamp 2 `.wsz`
 //! (so it is also a valid skin for any Winamp-compatible player).
 //!
 //!     cargo run -p skin-gen            # writes assets/skins/gamp-classic.wsz
@@ -637,7 +637,7 @@ fn viscolor_txt() -> String {
     lines.join("\r\n") + "\r\n"
 }
 
-const README: &str = "GAMP Classic\r\nThe default skin of G-Amp (https://github.com/fillinthe/g-amp).\r\nDrawn from code by tools/skin-gen. MIT licence.\r\n";
+const README: &str = "GAMP Classic\r\nThe default skin of Gamp (https://github.com/fillinthe/g-amp).\r\nDrawn from code by tools/skin-gen. MIT licence.\r\n";
 
 // ---- output ----------------------------------------------------------------
 

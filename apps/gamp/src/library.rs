@@ -925,7 +925,7 @@ impl App {
         f.push(W::Row(vec![self.field("dbx_key"), W::button("dbx:save", "Save"), W::Button { id: "dbx:connect".into(), label: "Connect Dropbox".into(), enabled: has_key }]));
 
         f.push(W::Heading("Spotify (Premium)".into()));
-        f.push(W::Text("Sign in once in your web browser. Songs then play through G-Amp's equalizer and visualizers.".into()));
+        f.push(W::Text("Sign in once in your web browser. Songs then play through Gamp's equalizer and visualizers.".into()));
         f.push(W::Text("For your Liked Songs, playlists and search, Spotify wants your own (free) app: at developer.spotify.com/dashboard choose Create app, tick Web API, add this Redirect URI, then paste the Client ID here.".into()));
         let sp_redirect = c["spotify"]["redirectUri"].as_str().unwrap_or("").to_owned();
         f.push(W::Item { id: format!("copy:{sp_redirect}"), label: sp_redirect.clone(), button: "Copy".into() });

@@ -1,6 +1,6 @@
 [package]
 name = "gamp-core"
-description = "G-Amp's music sources, library, Spotify, SoundCloud and local server"
+description = "Gamp's music sources, library, Spotify, SoundCloud and local server"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

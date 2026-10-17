@@ -1,6 +1,6 @@
 [package]
 name = "gamp-skin"
-description = "Classic Winamp (.wsz) skin loading for G-Amp"
+description = "Classic Winamp (.wsz) skin loading for Gamp"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

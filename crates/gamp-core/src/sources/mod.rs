@@ -722,7 +722,7 @@ async fn icy(url: &str) -> Result<Response, ApiError> {
         .await
         .map_err(|_| bad_gateway("The station took too long to answer"))?
         .map_err(|e| bad_gateway(format!("Can't reach the station: {e}")))?;
-    sock.write_all(format!("GET {path} HTTP/1.0\r\nHost: {host}\r\nUser-Agent: G-Amp/0.1\r\nAccept: */*\r\nIcy-MetaData: 1\r\n\r\n").as_bytes()).await?;
+    sock.write_all(format!("GET {path} HTTP/1.0\r\nHost: {host}\r\nUser-Agent: Gamp/0.1\r\nAccept: */*\r\nIcy-MetaData: 1\r\n\r\n").as_bytes()).await?;
     let mut head = Vec::new();
     let mut byte = [0u8; 1];
     while !head.ends_with(b"\r\n\r\n") && !head.ends_with(b"\n\n") {

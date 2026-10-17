@@ -1,4 +1,4 @@
-//! G-Amp's core: every music source (folders and network drives, Plex,
+//! Gamp's core: every music source (folders and network drives, Plex,
 //! Jellyfin, Subsonic, Synology, WebDAV, DLNA, Dropbox, radio, podcasts,
 //! the Internet Archive, SoundCloud, Spotify), the folder library, the
 //! settings store, and the local server the iPhone app's page runs on.
@@ -29,7 +29,7 @@ pub fn port() -> u16 {
 pub async fn start_server(data: PathBuf, documents: Option<PathBuf>, page: axum::Router) -> anyhow::Result<u16> {
     store::init(data, documents);
     let port = port();
-    let listener = server::serve(port).await.map_err(|e| anyhow::anyhow!("Port {port} is already in use ({e}). Is G-Amp already open?"))?;
+    let listener = server::serve(port).await.map_err(|e| anyhow::anyhow!("Port {port} is already in use ({e}). Is Gamp already open?"))?;
     spotify::set_app_origin(format!("http://{}:{port}", server::HOST));
     // Pick up music added since last time. Unchanged files are skipped,
     // so this is cheap.
@@ -47,7 +47,7 @@ pub async fn start_server(data: PathBuf, documents: Option<PathBuf>, page: axum:
 }
 
 /// The app used to be called Winamp Hub; bring its settings, sign-ins and
-/// library along the first time G-Amp starts.
+/// library along the first time Gamp starts.
 pub fn adopt_old_data(data: &std::path::Path) {
     let Some(old) = data.parent().map(|p| p.join("rocks.winamphub.player")) else { return };
     if data.exists() || !old.is_dir() {

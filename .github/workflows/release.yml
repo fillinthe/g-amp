@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag like v0.2.0: builds G-Amp for macOS, Windows and Linux and
+# Push a tag like v0.2.0: builds Gamp for macOS, Windows and Linux and
 # attaches the installers to a draft GitHub release.
 on:
   push:
@@ -58,15 +58,15 @@ jobs:
           for f in *.dmg *.exe *.deb *.AppImage; do
             [ -e "$f" ] || continue
             case "$f" in
-              *.dmg) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-macOS-$([ ${{ matrix.target }} = aarch64-apple-darwin ] && echo apple-silicon || echo intel).dmg" ;;
-              *.exe) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-Windows-setup.exe" ;;
-              *.deb) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-Linux-amd64.deb" ;;
-              *.AppImage) cp "$f" "../../out/G-Amp-${GITHUB_REF_NAME}-Linux-x86_64.AppImage" ;;
+              *.dmg) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-macOS-$([ ${{ matrix.target }} = aarch64-apple-darwin ] && echo apple-silicon || echo intel).dmg" ;;
+              *.exe) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-Windows-setup.exe" ;;
+              *.deb) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-Linux-amd64.deb" ;;
+              *.AppImage) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-Linux-x86_64.AppImage" ;;
             esac
           done
           ls -la ../../out
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
-          name: G-Amp ${{ github.ref_name }}
+          name: Gamp ${{ github.ref_name }}
           files: out/*

@@ -92,7 +92,7 @@ async fn login(acc: &Account, otp: &str) -> Result<(Session, String), ApiError> 
         ("format", "sid"),
     ];
     if !otp.is_empty() {
-        q.extend([("otp_code", otp), ("enable_device_token", "yes"), ("device_name", "G-Amp")]);
+        q.extend([("otp_code", otp), ("enable_device_token", "yes"), ("device_name", "Gamp")]);
     } else if !acc.token.is_empty() {
         // The trusted-device id from the first two-step sign-in.
         q.push(("device_id", &acc.token));

@@ -1,6 +1,6 @@
-<p align="center"><img src="assets/logo/gamp-icon.png" width="128" alt="G-Amp"></p>
+<p align="center"><img src="assets/logo/gamp-icon.png" width="128" alt="Gamp"></p>
 
-# G-Amp
+# Gamp
 
 The classic Winamp 2 player, rebuilt from scratch in Rust as a native app for
 macOS and Windows (Linux builds too). It plays everything you have: music
@@ -43,7 +43,7 @@ Drive and OneDrive (yet; WebDAV via `rclone serve webdav` works meanwhile).
 Builds for macOS (Apple silicon and Intel), Windows and Linux are on the
 [Releases](https://github.com/fillinthe/g-amp/releases) page. They are
 unsigned: on a Mac, right-click › Open the first time; on Windows, More info ›
-Run anyway. G-Amp checks for new versions and updates itself (right-click ›
+Run anyway. Gamp checks for new versions and updates itself (right-click ›
 Check for updates…).
 
 ## Using it

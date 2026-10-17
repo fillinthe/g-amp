@@ -46,7 +46,7 @@ async fn find_client_id() -> Result<String, ApiError> {
             return Ok(id);
         }
     }
-    Err(err(StatusCode::BAD_GATEWAY, "SoundCloud changed its web player; G-Amp needs an update to play links"))
+    Err(err(StatusCode::BAD_GATEWAY, "SoundCloud changed its web player; Gamp needs an update to play links"))
 }
 
 pub fn extract_client_id(js: &str) -> Option<String> {

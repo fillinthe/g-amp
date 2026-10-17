@@ -1,4 +1,4 @@
-//! G-Amp's audio engine.
+//! Gamp's audio engine.
 //!
 //! A decoder thread reads the current track (any [`Input`]), turns it into
 //! stereo, runs Winamp's equalizer, converts to the output's sample rate and

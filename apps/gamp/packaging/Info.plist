@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>G-Amp plays music from the servers and NAS boxes on your network.</string>
+  <string>Gamp plays music from the servers and NAS boxes on your network.</string>
   <key>NSBonjourServices</key>
   <array><string>_ssdp._udp</string></array>
   <key>NSHighResolutionCapable</key>

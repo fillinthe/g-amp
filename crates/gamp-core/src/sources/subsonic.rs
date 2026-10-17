@@ -15,7 +15,7 @@ fn auth(acc: &Account) -> Vec<(&'static str, String)> {
         ("t", token),
         ("s", salt),
         ("v", "1.16.1".into()),
-        ("c", "G-Amp".into()),
+        ("c", "Gamp".into()),
         ("f", "json".into()),
     ]
 }

@@ -1,4 +1,4 @@
-//! Staying up to date: G-Amp asks GitHub for the latest release when it
+//! Staying up to date: Gamp asks GitHub for the latest release when it
 //! starts (and when you choose Check for updates), says so in the display,
 //! and installs it on request: the new app replaces this one and starts.
 
@@ -46,7 +46,7 @@ pub fn pick_asset(names: &[String]) -> Option<usize> {
 }
 
 fn client() -> reqwest::blocking::Client {
-    reqwest::blocking::Client::builder().user_agent(concat!("G-Amp/", env!("CARGO_PKG_VERSION"))).connect_timeout(Duration::from_secs(15)).timeout(None).build().expect("http client")
+    reqwest::blocking::Client::builder().user_agent(concat!("Gamp/", env!("CARGO_PKG_VERSION"))).connect_timeout(Duration::from_secs(15)).timeout(None).build().expect("http client")
 }
 
 fn check() -> Result<Option<Release>, String> {
@@ -118,13 +118,13 @@ impl App {
         for m in msgs {
             match m {
                 Msg::Checked(Ok(Some(r)), _) => {
-                    self.main.message = Some(format!("G-AMP {} IS OUT - RIGHT-CLICK › UPDATE", r.version));
+                    self.main.message = Some(format!("GAMP {} IS OUT - RIGHT-CLICK › UPDATE", r.version));
                     self.message_until = Some(std::time::Instant::now() + Duration::from_secs(8));
                     self.update = Some(r);
                 }
                 Msg::Checked(Ok(None), said) => {
                     if said {
-                        self.say(&format!("G-AMP {} IS UP TO DATE", env!("CARGO_PKG_VERSION")));
+                        self.say(&format!("GAMP {} IS UP TO DATE", env!("CARGO_PKG_VERSION")));
                     }
                 }
                 Msg::Checked(Err(e), said) => {
@@ -175,13 +175,13 @@ impl App {
         });
     }
 
-    /// Hands over to a small script that swaps the app once G-Amp has
+    /// Hands over to a small script that swaps the app once Gamp has
     /// quit, then starts the new one.
     fn update_apply(&mut self, file: &Path, r: &Release) {
         let pid = std::process::id();
         let result: Result<(), String> = if cfg!(target_os = "macos") {
             match this_bundle() {
-                None => Err("run G-Amp from its .app to update it".into()),
+                None => Err("run Gamp from its .app to update it".into()),
                 Some(app) => {
                     let mount = file.with_extension("mount");
                     let script = format!(
@@ -200,7 +200,7 @@ open "{a}""#,
             }
         } else if cfg!(windows) {
             let exe = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
-            // Wait for G-Amp to close, install silently, start it again.
+            // Wait for Gamp to close, install silently, start it again.
             let script = format!(
                 "$p = Get-Process -Id {pid} -ErrorAction SilentlyContinue; if ($p) {{ $p.WaitForExit() }}; Start-Process -Wait -FilePath '{f}' -ArgumentList '/S'; Start-Process -FilePath '{exe}'",
                 f = file.display()
@@ -218,7 +218,7 @@ chmod +x "{f}" && mv -f "{f}" "{i}" && "{i}" &"#,
         } else {
             // A .deb needs the system's installer (and your password).
             crate::backend::open_in_browser(&file.display().to_string());
-            self.say(&format!("OPENED G-AMP {} IN YOUR SOFTWARE INSTALLER", r.version));
+            self.say(&format!("OPENED GAMP {} IN YOUR SOFTWARE INSTALLER", r.version));
             return;
         };
         match result {
@@ -241,13 +241,13 @@ mod tests {
         assert!(newer("0.10.0", "0.9.9"));
         assert!(!newer("v0.2.0", "0.2.0"));
         assert!(!newer("0.1.9", "0.2.0"));
-        let names: Vec<String> = ["G-Amp-v0.3.0-macOS-apple-silicon.dmg", "G-Amp-v0.3.0-macOS-intel.dmg", "G-Amp-v0.3.0-Windows-setup.exe", "G-Amp-v0.3.0-Linux-amd64.deb", "G-Amp-v0.3.0-Linux-x86_64.AppImage"].map(String::from).to_vec();
+        let names: Vec<String> = ["Gamp-v0.3.0-macOS-apple-silicon.dmg", "Gamp-v0.3.0-macOS-intel.dmg", "Gamp-v0.3.0-Windows-setup.exe", "Gamp-v0.3.0-Linux-amd64.deb", "Gamp-v0.3.0-Linux-x86_64.AppImage"].map(String::from).to_vec();
         let i = pick_asset(&names).unwrap();
         if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-            assert_eq!(names[i], "G-Amp-v0.3.0-macOS-apple-silicon.dmg");
+            assert_eq!(names[i], "Gamp-v0.3.0-macOS-apple-silicon.dmg");
         }
         if cfg!(windows) {
-            assert_eq!(names[i], "G-Amp-v0.3.0-Windows-setup.exe");
+            assert_eq!(names[i], "Gamp-v0.3.0-Windows-setup.exe");
         }
     }
 }

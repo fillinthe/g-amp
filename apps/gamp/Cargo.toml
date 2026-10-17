@@ -1,6 +1,6 @@
 [package]
 name = "gamp"
-description = "G-Amp: the classic Winamp player, rebuilt natively in Rust"
+description = "Gamp: the classic Winamp player, rebuilt natively in Rust"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -38,7 +38,7 @@ winresource = "0.1.34"
 # `cargo packager --release` from this folder: .app/.dmg, NSIS installer,
 # .deb and AppImage, depending on the system it runs on.
 [package.metadata.packager]
-productName = "G-Amp"
+productName = "Gamp"
 identifier = "co.fillinthe.gamp"
 description = "The classic Winamp-style music player, rebuilt in Rust"
 authors = ["Fill in the Blank, LLC"]
