@@ -127,6 +127,8 @@ impl App {
             b.refresh_sources();
             b.config();
             b.scan_status();
+            // DLNA servers answer a few seconds after the search starts.
+            self.pending_refresh = Some(std::time::Instant::now() + std::time::Duration::from_secs(5));
         }
         self.lib_open(self.lib.page.clone(), true);
     }
@@ -174,6 +176,10 @@ impl App {
                     if let Some(k) = c["soundcloud"]["profile"].as_str() {
                         self.lib_field_default("sc_profile", k);
                     }
+                    // Still looking for DLNA servers: look at the list again shortly.
+                    if c["dlnaSearching"] == true && self.pending_refresh.is_none() {
+                        self.pending_refresh = Some(std::time::Instant::now() + std::time::Duration::from_secs(2));
+                    }
                     self.lib.config = c;
                     if self.lib.page == Page::Settings {
                         self.lib_form();
@@ -183,6 +189,10 @@ impl App {
                 Reply::Message(m) => {
                     self.lib.view.status = m.clone();
                     self.main.message = None;
+                    // The settings form covers the status line: say it in the display.
+                    if self.lib.page == Page::Settings && !m.is_empty() {
+                        self.say(&m);
+                    }
                     // Favourites and subscriptions changed: reload them.
                     self.lib.cache.retain(|k, _| !(k.ends_with("favorites") || k.ends_with("subscriptions")));
                     if let Page::List { node, .. } = &self.lib.page {
@@ -896,7 +906,7 @@ impl App {
         if let Some(fl) = self.lib.fields.get_mut("srv_pass") {
             fl.placeholder = if kid == "plex" { "X-Plex-Token".into() } else { "Password".into() };
         }
-        f.push(W::Row(vec![W::button("srv:kind", &format!("Type: {klabel} ▸")), self.field("srv_name")]));
+        f.push(W::Row(vec![W::button("srv:kind", &format!("Type: {klabel} ›")), self.field("srv_name")]));
         f.push(W::Row(vec![self.field("srv_url")]));
         if kid == "synology" {
             f.push(W::Row(vec![self.field("srv_user"), self.field("srv_pass"), self.field("srv_otp")]));

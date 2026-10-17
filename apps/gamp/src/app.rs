@@ -404,13 +404,14 @@ impl App {
         let Some(me) = self.rect(k) else { return };
         let kinds: Vec<Kind> = Self::DOCKABLE.iter().copied().filter(|o| *o != k && self.rect(*o).is_some()).collect();
         let rects: Vec<Rect> = kinds.iter().filter_map(|o| self.rect(*o)).collect();
-        let over = |r: &Rect| me.x < r.right() && r.x < me.right() && me.y < r.bottom() && r.y < me.bottom();
-        if rects.iter().any(|r| layout::touching(&me, r)) && !rects.iter().any(over) {
-            return;
-        }
         let Some(mi) = kinds.iter().position(|o| *o == Kind::Main) else { return };
         let m = rects[mi];
         let group: Vec<Rect> = layout::docked_group(&rects, mi).into_iter().map(|i| rects[i]).collect();
+        // Already docked to the main window's group (and not on top of anything): stay.
+        let over = |r: &Rect| me.x < r.right() && r.x < me.right() && me.y < r.bottom() && r.y < me.bottom();
+        if group.iter().any(|r| layout::touching(&me, r)) && !rects.iter().any(over) {
+            return;
+        }
         let (x, y) = match k {
             Kind::Eq => {
                 self.shift_below(k, Rect { y: m.bottom(), h: 0, ..m }, me.h);
@@ -2231,7 +2232,10 @@ mod tests {
         app.wins.get_mut(&Kind::Library).unwrap().move_to(2000, 2000);
         app.toggle_window(Kind::Library);
         assert_eq!((r(&app, Kind::Library).x, r(&app, Kind::Library).y), (m.right(), m.y));
-        // G-Drop docks beside the library.
+        // G-Drop docks beside the library, even if it last sat against a stray window.
+        app.wins.get_mut(&Kind::Playlist).unwrap().move_to(3000, 3000);
+        let vis_w = app.win(Kind::Vis).unwrap().size_px().0;
+        app.wins.get_mut(&Kind::Vis).unwrap().move_to(3000 - vis_w, 3000);
         app.toggle_window(Kind::Vis);
         assert_eq!(r(&app, Kind::Vis).x, r(&app, Kind::Library).right());
     }

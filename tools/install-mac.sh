@@ -3,7 +3,7 @@
 # replacing what's there. The bundle is laid out by hand (the same files
 # cargo-packager puts in the dmg), ad-hoc signed so macOS runs it.
 # GAMP_ALSO_INSTALL=user@host also copies the app to that Mac's
-# /Applications over ssh (key auth).
+# /Applications over ssh (key auth). GAMP_SIGN_IDENTITY: see codesign below.
 set -e
 cd "$(dirname "$0")/.."
 PATH="$HOME/.cargo/bin:$PATH"
@@ -59,7 +59,10 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
-codesign --force --deep --sign - "$STAGE" >/dev/null 2>&1 || true
+# A real identity (GAMP_SIGN_IDENTITY, e.g. an Apple Development cert)
+# keeps macOS permissions such as Local Network across rebuilds; an
+# ad-hoc signature is new every build, so they would be asked for again.
+codesign --force --deep --sign "${GAMP_SIGN_IDENTITY:--}" "$STAGE" >/dev/null 2>&1 || true
 
 RUNNING=$(pgrep -f "$APP/Contents/MacOS/gamp" || true)
 if [ -n "$RUNNING" ]; then

@@ -168,13 +168,21 @@ async fn pages(first: String, max: usize) -> Result<Vec<Value>, ApiError> {
 
 /// A profile link or bare user name ("soundcloud.com/you", "you") → its user id.
 pub async fn user_id(profile: &str) -> Result<u64, ApiError> {
-    let p = profile.trim().trim_end_matches('/');
-    let link = if p.contains("soundcloud.com/") { p.to_owned() } else { format!("https://soundcloud.com/{p}") };
-    let v = get(&format!("/resolve?url={}", urlencoding::encode(&link))).await?;
+    let link = profile_link(profile);
+    let not_found = || err(StatusCode::NOT_FOUND, "No such SoundCloud profile");
+    let v = get(&format!("/resolve?url={}", urlencoding::encode(&link))).await.map_err(|e| if e.0 == StatusCode::NOT_FOUND { not_found() } else { e })?;
     match (v["kind"].as_str(), v["id"].as_u64()) {
         (Some("user"), Some(id)) => Ok(id),
-        _ => Err(err(StatusCode::NOT_FOUND, "That isn't a SoundCloud profile. Use your profile page's address, like soundcloud.com/you")),
+        _ => Err(not_found()),
     }
+}
+
+/// "you", "soundcloud.com/you/", "http://m.soundcloud.com/you" → "https://soundcloud.com/you".
+pub fn profile_link(profile: &str) -> String {
+    let p = profile.trim().trim_end_matches('/');
+    let p = p.split_once("://").map_or(p, |(_, rest)| rest);
+    let name = p.rsplit_once("soundcloud.com/").map_or(p, |(_, name)| name);
+    format!("https://soundcloud.com/{name}")
 }
 
 /// A profile's public likes.
@@ -237,6 +245,9 @@ mod tests {
         assert!(super::is_link("https://soundcloud.com/artist/track"));
         assert!(super::is_link("https://on.soundcloud.com/AbC12"));
         assert!(!super::is_link("https://example.com/soundcloud"));
+        for typed in ["you", "soundcloud.com/you", "soundcloud.com/you/", "https://soundcloud.com/you", "http://m.soundcloud.com/you"] {
+            assert_eq!(super::profile_link(typed), "https://soundcloud.com/you", "{typed}");
+        }
     }
 }
 
