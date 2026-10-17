@@ -859,11 +859,14 @@ impl App {
         dbl
     }
 
+    /// Every window that docks and snaps to the others.
+    pub(crate) const DOCKABLE: [Kind; 7] = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis, Kind::Jump, Kind::Info];
+
     /// Starts moving a window (and, for the main window, everything docked
     /// to it).
     pub(crate) fn start_drag(&mut self, k: Kind) {
         let Some(start) = self.win(k).map(Win::global_cursor) else { return };
-        let kinds = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis];
+        let kinds = Self::DOCKABLE;
         let mut group = vec![(k, self.win(k).map(|w| w.pos).unwrap_or_default())];
         if k == Kind::Main {
             let visible: Vec<Kind> = kinds.iter().copied().filter(|k| self.rect(*k).is_some()).collect();
@@ -885,7 +888,7 @@ impl App {
             .iter()
             .filter_map(|(k, (x, y))| self.rect(*k).map(|r| Rect { x: x + dx, y: y + dy, ..r }))
             .collect();
-        let others: Vec<Rect> = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis].iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
+        let others: Vec<Rect> = Self::DOCKABLE.iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
         let screen = self.win(Kind::Main).and_then(|w| w.window.as_ref()).and_then(|w| w.current_monitor()).map(|m| {
             let (p, s) = (m.position(), m.size());
             Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 }
@@ -1143,7 +1146,11 @@ impl App {
             }
             plw::Control::Menu(m) => {
                 if self.pl.menu.is_none() {
-                    self.pl.menu = Some((m, None));
+                    // The bottom item sits over the button, so a plain
+                    // click on ADD is "add files" (REM: remove selected,
+                    // SEL: all, MISC: misc opts, LIST: open), like Winamp.
+                    let h = self.pl.size().1 as i32;
+                    self.pl.menu = Some((m, plw::menu_item(m, h, y)));
                 }
             }
             _ => {}
@@ -1961,9 +1968,13 @@ mod tests {
         app.menu_action("misc:reread", None);
         assert_eq!(app.playlist.entries[1].title, "05 Song 4");
         assert_eq!(app.main.message.as_deref(), Some("READ INFO ON 2 FILES"));
-        // SEL › ALL, then drag the selection: nothing to move past the ends.
-        app.pl_menu_action(PlMenu::Select, 2, None);
+        // A plain click on SEL is its bottom item, SEL ALL (ADD is add files).
+        let (w, h) = app.pl.size();
+        let sel_x = PlMenu::Select.x(w as i32) + 5;
+        app.close_menus(); // the Misc opts pop-up is still open
+        click(&mut app, Kind::Playlist, sel_x, h as i32 - 20);
         assert_eq!(app.pl.selected.len(), 2);
+        assert!(app.pl.menu.is_none());
         // Double-click a row plays it.
         app.pl.selected.clear();
         click(&mut app, Kind::Playlist, 60, row(1));
