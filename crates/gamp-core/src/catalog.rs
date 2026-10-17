@@ -35,13 +35,13 @@ pub async fn sources() -> Vec<Source> {
             needs_setup: false,
         });
     }
-    let (_, sc) = soundcloud::status().await;
+    let sc = soundcloud::status().await.1 || !crate::store::config().await.soundcloud_profile.is_empty();
     out.push(Source {
         id: "soundcloud".into(),
         name: "SoundCloud".into(),
         group: "soundcloud".into(),
         roots: if sc { vec![("likes".into(), "Likes".into()), ("playlists".into(), "Playlists".into())] } else { vec![] },
-        // Links play without an account, so Search is always there.
+        // Links and search work without an account.
         search: true,
         needs_setup: !sc,
     });
@@ -98,7 +98,7 @@ async fn sp_api(path: &str) -> Result<Value, ApiError> {
         if !own {
             return Err(err(
                 StatusCode::TOO_MANY_REQUESTS,
-                "Spotify is turning away the shared sign-in. For your Liked Songs, playlists and search, add your own Spotify Client ID in Settings › Spotify.",
+                "Spotify is busy right now. Try again in a minute.",
             ));
         }
         tries += 1;
@@ -148,6 +148,19 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
         "local" => Ok(Listing::of(local_items().await).hint("Add folders in Settings › Music folders.")),
         "soundcloud" => {
             let (kind, arg) = node.split_once(':').unwrap_or((node, ""));
+            // No API keys: the profile's public lists, read like the web player.
+            if !soundcloud::status().await.1 || arg.starts_with("web:") {
+                use crate::soundcloud_web as web;
+                let rows = match (kind, arg.strip_prefix("web:")) {
+                    ("playlist", Some(id)) => web::playlist(id).await?,
+                    (k @ ("likes" | "playlists"), _) => {
+                        let user = web::user_id(&crate::store::config().await.soundcloud_profile).await?;
+                        if k == "likes" { web::likes(user).await? } else { web::playlists(user).await? }
+                    }
+                    _ => return Err(sources::not_found("That list")),
+                };
+                return Ok(Listing::of(rows));
+            }
             let rows = match kind {
                 "likes" => soundcloud::likes().await?.iter().map(sc_track).collect(),
                 "playlists" => soundcloud::playlists()
@@ -163,10 +176,16 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
         "spotify" => {
             let (kind, arg) = node.split_once(':').unwrap_or((node, ""));
             let rows: Vec<Item> = match kind {
-                "liked" => sp_pages("/me/tracks?limit=50", 5000).await?.iter().filter_map(|i| sp_track(&i["track"])).collect(),
-                "playlists" => sp_pages("/me/playlists?limit=50", 2000)
-                    .await?
-                    .iter()
+                // Read through the player session; the Web API only with your own app.
+                "liked" => match spotify::liked().await {
+                    Ok(t) => t.iter().filter_map(sp_track).collect(),
+                    Err(_) => sp_pages("/me/tracks?limit=50", 5000).await?.iter().filter_map(|i| sp_track(&i["track"])).collect(),
+                },
+                "playlists" => match spotify::playlists().await {
+                    Ok(p) => p,
+                    Err(_) => sp_pages("/me/playlists?limit=50", 2000).await?,
+                }
+                .iter()
                     .filter(|p| !p.is_null())
                     .map(|p| {
                         let count = u(&p["items"]["total"]).or(u(&p["tracks"]["total"]));
@@ -174,6 +193,9 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
                     })
                     .collect(),
                 "playlist" => {
+                    if let Ok(t) = spotify::playlist(arg).await {
+                        return Ok(Listing::of(t.iter().filter_map(sp_track).collect()));
+                    }
                     let items = match sp_pages(&format!("/playlists/{arg}/items?limit=50"), 10000).await {
                         Ok(i) => i,
                         Err(e) if e.0 == StatusCode::NOT_FOUND => sp_pages(&format!("/playlists/{arg}/tracks?limit=50"), 10000).await?,
@@ -202,14 +224,18 @@ pub async fn search(sid: &str, q: &str) -> Result<Listing, ApiError> {
     match sid {
         "soundcloud" => {
             if !soundcloud::status().await.1 {
-                return Err(err(StatusCode::BAD_REQUEST, "Paste a SoundCloud link to play it. Searching SoundCloud needs Connect (Settings › SoundCloud)."));
+                return Ok(Listing::of(crate::soundcloud_web::search(q).await?));
             }
             Ok(Listing::of(soundcloud::search(q).await?.iter().map(sc_track).collect()))
         }
         "spotify" => {
             // Your own playlists whose names match come first.
             let ql = q.to_lowercase();
-            let mut rows: Vec<Item> = match sp_pages("/me/playlists?limit=50", 500).await {
+            let lists = match spotify::playlists().await {
+                Ok(p) => Ok(p),
+                Err(_) => sp_pages("/me/playlists?limit=50", 500).await,
+            };
+            let mut rows: Vec<Item> = match lists {
                 Ok(lists) => lists
                     .iter()
                     .filter(|p| !p.is_null() && s(&p["name"]).to_lowercase().contains(&ql))
@@ -221,6 +247,10 @@ pub async fn search(sid: &str, q: &str) -> Result<Listing, ApiError> {
                 Err(e) if e.0 == StatusCode::TOO_MANY_REQUESTS => return Err(e),
                 Err(_) => Vec::new(),
             };
+            if let Ok(t) = spotify::search(q).await {
+                rows.extend(t.iter().filter_map(sp_track));
+                return Ok(Listing::of(rows));
+            }
             for offset in (0..50).step_by(10) {
                 let r = sp_api(&format!("/search?type=track&limit=10&offset={offset}&q={}", urlencoding::encode(q))).await?;
                 rows.extend(arr(&r["tracks"]["items"]).iter().filter_map(sp_track));

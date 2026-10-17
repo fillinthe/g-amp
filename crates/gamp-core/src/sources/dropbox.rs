@@ -1,6 +1,6 @@
 //! Dropbox: sign in once (OAuth with PKCE), then browse and search your
-//! files. Dropbox asks each app to have its own key: you create one in two
-//! minutes at dropbox.com/developers/apps and paste it into Settings.
+//! files. Gamp's own Dropbox app is built in, so people just click Connect;
+//! a key pasted into Settings (your own app) takes its place.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -36,8 +36,14 @@ fn links() -> &'static Mutex<HashMap<String, (String, Instant)>> {
     L.get_or_init(Default::default)
 }
 
+/// Gamp's Dropbox app (dropbox.com/developers/apps: Scoped access, Full
+/// Dropbox, files.metadata.read + files.content.read, redirect URI
+/// http://127.0.0.1:8742/callback/dropbox). PKCE, so there's no secret.
+/// Empty until that app is registered: Settings then asks for a key.
+pub const APP_KEY: &str = "";
+
 async fn app_key() -> Result<String, ApiError> {
-    let key = store::config().await.dropbox_key;
+    let key = Some(store::config().await.dropbox_key).filter(|k| !k.is_empty()).unwrap_or_else(|| APP_KEY.to_owned());
     if key.is_empty() {
         return Err(bad_gateway("Paste your Dropbox app key in Settings first"));
     }

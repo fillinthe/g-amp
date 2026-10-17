@@ -384,10 +384,60 @@ impl App {
             Kind::Info => return if self.info.open { self.info_hide() } else { self.info_show_selected() },
             _ => return,
         };
+        let before = self.rect(k);
         if let Some(w) = self.wins.get_mut(&k) {
             w.show(on);
         }
+        match (on, before) {
+            (true, _) => self.attach(k),
+            // Closing the equalizer or playlist pulls what was docked under it up.
+            (false, Some(r)) if matches!(k, Kind::Eq | Kind::Playlist) => self.shift_below(k, r, -r.h),
+            _ => {}
+        }
         self.mark(Kind::Main);
+    }
+
+    /// A window that opens away from the others docks to the main window's
+    /// group: the equalizer right under the main window, the playlist at the
+    /// bottom of the stack, the library and G-Drop to the right of it.
+    fn attach(&mut self, k: Kind) {
+        let Some(me) = self.rect(k) else { return };
+        let kinds: Vec<Kind> = Self::DOCKABLE.iter().copied().filter(|o| *o != k && self.rect(*o).is_some()).collect();
+        let rects: Vec<Rect> = kinds.iter().filter_map(|o| self.rect(*o)).collect();
+        let over = |r: &Rect| me.x < r.right() && r.x < me.right() && me.y < r.bottom() && r.y < me.bottom();
+        if rects.iter().any(|r| layout::touching(&me, r)) && !rects.iter().any(over) {
+            return;
+        }
+        let Some(mi) = kinds.iter().position(|o| *o == Kind::Main) else { return };
+        let m = rects[mi];
+        let group: Vec<Rect> = layout::docked_group(&rects, mi).into_iter().map(|i| rects[i]).collect();
+        let (x, y) = match k {
+            Kind::Eq => {
+                self.shift_below(k, Rect { y: m.bottom(), h: 0, ..m }, me.h);
+                (m.x, m.bottom())
+            }
+            Kind::Playlist => (m.x, group.iter().filter(|r| (r.x - m.x).abs() <= 1).map(Rect::bottom).max().unwrap_or(m.bottom())),
+            Kind::Library | Kind::Vis => (group.iter().map(Rect::right).max().unwrap_or(m.right()), m.y),
+            _ => return,
+        };
+        if let Some(w) = self.wins.get_mut(&k) {
+            w.move_to(x, y);
+        }
+    }
+
+    /// Moves the main-stack windows at or below `from`'s bottom edge by `dy`.
+    fn shift_below(&mut self, k: Kind, from: Rect, dy: i32) {
+        let below: Vec<Kind> = [Kind::Main, Kind::Eq, Kind::Playlist]
+            .into_iter()
+            .filter(|o| *o != k)
+            .filter(|o| self.rect(*o).is_some_and(|r| r.y >= from.bottom() - 1))
+            .collect();
+        for o in below {
+            if let Some(w) = self.wins.get_mut(&o) {
+                let (x, y) = w.pos;
+                w.move_to(x, y + dy);
+            }
+        }
     }
 
     /// Rolls a window up to its title bar, or back down. Windows docked
@@ -404,19 +454,8 @@ impl App {
         let (Some(before), Some(w)) = (before, self.win(k)) else { return };
         let scale = w.scale();
         let new_h = (self.logical_size(k).height as f64 * scale) as i32;
-        let dy = new_h - before.h;
         // Everything docked directly below moves by the change in height.
-        let below: Vec<Kind> = [Kind::Main, Kind::Eq, Kind::Playlist]
-            .into_iter()
-            .filter(|o| *o != k)
-            .filter(|o| self.rect(*o).is_some_and(|r| r.y >= before.bottom() - 1))
-            .collect();
-        for o in below {
-            if let Some(w) = self.wins.get_mut(&o) {
-                let (x, y) = w.pos;
-                w.move_to(x, y + dy);
-            }
-        }
+        self.shift_below(k, before, new_h - before.h);
     }
 
     fn set_double(&mut self, on: bool) {
@@ -2166,5 +2205,34 @@ mod tests {
     fn clocks() {
         assert_eq!(clock(125.0), "2:05");
         assert_eq!(clock(3725.0), "1:02:05");
+    }
+
+    #[test]
+    fn windows_dock_when_opened_and_close_up_when_closed() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis] {
+            app.redraw(k);
+        }
+        let r = |app: &App, k| app.rect(k).unwrap();
+        let (m, eq) = (r(&app, Kind::Main), r(&app, Kind::Eq).h);
+        // Stack: main, eq, playlist; the library and G-Drop closed.
+        app.wins.get_mut(&Kind::Vis).unwrap().show(false);
+        app.wins.get_mut(&Kind::Eq).unwrap().move_to(m.x, m.bottom());
+        app.wins.get_mut(&Kind::Playlist).unwrap().move_to(m.x, m.bottom() + eq);
+        // Closing the equalizer pulls the playlist up under the main window.
+        app.toggle_window(Kind::Eq);
+        assert_eq!(r(&app, Kind::Playlist).y, m.bottom());
+        // Opening it again slots it back in and pushes the playlist down.
+        app.toggle_window(Kind::Eq);
+        assert_eq!(r(&app, Kind::Eq).y, m.bottom());
+        assert_eq!(r(&app, Kind::Playlist).y, m.bottom() + eq);
+        // The library, parked far away, docks to the right of the stack.
+        app.wins.get_mut(&Kind::Library).unwrap().show(false);
+        app.wins.get_mut(&Kind::Library).unwrap().move_to(2000, 2000);
+        app.toggle_window(Kind::Library);
+        assert_eq!((r(&app, Kind::Library).x, r(&app, Kind::Library).y), (m.right(), m.y));
+        // G-Drop docks beside the library.
+        app.toggle_window(Kind::Vis);
+        assert_eq!(r(&app, Kind::Vis).x, r(&app, Kind::Library).right());
     }
 }
