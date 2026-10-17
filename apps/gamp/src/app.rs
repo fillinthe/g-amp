@@ -1188,8 +1188,7 @@ impl App {
             self.playlist.current = self.playlist.entries.iter().position(|e| e.key() == p).unwrap_or(0);
         }
         self.playlist.reshuffle();
-        self.ids.clear();
-        self.sync_playlist();
+        self.reordered();
     }
 
     fn pl_release(&mut self, el: Option<&ActiveEventLoop>) {
@@ -1242,7 +1241,12 @@ impl App {
             (PlMenu::Select, 0) => self.pl.selected = (0..n).filter(|i| !self.pl.selected.contains(i)).collect(),
             (PlMenu::Select, 1) => self.pl.selected.clear(),
             (PlMenu::Select, 2) => self.pl.selected = (0..n).collect(),
-            (PlMenu::Misc, 0) => self.sort_playlist(),
+            (PlMenu::Misc, 0) => {
+                // Winamp's sort choices, as a pop-up at the pointer.
+                let at = self.win(Kind::Playlist).map(Win::global_cursor).unwrap_or_default();
+                let items = playlist::Sort::ALL.iter().map(|s| Item::action(s.id(), s.label())).collect();
+                self.open_menu(items, (at.0 as i32, at.1 as i32), _el);
+            }
             (PlMenu::List, 0) => self.clear_playlist(),
             (PlMenu::List, 1) => self.save_playlist(),
             (PlMenu::List, 2) => {
@@ -1279,12 +1283,20 @@ impl App {
         self.keep_only(keep);
     }
 
-    fn sort_playlist(&mut self) {
-        let current = self.playlist.current().map(Entry::key);
-        self.playlist.entries.sort_by_key(|e| e.display().to_lowercase());
-        self.playlist.current = current.and_then(|p| self.playlist.entries.iter().position(|e| e.key() == p)).unwrap_or(0);
-        self.playlist.reshuffle();
+    fn sort_playlist(&mut self, how: playlist::Sort) {
+        self.playlist.sort(how);
+        self.pl.selected.clear();
+        self.reordered();
+    }
+
+    /// After the list changes order: the engine's queued next track may
+    /// no longer be next, so line up the right one.
+    fn reordered(&mut self) {
         self.ids.clear();
+        if self.main.state != PlayState::Stopped {
+            self.queue_after(self.playlist.current);
+        }
+        self.sync_playlist();
     }
 
     fn save_playlist(&mut self) {
@@ -1544,6 +1556,11 @@ impl App {
             "vis:scope" => self.main.vis_mode = VisMode::Oscilloscope,
             "vis:off" => self.main.vis_mode = VisMode::Off,
             "exit" => self.quit = true,
+            id if id.starts_with("sort:") => {
+                if let Some(how) = playlist::Sort::from_id(id) {
+                    self.sort_playlist(how);
+                }
+            }
             "update:check" => self.update_check(true),
             "update:install" => self.update_install(),
             "preset:flat" => {
@@ -1837,6 +1854,16 @@ mod tests {
         app.pl_menu_action(PlMenu::Remove, 2, None);
         assert_eq!(app.playlist.entries.len(), 2);
         assert_eq!(app.playlist.entries[1].title, "05 Song 4");
+        // MISC › Sort list opens the sort menu; Reverse acts on it.
+        app.pl_menu_action(PlMenu::Misc, 0, None);
+        assert_eq!(app.menus.len(), 1);
+        assert_eq!(app.menus[0].items.len(), 5);
+        app.menu_action("sort:reverse", None);
+        assert_eq!(app.playlist.entries[0].title, "05 Song 4");
+        assert_eq!(app.playlist.current, 1, "the playing track keeps its place in the queue");
+        app.menu_action("sort:title", None);
+        assert_eq!(app.playlist.entries[1].title, "05 Song 4");
+        assert_eq!(app.playlist.current, 0);
         // SEL › ALL, then drag the selection: nothing to move past the ends.
         app.pl_menu_action(PlMenu::Select, 2, None);
         assert_eq!(app.pl.selected.len(), 2);
