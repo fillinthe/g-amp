@@ -509,7 +509,10 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         frame.fill(area.0, area.1, area.2, area.3, argb(st.normal_bg));
         let mut form_hots = Vec::new();
         let mut sub = frame.clone();
-        let total = form(&mut sub, skin, area, items, v.form_scroll, &v.pressed, &mut form_hots);
+        // Never past the end: the form may have shrunk (or the window grown)
+        // since the scroll was set.
+        let scroll = v.form_scroll.min(max_form_scroll(skin, v)).max(0);
+        let total = form(&mut sub, skin, area, items, scroll, &v.pressed, &mut form_hots);
         // Clip the form to its panel.
         for y in area.1..area.1 + area.3 {
             for x in area.0..area.0 + area.2 {
@@ -521,7 +524,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         if total > area.3 {
             // A thin scroll indicator.
             let th = (area.3 * area.3 / total).max(12);
-            let ty = area.1 + ((area.3 - th) as f32 * v.form_scroll as f32 / (total - area.3) as f32) as i32;
+            let ty = area.1 + ((area.3 - th) as f32 * scroll as f32 / (total - area.3) as f32) as i32;
             frame.fill(area.0 + area.2 - 4, ty, 3, th, argb(mix(st.normal, st.normal_bg, 0.5)));
         }
         return hots;
@@ -593,9 +596,9 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
     hots
 }
 
-/// How far to scroll a settings form so the heading starting with
-/// `prefix` is at the top.
-pub fn heading_scroll(skin: &Skin, v: &View, prefix: &str) -> Option<i32> {
+/// Lays the settings form out without drawing it: its panel, its full
+/// height, and where each heading starts (unscrolled).
+fn form_layout(skin: &Skin, v: &View) -> Option<(R, i32, Vec<(String, i32)>)> {
     let items = v.form.as_ref()?;
     let (w, h) = v.size();
     let (ix, iy, iw, ih) = v.inner();
@@ -604,6 +607,18 @@ pub fn heading_scroll(skin: &Skin, v: &View, prefix: &str) -> Option<i32> {
     let mut scratch = Frame::new(w, h);
     let mut marks = Vec::new();
     let total = form_marked(&mut scratch, skin, area, items, 0, &None, &mut Vec::new(), &mut marks);
+    Some((area, total, marks))
+}
+
+/// The farthest a settings form can scroll (0 when it all fits).
+pub fn max_form_scroll(skin: &Skin, v: &View) -> i32 {
+    form_layout(skin, v).map(|(area, total, _)| (total - area.3).max(0)).unwrap_or(0)
+}
+
+/// How far to scroll a settings form so the heading starting with
+/// `prefix` is at the top.
+pub fn heading_scroll(skin: &Skin, v: &View, prefix: &str) -> Option<i32> {
+    let (area, total, marks) = form_layout(skin, v)?;
     let y = marks.iter().find(|(t, _)| t.starts_with(prefix))?.1;
     Some(y.min((total - area.3).max(0)).max(0))
 }
@@ -619,6 +634,31 @@ pub fn scroll_top_at(v: &View, y: i32) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn forms_never_scroll_past_the_end() {
+        let skin = Skin::default_skin();
+        let mut v = View { width: MIN_WIDTH, height: MIN_HEIGHT, ..Default::default() };
+        let mut items = Vec::new();
+        for i in 0..30 {
+            items.push(W::Heading(format!("Section {i}")));
+            items.push(W::button(&format!("b{i}"), "Press"));
+        }
+        v.form = Some(items);
+        let max = max_form_scroll(&skin, &v);
+        assert!(max > 0);
+        v.form_scroll = max + 5000;
+        let mut f = Frame::new(1, 1);
+        let hots = draw(&mut f, &skin, &v);
+        assert!(hots.iter().any(|(h, _)| *h == Hot::Form("b29".into())), "the last button is in view");
+        // The indicator stays inside the panel: nothing drawn below it.
+        let (ix, iy, iw, ih) = v.inner();
+        let bg = argb(skin.playlist.normal_bg);
+        let below = (iy + ih + 1..MIN_HEIGHT as i32 - 14).flat_map(|y| (ix..ix + iw).map(move |x| (x, y))).filter(|(x, y)| f.pixels[(*y as u32 * f.width + *x as u32) as usize] == bg).count();
+        assert_eq!(below, 0, "panel colour leaked under the panel");
+        v.form = Some(vec![W::Heading("Short".into())]);
+        assert_eq!(max_form_scroll(&skin, &v), 0);
+    }
 
     #[test]
     fn fields_edit() {
