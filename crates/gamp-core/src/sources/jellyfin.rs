@@ -18,7 +18,7 @@ pub fn device_id() -> String {
 }
 
 fn authorization(token: &str) -> String {
-    let mut h = format!(r#"MediaBrowser Client="G-Amp", Device="G-Amp", DeviceId="{}", Version="0.1.0""#, device_id());
+    let mut h = format!(r#"MediaBrowser Client="Gamp", Device="Gamp", DeviceId="{}", Version="0.1.0""#, device_id());
     if !token.is_empty() {
         h.push_str(&format!(r#", Token="{token}""#));
     }

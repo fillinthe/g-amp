@@ -351,7 +351,7 @@ pub fn html(entries: &[Entry]) -> String {
     let timed = entries.iter().filter(|e| e.duration.is_some()).count();
     let average = if timed > 0 { total / timed as f64 } else { 0.0 };
     let mut out = String::from(
-        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>G-Amp Generated PlayList</title>\n\
+        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>Gamp Generated PlayList</title>\n\
          <style>\nbody { background: #000080; color: #ffffff; font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 20px; }\n\
          h1 { font-family: 'Arial Black', Arial, sans-serif; font-size: 40px; margin: 0; text-align: center; letter-spacing: 2px; }\n\
          h2 { font-size: 20px; font-weight: normal; margin: 0 0 20px; text-align: center; }\n\
@@ -359,7 +359,7 @@ pub fn html(entries: &[Entry]) -> String {
          p { font-size: 13px; }\n\
          ol { font-size: 14px; line-height: 1.6; }\n\
          .time { color: #a0a0ff; }\n\
-         </style>\n</head>\n<body>\n<h1>G-AMP</h1>\n<h2>playlist</h2>\n<hr>\n",
+         </style>\n</head>\n<body>\n<h1>GAMP</h1>\n<h2>playlist</h2>\n<hr>\n",
     );
     out.push_str(&format!(
         "<p>{} track{} in playlist, average track length: {}<br>\nPlaylist length: {}<br>\nRight-click here to save this HTML file.</p>\n<hr>\n<ol>\n",

@@ -1,12 +1,12 @@
 #!/bin/sh
-# Builds G-Amp in release and installs it as /Applications/G-Amp.app,
+# Builds Gamp in release and installs it as /Applications/Gamp.app,
 # replacing what's there. The bundle is laid out by hand (the same files
 # cargo-packager puts in the dmg), ad-hoc signed so macOS runs it.
 set -e
 cd "$(dirname "$0")/.."
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-APP=/Applications/G-Amp.app
-STAGE=target/G-Amp.app
+APP=/Applications/Gamp.app
+STAGE=target/Gamp.app
 
 cargo build --release -p gamp
 
@@ -20,12 +20,12 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key><string>English</string>
-	<key>CFBundleDisplayName</key><string>G-Amp</string>
+	<key>CFBundleDisplayName</key><string>Gamp</string>
 	<key>CFBundleExecutable</key><string>gamp</string>
 	<key>CFBundleIconFile</key><string>gamp.icns</string>
 	<key>CFBundleIdentifier</key><string>co.fillinthe.gamp</string>
 	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-	<key>CFBundleName</key><string>G-Amp</string>
+	<key>CFBundleName</key><string>Gamp</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>$VERSION</string>
 	<key>CFBundleVersion</key><string>$(date +%Y%m%d.%H%M%S)</string>
@@ -51,7 +51,7 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
 	</array>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSHumanReadableCopyright</key><string>© 2026 Fill in the Blank, LLC</string>
-	<key>NSLocalNetworkUsageDescription</key><string>G-Amp plays music from the servers and NAS boxes on your network.</string>
+	<key>NSLocalNetworkUsageDescription</key><string>Gamp plays music from the servers and NAS boxes on your network.</string>
 	<key>NSBonjourServices</key><array><string>_ssdp._udp</string></array>
 </dict>
 </plist>
@@ -60,10 +60,10 @@ codesign --force --deep --sign - "$STAGE" >/dev/null 2>&1 || true
 
 RUNNING=$(pgrep -f "$APP/Contents/MacOS/gamp" || true)
 if [ -n "$RUNNING" ]; then
-  echo "Quitting the running G-Amp…"
-  osascript -e 'tell application "G-Amp" to quit' >/dev/null 2>&1 || kill $RUNNING || true
+  echo "Quitting the running Gamp…"
+  osascript -e 'tell application "Gamp" to quit' >/dev/null 2>&1 || kill $RUNNING || true
   sleep 1
 fi
-rm -rf "$APP"
+rm -rf "$APP" /Applications/G-Amp.app
 cp -R "$STAGE" "$APP"
-echo "Installed G-Amp $VERSION at $APP"
+echo "Installed Gamp $VERSION at $APP"

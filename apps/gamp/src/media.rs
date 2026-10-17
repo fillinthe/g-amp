@@ -28,7 +28,7 @@ impl Media {
             }
         }
         let _ = window.map(|w| w.window_handle().is_ok());
-        let config = PlatformConfig { display_name: "G-Amp", dbus_name: "co.fillinthe.gamp", hwnd };
+        let config = PlatformConfig { display_name: "Gamp", dbus_name: "co.fillinthe.gamp", hwnd };
         let mut controls = match MediaControls::new(config) {
             Ok(c) => c,
             Err(e) => {

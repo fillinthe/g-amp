@@ -1,12 +1,12 @@
 //! Classic Winamp 2 skins (`.wsz`, a zip of bitmaps and text files) for
-//! G-Amp's native windows.
+//! Gamp's native windows.
 //!
 //! A skin is a set of sprite sheets (MAIN.BMP, CBUTTONS.BMP, TEXT.BMP...)
 //! plus colours (PLEDIT.TXT, VISCOLOR.TXT) and window shapes (REGION.TXT).
 //! Sprites are named the way Webamp names them (`MAIN_PLAY_BUTTON`...);
 //! their rectangles are the Winamp 2 skin format, in `sprites.json`
 //! (taken from Webamp, MIT licence). Anything a skin leaves out comes from
-//! G-Amp's own default skin, as Winamp did with its base skin.
+//! Gamp's own default skin, as Winamp did with its base skin.
 
 pub mod region;
 
@@ -18,7 +18,7 @@ use std::sync::OnceLock;
 use image::RgbaImage;
 use serde::Deserialize;
 
-/// G-Amp's own skin, "GAMP Classic" (made by `tools/skin-gen`).
+/// Gamp's own skin, "GAMP Classic" (made by `tools/skin-gen`).
 pub static DEFAULT_SKIN: &[u8] = include_bytes!("../../../assets/skins/gamp-classic.wsz");
 
 #[derive(Deserialize, Clone, Copy, Debug)]
@@ -153,7 +153,7 @@ pub fn parse_viscolor(text: &str) -> Vec<[u8; 3]> {
 }
 
 impl Skin {
-    /// G-Amp's own skin.
+    /// Gamp's own skin.
     pub fn default_skin() -> Skin {
         Skin::from_wsz_inner(DEFAULT_SKIN, None).expect("the built-in skin loads")
     }

@@ -16,7 +16,7 @@ static SIGNED_IN: &str = include_str!("../assets/signed-in.html");
 /// Things sent to the window thread.
 #[derive(Debug)]
 pub enum UserEvent {
-    /// A sign-in finished: bring G-Amp forward and refresh.
+    /// A sign-in finished: bring Gamp forward and refresh.
     Focus,
     /// Background work finished.
     Wake,
@@ -41,7 +41,7 @@ pub struct Backend {
 fn page() -> axum::Router {
     axum::Router::new()
         .route("/signed-in.html", axum::routing::get(|| async { ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], SIGNED_IN).into_response() }))
-        .fallback(|| async { ([(header::CONTENT_TYPE, "text/plain; charset=utf-8")], "G-Amp is running.").into_response() })
+        .fallback(|| async { ([(header::CONTENT_TYPE, "text/plain; charset=utf-8")], "Gamp is running.").into_response() })
 }
 
 impl Backend {

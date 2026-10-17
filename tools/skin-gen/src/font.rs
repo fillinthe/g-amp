@@ -1,4 +1,4 @@
-//! G-Amp's pixel font: 4×5 glyphs (5 wide for M, W and a few others),
+//! Gamp's pixel font: 4×5 glyphs (5 wide for M, W and a few others),
 //! drawn by hand for this skin.
 
 /// Rows top to bottom; '#' is ink.

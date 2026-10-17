@@ -1,6 +1,6 @@
 [package]
 name = "gamp-audio"
-description = "G-Amp's audio engine: decode, resample, Winamp EQ, output, analysis"
+description = "Gamp's audio engine: decode, resample, Winamp EQ, output, analysis"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

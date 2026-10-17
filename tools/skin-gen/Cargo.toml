@@ -1,6 +1,6 @@
 [package]
 name = "skin-gen"
-description = "Draws G-Amp's default skin, GAMP Classic, from code"
+description = "Draws Gamp's default skin, GAMP Classic, from code"
 publish = false
 version.workspace = true
 edition.workspace = true

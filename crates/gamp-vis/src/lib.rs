@@ -1,4 +1,4 @@
-//! G-Drop: G-Amp's MilkDrop-style visualizer, in pure Rust on the CPU,
+//! G-Drop: Gamp's MilkDrop-style visualizer, in pure Rust on the CPU,
 //! so it runs the same on every machine.
 //!
 //! Each frame the previous image is pulled through a warp mesh (zoom,

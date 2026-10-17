@@ -11,7 +11,7 @@ use winit::window::{Window, WindowLevel};
 
 type Surface = softbuffer::Surface<Rc<Window>, Rc<Window>>;
 
-/// G-Amp's icon for the taskbar (Windows, Linux).
+/// Gamp's icon for the taskbar (Windows, Linux).
 fn icon() -> Option<winit::window::Icon> {
     static PNG: &[u8] = include_bytes!("../../../assets/logo/gamp-icon-256.png");
     let img = image::load_from_memory(PNG).ok()?.to_rgba8();

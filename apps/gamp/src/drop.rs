@@ -1,4 +1,4 @@
-//! The G-Drop window: G-Amp's MilkDrop-style visualizer in a generic
+//! The G-Drop window: Gamp's MilkDrop-style visualizer in a generic
 //! Winamp frame (or full screen), rendered at the screen's resolution.
 
 use std::time::Instant;

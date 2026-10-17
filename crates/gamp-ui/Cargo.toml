@@ -1,6 +1,6 @@
 [package]
 name = "gamp-ui"
-description = "G-Amp's windows, drawn pixel for pixel from classic Winamp skins"
+description = "Gamp's windows, drawn pixel for pixel from classic Winamp skins"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

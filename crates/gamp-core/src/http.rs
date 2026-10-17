@@ -8,7 +8,7 @@ use axum::response::{IntoResponse, Response};
 fn builder() -> reqwest::ClientBuilder {
     // No overall timeout: streams last as long as the music.
     reqwest::Client::builder()
-        .user_agent("G-Amp/0.1")
+        .user_agent("Gamp/0.1")
         .connect_timeout(std::time::Duration::from_secs(15))
 }
 

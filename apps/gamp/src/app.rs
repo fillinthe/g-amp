@@ -149,7 +149,7 @@ impl App {
             log::warn!("no sound output ({e}); playing silently");
             Player::new(OutputKind::Null)
         })?;
-        let mut main = main_window::View { volume: 0.8, focused: true, vis_mode: VisMode::Analyzer, title: "G-AMP".into(), eq_open: true, playlist_open: true, ..Default::default() };
+        let mut main = main_window::View { volume: 0.8, focused: true, vis_mode: VisMode::Analyzer, title: "GAMP".into(), eq_open: true, playlist_open: true, ..Default::default() };
         main.balance = 0.0;
         player.set_volume(main.volume);
         let eq = eq_window::View { on: true, ..Default::default() };
@@ -235,9 +235,9 @@ impl App {
         let positions = [(Kind::Main, y), (Kind::Eq, y + step(main_window::HEIGHT)), (Kind::Playlist, y + step(main_window::HEIGHT) + step(eq_window::HEIGHT))];
         for (k, py) in positions {
             let title = match k {
-                Kind::Main => "G-Amp",
-                Kind::Eq => "G-Amp Equalizer",
-                _ => "G-Amp Playlist",
+                Kind::Main => "Gamp",
+                Kind::Eq => "Gamp Equalizer",
+                _ => "Gamp Playlist",
             };
             let mut w = Win::open(Some(el), title, self.logical_size(k), (x, py), false);
             let visible = match k {
@@ -250,7 +250,7 @@ impl App {
         }
         // The library opens beside the stack when you ask for it.
         let lx = x + (main_window::WIDTH as f64 * scale * self.zoom() as f64) as i32;
-        let mut w = Win::open(Some(el), "G-Amp Media Library", self.logical_size(Kind::Library), (lx, y), false);
+        let mut w = Win::open(Some(el), "Gamp Media Library", self.logical_size(Kind::Library), (lx, y), false);
         w.show(self.lib_open_at_start);
         self.wins.insert(Kind::Library, w);
         // G-Drop opens beside the main window on demand.
@@ -258,10 +258,10 @@ impl App {
         w.show(false);
         self.wins.insert(Kind::Vis, w);
         // Jump to File opens over the main window when you press J.
-        let mut w = Win::open(Some(el), "G-Amp Jump to File", self.logical_size(Kind::Jump), (x + (20.0 * scale) as i32, y + (40.0 * scale) as i32), false);
+        let mut w = Win::open(Some(el), "Gamp Jump to File", self.logical_size(Kind::Jump), (x + (20.0 * scale) as i32, y + (40.0 * scale) as i32), false);
         w.show(false);
         self.wins.insert(Kind::Jump, w);
-        let mut w = Win::open(Some(el), "G-Amp File Info", self.logical_size(Kind::Info), (x + (30.0 * scale) as i32, y + (50.0 * scale) as i32), false);
+        let mut w = Win::open(Some(el), "Gamp File Info", self.logical_size(Kind::Info), (x + (30.0 * scale) as i32, y + (50.0 * scale) as i32), false);
         w.show(false);
         self.wins.insert(Kind::Info, w);
         if let Some(s) = self.session.take() {
@@ -503,7 +503,7 @@ impl App {
                 let len = e.duration.map(|d| format!(" ({})", clock(d))).unwrap_or_default();
                 format!("{}. {}{}", self.playlist.current + 1, e.display(), len)
             }
-            None => "G-AMP".into(),
+            None => "GAMP".into(),
         };
         self.main.scroll = 0;
         self.sync_playlist();
@@ -1371,7 +1371,7 @@ impl App {
     }
 
     /// The playlist as extended M3U. Network tracks are written as links
-    /// to this app's server, which plays them while G-Amp runs.
+    /// to this app's server, which plays them while Gamp runs.
     pub(crate) fn m3u(&self) -> String {
         let port = self.backend.as_ref().map(|b| b.port).unwrap_or(8742);
         let mut out = String::from("#EXTM3U\n");
@@ -1464,7 +1464,7 @@ impl App {
             skins.push(Item::action(format!("skin:{}", p.display()), name));
         }
         vec![
-            Item::action("about", "About G-Amp…"),
+            Item::action("about", "About Gamp…"),
             Item::Separator,
             Item::action("open:file", "Play file…").shortcut("L"),
             Item::action("open:folder", "Play folder…").shortcut("Shift+L"),
@@ -1507,7 +1507,7 @@ impl App {
             Item::submenu("Visualization", self.vis_menu()),
             Item::Separator,
             match &self.update {
-                Some(r) => Item::action("update:install", format!("Update to G-Amp {}…", r.version)),
+                Some(r) => Item::action("update:install", format!("Update to Gamp {}…", r.version)),
                 None => Item::action("update:check", "Check for updates…"),
             },
             Item::action("exit", "Exit"),
@@ -1528,7 +1528,7 @@ impl App {
 
     fn push_menu(&mut self, items: Vec<Item>, at: (i32, i32), el: Option<&ActiveEventLoop>) {
         let (w, h) = menu::size(&items);
-        let win = Win::open(el, "G-Amp menu", LogicalSize::new(w, h), at, true);
+        let win = Win::open(el, "Gamp menu", LogicalSize::new(w, h), at, true);
         if let Some(window) = &win.window {
             window.focus_window();
         }
@@ -1590,7 +1590,7 @@ impl App {
 
     pub fn menu_action(&mut self, id: &str, _el: Option<&ActiveEventLoop>) {
         match id {
-            "about" => self.main.message = Some(format!("G-AMP {} - FILLINTHE/G-AMP", env!("CARGO_PKG_VERSION"))),
+            "about" => self.main.message = Some(format!("GAMP {} - FILLINTHE/G-AMP", env!("CARGO_PKG_VERSION"))),
             "open:file" => self.pick_files(true),
             "open:folder" => self.pick_folder(true),
             "win:playlist" => self.toggle_window(Kind::Playlist),

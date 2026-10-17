@@ -1,4 +1,4 @@
-//! G-Amp: the classic Winamp 2 player, rebuilt natively in Rust.
+//! Gamp: the classic Winamp 2 player, rebuilt natively in Rust.
 //!
 //! Each Winamp window is its own borderless OS window, drawn pixel for
 //! pixel by gamp-ui from a classic skin, and playback is gamp-audio's own
@@ -64,7 +64,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         if !self.started {
             self.started = true;
             self.app.open_windows(el);
-            // Is there a newer G-Amp? (Quietly; it says so if there is.)
+            // Is there a newer Gamp? (Quietly; it says so if there is.)
             if std::env::var_os("GAMP_NO_UPDATE_CHECK").is_none() {
                 self.app.update_check(false);
             }
@@ -154,12 +154,12 @@ fn main() -> anyhow::Result<()> {
         return selftest::run();
     }
     if std::env::args().any(|a| a == "--version") {
-        println!("G-Amp {}", env!("CARGO_PKG_VERSION"));
+        println!("Gamp {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     let el = EventLoop::<UserEvent>::with_user_event().build()?;
     let data = app::data_dir();
-    // The sources, sign-ins and streaming; G-Amp still plays files without it.
+    // The sources, sign-ins and streaming; Gamp still plays files without it.
     let backend = match Backend::start(data, Some(el.create_proxy())) {
         Ok(b) => Some(b),
         Err(e) => {
