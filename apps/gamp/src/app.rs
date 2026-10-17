@@ -1611,7 +1611,7 @@ impl App {
             return self.jump_key(key, text);
         }
         if k == Kind::Info {
-            return self.info_key(key);
+            return self.info_key(key, text);
         }
         let ctrl = self.modifiers.control_key() || self.modifiers.super_key();
         let alt = self.modifiers.alt_key();
@@ -1980,7 +1980,7 @@ mod tests {
     }
 
     #[test]
-    fn file_info_shows_tags_and_format() {
+    fn file_info_shows_and_saves_tags() {
         let dir = songs("info", 2, 3);
         let mut app = App::new(OutputKind::Null, None).unwrap();
         app.open_files(vec![dir.clone()], true);
@@ -1988,27 +1988,44 @@ mod tests {
         app.pl.selected = BTreeSet::from([1]);
         app.pl_menu_action(PlMenu::Misc, 1, None);
         assert!(app.info.open);
-        let rows = &app.info.view.rows;
-        assert_eq!(rows[0], (String::new(), "2. 02 Song 1".to_owned()), "{rows:?}");
-        let get = |l: &str| rows.iter().find(|(k, _)| k == l).map(|(_, v)| v.clone()).unwrap_or_default();
-        assert!(get("Format").contains("WAV") && get("Format").contains("22.05 kHz") && get("Format").contains("mono"), "{rows:?}");
-        assert_eq!(get("Length"), "0:03");
-        assert!(!get("Size").is_empty());
+        assert_eq!(app.info.view.heading, "2. 02 Song 1.wav");
+        let get = |app: &App, l: &str| app.info.view.rows.iter().find(|(k, _)| k == l).map(|(_, v)| v.clone()).unwrap_or_default();
+        assert!(get(&app, "Format").contains("WAV") && get(&app, "Format").contains("22.05 kHz") && get(&app, "Format").contains("mono"), "{:?}", app.info.view.rows);
+        assert_eq!(get(&app, "Length"), "0:03");
         assert!(app.info.view.place.ends_with("02 Song 1.wav"));
+        // The Title field has focus; type a title, Tab to Artist, Enter saves.
+        assert_eq!(app.info.focus, Some(0));
+        let typed = |app: &mut App, t: &str| {
+            for c in t.chars() {
+                app.key(Kind::Info, &Key::Character(c.to_string().into()), Some(&c.to_string()));
+            }
+        };
+        typed(&mut app, "Nightcall");
+        app.key(Kind::Info, &Key::Named(NamedKey::Tab), None);
+        typed(&mut app, "Kavinsky");
+        app.key(Kind::Info, &Key::Named(NamedKey::Tab), None);
+        app.key(Kind::Info, &Key::Named(NamedKey::Tab), None);
+        typed(&mut app, "2010");
+        app.key(Kind::Info, &Key::Named(NamedKey::Tab), None);
+        typed(&mut app, "3/12");
+        app.key(Kind::Info, &Key::Named(NamedKey::Enter), None);
+        assert_eq!(app.info.view.status, "Saved");
+        assert!(app.info.open, "stays open after saving");
+        assert_eq!(app.playlist.entries[1].display(), "Kavinsky - Nightcall");
+        assert_eq!(app.pl.tracks[1].title, "Kavinsky - Nightcall");
+        // Reopening reads the saved tags back from the file.
         app.key(Kind::Info, &Key::Named(NamedKey::Escape), None);
         assert!(!app.info.open);
-        // A network track shows what the playlist knows.
-        app.playlist.append(vec![Entry::remote("/media/local/9".into(), "Title".into(), "Art".into(), Some(200.0), false)]);
-        app.pl.selected = BTreeSet::from([2]);
-        app.key(Kind::Playlist, &Key::Character("3".into()), None);
-        assert!(!app.info.open, "needs Alt");
         app.modifiers = ModifiersState::ALT;
         app.key(Kind::Playlist, &Key::Character("3".into()), None);
         app.modifiers = ModifiersState::empty();
-        assert!(app.info.open);
-        let rows = &app.info.view.rows;
-        assert_eq!(rows[0].1, "3. Title");
-        assert!(rows.contains(&("Artist".to_owned(), "Art".to_owned())) && rows.contains(&("Length".to_owned(), "3:20".to_owned())), "{rows:?}");
+        let values: Vec<&str> = app.info.view.fields.iter().map(|(_, f)| f.value.as_str()).collect();
+        assert_eq!(values, ["Nightcall", "Kavinsky", "", "2010", "3/12", "", ""]);
+        // A network track is read-only.
+        app.playlist.append(vec![Entry::remote("/media/local/9".into(), "Title".into(), "Art".into(), Some(200.0), false)]);
+        app.info_show(Some(2));
+        assert!(app.info.view.fields.is_empty());
+        assert!(app.info.view.rows.contains(&("Artist".to_owned(), "Art".to_owned())) && app.info.view.rows.contains(&("Length".to_owned(), "3:20".to_owned())), "{:?}", app.info.view.rows);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
