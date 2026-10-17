@@ -137,6 +137,55 @@ fn parse_pls(text: &str, base: &Path) -> Vec<Listed> {
     rows.into_values().filter(|(f, _, _)| !f.is_empty()).filter_map(|(f, t, d)| listed(&f, base, t, d)).collect()
 }
 
+/// MISC › Sort list, as Winamp offers it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sort {
+    Title,
+    Filename,
+    Path,
+    Reverse,
+    Random,
+}
+
+impl Sort {
+    pub const ALL: [Sort; 5] = [Sort::Title, Sort::Filename, Sort::Path, Sort::Reverse, Sort::Random];
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Sort::Title => "sort:title",
+            Sort::Filename => "sort:filename",
+            Sort::Path => "sort:path",
+            Sort::Reverse => "sort:reverse",
+            Sort::Random => "sort:random",
+        }
+    }
+
+    pub fn from_id(id: &str) -> Option<Sort> {
+        Sort::ALL.into_iter().find(|s| s.id() == id)
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Sort::Title => "Sort list by title",
+            Sort::Filename => "Sort list by filename",
+            Sort::Path => "Sort list by path and filename",
+            Sort::Reverse => "Reverse list",
+            Sort::Random => "Randomize list",
+        }
+    }
+}
+
+fn xorshift(seed: &mut u64) -> u64 {
+    *seed ^= *seed << 13;
+    *seed ^= *seed >> 7;
+    *seed ^= *seed << 17;
+    *seed
+}
+
+fn seed_now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1) | 1
+}
+
 #[derive(Default)]
 pub struct Playlist {
     pub entries: Vec<Entry>,
@@ -168,14 +217,34 @@ impl Playlist {
         self.order = (0..n).collect();
         if self.shuffle && n > 1 {
             // A small xorshift is plenty for shuffling a playlist.
-            let mut seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1) | 1;
+            let mut seed = seed_now();
             for i in (1..n).rev() {
-                seed ^= seed << 13;
-                seed ^= seed >> 7;
-                seed ^= seed << 17;
-                self.order.swap(i, (seed % (i as u64 + 1)) as usize);
+                self.order.swap(i, (xorshift(&mut seed) % (i as u64 + 1)) as usize);
             }
         }
+    }
+
+    /// Reorders the list; the playing track keeps playing (its index moves).
+    pub fn sort(&mut self, how: Sort) {
+        let current = self.current().map(Entry::key);
+        let name = |e: &Entry| match &e.url {
+            Some(_) => e.display(),
+            None => e.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        };
+        match how {
+            Sort::Title => self.entries.sort_by_cached_key(|e| e.display().to_lowercase()),
+            Sort::Filename => self.entries.sort_by_cached_key(|e| name(e).to_lowercase()),
+            Sort::Path => self.entries.sort_by_cached_key(|e| e.key().to_lowercase()),
+            Sort::Reverse => self.entries.reverse(),
+            Sort::Random => {
+                let mut seed = seed_now();
+                for i in (1..self.entries.len()).rev() {
+                    self.entries.swap(i, (xorshift(&mut seed) % (i as u64 + 1)) as usize);
+                }
+            }
+        }
+        self.current = current.and_then(|p| self.entries.iter().position(|e| e.key() == p)).unwrap_or(0);
+        self.reshuffle();
     }
 
     fn pos(&self) -> usize {
@@ -222,6 +291,31 @@ impl Playlist {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn song(path: &str, title: &str) -> Entry {
+        Entry { path: PathBuf::from(path), title: title.into(), ..Default::default() }
+    }
+
+    #[test]
+    fn sorts_keep_the_playing_track() {
+        let mut p = Playlist::default();
+        p.set(vec![song("/b/02 Zed.mp3", "Zed"), song("/a/09 Alpha.mp3", "Alpha"), Entry::remote("/media/x".into(), "Mid".into(), "Band".into(), None, false)]);
+        p.current = 2;
+        p.sort(Sort::Title);
+        assert_eq!(p.entries.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Alpha", "Mid", "Zed"]);
+        assert_eq!(p.current, 1, "Band - Mid still plays");
+        p.sort(Sort::Filename);
+        assert_eq!(p.entries.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Zed", "Alpha", "Mid"], "02 < 09 < Band");
+        p.sort(Sort::Path);
+        assert_eq!(p.entries.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Alpha", "Zed", "Mid"], "/a < /b < /media");
+        p.sort(Sort::Reverse);
+        assert_eq!(p.entries.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Mid", "Zed", "Alpha"]);
+        assert_eq!(p.current, 0);
+        p.sort(Sort::Random);
+        assert_eq!(p.entries.len(), 3);
+        assert_eq!(p.entries[p.current].title, "Mid");
+        assert_eq!(Sort::from_id("sort:random"), Some(Sort::Random));
+    }
 
     #[test]
     fn lists_files_and_links() {
