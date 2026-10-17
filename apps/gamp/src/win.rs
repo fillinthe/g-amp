@@ -226,3 +226,32 @@ impl Win {
         self.dirty = false;
     }
 }
+
+/// Puts the window in front of other programs' windows without giving it
+/// the keyboard focus (macOS raises only the clicked window of an app;
+/// Winamp's windows come forward together).
+pub fn order_front(window: &Window, on_top: bool) {
+    #[cfg(target_os = "macos")]
+    {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        if let Ok(h) = window.window_handle() {
+            if let RawWindowHandle::AppKit(h) = h.as_raw() {
+                // The view belongs to this window and winit keeps it alive;
+                // winit calls into AppKit on this (main) thread too.
+                let view: &objc2_app_kit::NSView = unsafe { h.ns_view.cast().as_ref() };
+                if let Some(w) = view.window() {
+                    // Plain orderFront leaves the window behind the other
+                    // program's while ours is becoming active; this doesn't.
+                    w.orderFrontRegardless();
+                }
+                return;
+            }
+        }
+    }
+    // Elsewhere, moving the window to another level and back brings it to
+    // the top of its level.
+    let level = if on_top { WindowLevel::AlwaysOnTop } else { WindowLevel::Normal };
+    let bump = if on_top { WindowLevel::Normal } else { WindowLevel::AlwaysOnTop };
+    window.set_window_level(bump);
+    window.set_window_level(level);
+}

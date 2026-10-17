@@ -49,6 +49,7 @@ Check for updates…).
 ## Using it
 
 - Drag a title bar to move a window; windows dock and snap together.
+  Clicking any window brings all of them in front of other programs.
 - Z X C V B: previous, play, pause, stop, next. L opens files, S shuffle,
   R repeat. J jumps to a file: type part of a title, Enter plays it.
   Ctrl+D double size, Ctrl+T remaining time, Ctrl+A always on top.
@@ -60,6 +61,8 @@ Check for updates…).
   reverses or randomizes the list; the playing track keeps playing.
   MISC › File info (Alt+3) shows a track's tags, format, size and length;
   for files the tags can be edited (Tab between fields) and saved.
+  MISC › Misc opts generates an HTML playlist (opens in the browser) or
+  re-reads the tags of the selected files.
 - The playlist's LIST button saves and opens `.m3u8` playlists (`.m3u` and
   `.pls` open too). Saved lists keep radio stations and library tracks, not
   only files, and a station address from any other program plays as well.

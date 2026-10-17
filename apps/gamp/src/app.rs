@@ -1254,6 +1254,15 @@ impl App {
             (PlMenu::Select, 1) => self.pl.selected.clear(),
             (PlMenu::Select, 2) => self.pl.selected = (0..n).collect(),
             (PlMenu::Misc, 1) => self.info_show_selected(),
+            (PlMenu::Misc, 2) => {
+                // Winamp's "Misc. opts" submenu.
+                let at = self.win(Kind::Playlist).map(Win::global_cursor).unwrap_or_default();
+                let items = vec![
+                    Item::action("misc:html", "Generate HTML playlist"),
+                    Item::action("misc:reread", "Read extended info on selected files"),
+                ];
+                self.open_menu(items, (at.0 as i32, at.1 as i32), _el);
+            }
             (PlMenu::Misc, 0) => {
                 // Winamp's sort choices, as a pop-up at the pointer.
                 let at = self.win(Kind::Playlist).map(Win::global_cursor).unwrap_or_default();
@@ -1294,6 +1303,41 @@ impl App {
     fn remove_selected(&mut self) {
         let keep: BTreeSet<usize> = (0..self.playlist.entries.len()).filter(|i| !self.pl.selected.contains(i)).collect();
         self.keep_only(keep);
+    }
+
+    /// MISC › Misc opts › Generate HTML playlist: writes the page to the
+    /// data folder and shows it in the browser.
+    fn html_playlist(&mut self) {
+        let page = playlist::html(&self.playlist.entries);
+        let path = gamp_core::store::data_dir().join("playlist.html");
+        match std::fs::write(&path, page) {
+            Ok(()) => {
+                self.main.message = Some(format!("HTML PLAYLIST: {} TRACKS", self.playlist.entries.len()));
+                if !cfg!(test) {
+                    crate::backend::open_in_browser(&format!("file://{}", path.display()));
+                }
+            }
+            Err(e) => self.main.message = Some(format!("COULDN'T WRITE {}: {e}", path.display()).to_uppercase()),
+        }
+    }
+
+    /// MISC › Misc opts › Read extended info: re-reads tags and length for
+    /// the selected files (all files when nothing is selected).
+    fn reread_selected(&mut self) {
+        let which: Vec<usize> = if self.pl.selected.is_empty() { (0..self.playlist.entries.len()).collect() } else { self.pl.selected.iter().copied().collect() };
+        let mut n = 0;
+        for i in which {
+            let Some(e) = self.playlist.entries.get(i) else { continue };
+            if e.url.is_some() || !e.path.exists() {
+                continue;
+            }
+            let fresh = Entry::read(&e.path);
+            self.playlist.entries[i] = fresh;
+            n += 1;
+        }
+        self.main.message = Some(format!("READ INFO ON {n} FILE{}", if n == 1 { "" } else { "S" }));
+        self.update_title();
+        self.sync_playlist();
     }
 
     fn sort_playlist(&mut self, how: playlist::Sort) {
@@ -1571,6 +1615,8 @@ impl App {
             "vis:scope" => self.main.vis_mode = VisMode::Oscilloscope,
             "vis:off" => self.main.vis_mode = VisMode::Off,
             "exit" => self.quit = true,
+            "misc:html" => self.html_playlist(),
+            "misc:reread" => self.reread_selected(),
             id if id.starts_with("sort:") => {
                 if let Some(how) = playlist::Sort::from_id(id) {
                     self.sort_playlist(how);
@@ -1694,7 +1740,21 @@ impl App {
                 return;
             }
         }
+        if focused {
+            self.raise_all(k);
+        }
         self.mark(k);
+    }
+
+    /// Like Winamp, the windows move as a group: clicking one brings every
+    /// open window in front of other programs, the clicked one on top.
+    fn raise_all(&self, top: Kind) {
+        let others = self.wins.iter().filter(|(k, w)| **k != top && w.visible).map(|(_, w)| w);
+        for w in others.chain(self.wins.get(&top)) {
+            if let Some(w) = &w.window {
+                crate::win::order_front(w, self.on_top);
+            }
+        }
     }
 
     pub fn dropped(&mut self, k: Kind, path: PathBuf) {
@@ -1884,6 +1944,16 @@ mod tests {
         app.menu_action("sort:title", None);
         assert_eq!(app.playlist.entries[1].title, "05 Song 4");
         assert_eq!(app.playlist.current, 0);
+        // MISC › Misc opts: the HTML page lands in the data folder; tags re-read.
+        app.pl_menu_action(PlMenu::Misc, 2, None);
+        assert_eq!(app.menus[0].items.len(), 2);
+        app.menu_action("misc:html", None);
+        let page = std::fs::read_to_string(gamp_core::store::data_dir().join("playlist.html")).unwrap();
+        assert!(page.contains("2 tracks in playlist"), "{page}");
+        app.playlist.entries[1].title = "wrong".into();
+        app.menu_action("misc:reread", None);
+        assert_eq!(app.playlist.entries[1].title, "05 Song 4");
+        assert_eq!(app.main.message.as_deref(), Some("READ INFO ON 2 FILES"));
         // SEL › ALL, then drag the selection: nothing to move past the ends.
         app.pl_menu_action(PlMenu::Select, 2, None);
         assert_eq!(app.pl.selected.len(), 2);
