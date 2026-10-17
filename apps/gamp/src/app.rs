@@ -81,6 +81,8 @@ pub struct App {
     pub(crate) resize: Option<Resize>,
     pub(crate) last_click: Option<(Instant, Kind, i32, i32)>,
     pub(crate) marquee_at: Instant,
+    /// What the display showed last tick, to scroll a new text from its start.
+    pub(crate) shown: String,
     pub(crate) blink_at: Instant,
     pub(crate) spectrum: Spectrum,
     pub(crate) wave: Vec<f32>,
@@ -175,6 +177,7 @@ impl App {
             resize: None,
             last_click: None,
             marquee_at: Instant::now(),
+            shown: String::new(),
             blink_at: Instant::now(),
             spectrum: Spectrum::new(512),
             wave: vec![0.0; 512],
@@ -418,12 +421,19 @@ impl App {
                 (m.x, m.bottom())
             }
             Kind::Playlist => (m.x, group.iter().filter(|r| (r.x - m.x).abs() <= 1).map(Rect::bottom).max().unwrap_or(m.bottom())),
-            Kind::Library | Kind::Vis => (group.iter().map(Rect::right).max().unwrap_or(m.right()), m.y),
+            Kind::Library | Kind::Vis => (layout::beside(&group, me.w, self.screen()), m.y),
             _ => return,
         };
         if let Some(w) = self.wins.get_mut(&k) {
             w.move_to(x, y);
         }
+    }
+
+    /// The display the main window is on, in physical pixels.
+    fn screen(&self) -> Option<Rect> {
+        let m = self.win(Kind::Main)?.window.as_ref()?.current_monitor()?;
+        let (p, s) = (m.position(), m.size());
+        Some(Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 })
     }
 
     /// Moves the main-stack windows at or below `from`'s bottom edge by `dy`.
@@ -846,7 +856,15 @@ impl App {
         }
         if now.duration_since(self.marquee_at) >= MARQUEE_STEP {
             self.marquee_at = now;
-            if self.main.title.chars().count() * 5 > 154 && self.main.message.is_none() {
+            let shown = self.main.message.as_ref().unwrap_or(&self.main.title);
+            if *shown != self.shown {
+                self.shown = shown.clone();
+                // A message scrolls from its start; the title picks up where it was.
+                if self.main.message.is_some() {
+                    self.main.scroll = 0;
+                }
+            }
+            if self.shown.chars().count() * 5 > 154 {
                 self.main.scroll += 5;
                 self.mark(Kind::Main);
             }
@@ -861,7 +879,7 @@ impl App {
     }
 
     pub fn busy(&self) -> bool {
-        self.drop_visible() || self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.title.chars().count() * 5 > 154 || self.drag.is_some()
+        self.drop_visible() || self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.message.as_ref().unwrap_or(&self.main.title).chars().count() * 5 > 154 || self.drag.is_some()
     }
 
     // ---- pointer --------------------------------------------------------
@@ -929,10 +947,7 @@ impl App {
             .filter_map(|(k, (x, y))| self.rect(*k).map(|r| Rect { x: x + dx, y: y + dy, ..r }))
             .collect();
         let others: Vec<Rect> = Self::DOCKABLE.iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
-        let screen = self.win(Kind::Main).and_then(|w| w.window.as_ref()).and_then(|w| w.current_monitor()).map(|m| {
-            let (p, s) = (m.position(), m.size());
-            Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 }
-        });
+        let screen = self.screen();
         let scale = self.win(d.kind).map(Win::scale).unwrap_or(1.0);
         let (sx, sy) = layout::snap(&moving, &others, screen, (10.0 * scale) as i32);
         for (k, (x, y)) in group {

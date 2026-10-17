@@ -146,7 +146,9 @@ impl App {
     /// Shows a message in the display for a few seconds.
     pub fn say(&mut self, text: &str) {
         self.main.message = Some(text.to_uppercase());
-        self.message_until = Some(std::time::Instant::now() + Duration::from_secs(5));
+        // Long enough to scroll past once (a letter every 220 ms) when it doesn't fit.
+        let secs = (text.chars().count() as u64 * 22 / 100 + 3).max(5);
+        self.message_until = Some(std::time::Instant::now() + Duration::from_secs(secs));
         self.mark(crate::app::Kind::Main);
     }
 

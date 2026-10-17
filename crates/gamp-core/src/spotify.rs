@@ -2,10 +2,9 @@
 //!
 //! The approval uses librespot's client ID with PKCE. Spotify only accepts
 //! that client's fixed callback, http://127.0.0.1:8898/login, so a tiny
-//! listener opens on that port for the sign-in and closes after. The same
-//! grant reads the library through the Web API (the page asks this server
-//! for a current token) and logs librespot in; librespot then keeps its own
-//! reusable credential in the data folder.
+//! listener opens on that port for the sign-in and closes after. The grant
+//! logs librespot in; librespot then keeps its own reusable credential in
+//! the data folder, and the library is read through that session too.
 //!
 //! Playback: `/media/spotify/<id>.wav` is served as a seekable WAV file of
 //! 16-bit stereo PCM at 44.1 kHz, decoded by a librespot player whose sink
@@ -50,11 +49,6 @@ const CALLBACK_PORT: u16 = 8898;
 const REDIRECT_URI: &str = "http://127.0.0.1:8898/login";
 const SCOPES: &str = "streaming user-read-private user-read-email user-library-read playlist-read-private playlist-read-collaborative";
 const TOKENS: &str = "spotify-tokens.json";
-/// librespot's client ID is shared by every librespot-based player, so
-/// its Web API quota is always used up (429). Liked Songs, playlists and
-/// search use the person's own Spotify app instead when they add one.
-const LIBRARY_TOKENS: &str = "spotify-library-tokens.json";
-const LIBRARY_SCOPES: &str = "user-read-private user-library-read playlist-read-private playlist-read-collaborative";
 
 const RATE: u64 = 44_100;
 const BYTES_PER_FRAME: u64 = 4; // 16-bit stereo
@@ -65,18 +59,12 @@ struct Tokens {
     access_token: String,
     refresh_token: String,
     expires_at: u64,
-    /// The client the tokens belong to (library tokens only).
-    #[serde(default)]
-    client_id: String,
 }
 
 struct Pending {
     verifier: String,
     state: String,
     at: Instant,
-    /// Whose sign-in: librespot's (playback) or the person's own app.
-    client_id: String,
-    library: bool,
 }
 
 fn pending() -> &'static Mutex<Option<Pending>> {
@@ -121,55 +109,24 @@ pub async fn connected() -> bool {
     !tokens.refresh_token.is_empty()
 }
 
-/// The Client ID of the person's own Spotify app, if they added one.
-async fn own_client_id() -> Option<String> {
-    Some(store::config().await.spotify_client_id).filter(|id| !id.is_empty())
-}
-
-/// Signed in with the person's own app, for the library.
-pub async fn library_connected() -> bool {
-    let Some(id) = own_client_id().await else { return false };
-    let t = store::read_json::<Tokens>(LIBRARY_TOKENS).await.unwrap_or_default();
-    !t.refresh_token.is_empty() && t.client_id == id
-}
-
-pub const fn redirect_uri() -> &'static str {
-    REDIRECT_URI
-}
-
 // ---- sign-in ---------------------------------------------------------
 
-/// Sign-in for playback (librespot's client).
+/// The address to approve Gamp at, with the callback listener open.
 pub async fn login_url() -> Result<String, ApiError> {
-    authorize_url(CLIENT_ID.to_owned(), false).await
-}
-
-/// Sign-in with the person's own app, for Liked Songs, playlists and search.
-pub async fn library_login_url() -> Result<String, ApiError> {
-    let id = own_client_id().await.ok_or_else(|| err(StatusCode::BAD_REQUEST, "Save your Spotify Client ID first (Settings › Spotify)."))?;
-    authorize_url(id, true).await
-}
-
-async fn authorize_url(client_id: String, library: bool) -> Result<String, ApiError> {
     ensure_callback_listener().await?;
-    authorize_url_now(client_id, library)
-}
-
-/// The authorize address, with the callback listener already open.
-fn authorize_url_now(client_id: String, library: bool) -> Result<String, ApiError> {
     let verifier = random(64);
     let state = random(16);
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let mut url = url::Url::parse("https://accounts.spotify.com/authorize")?;
     url.query_pairs_mut()
-        .append_pair("client_id", &client_id)
+        .append_pair("client_id", CLIENT_ID)
         .append_pair("response_type", "code")
         .append_pair("redirect_uri", REDIRECT_URI)
         .append_pair("code_challenge_method", "S256")
         .append_pair("code_challenge", &challenge)
-        .append_pair("scope", if library { LIBRARY_SCOPES } else { SCOPES })
+        .append_pair("scope", SCOPES)
         .append_pair("state", &state);
-    *pending().lock().unwrap() = Some(Pending { verifier, state, at: Instant::now(), client_id, library });
+    *pending().lock().unwrap() = Some(Pending { verifier, state, at: Instant::now() });
     Ok(url.into())
 }
 
@@ -194,12 +151,7 @@ async fn ensure_callback_listener() -> Result<(), ApiError> {
             let done_tx = done_tx.clone();
             async move {
                 let origin = APP_ORIGIN.get().cloned().unwrap_or_default();
-                let result = match finish_login(&q).await {
-                    // Playback is signed in; go straight on to the library sign-in.
-                    Ok(Some(next)) => return Redirect::to(&next),
-                    Ok(None) => Ok(()),
-                    Err(e) => Err(e.1),
-                };
+                let result = finish_login(&q).await.map_err(|e| e.1);
                 let target = format!("{origin}{}", crate::shell::after_sign_in("Spotify", result));
                 let _ = done_tx.try_send(());
                 Redirect::to(&target)
@@ -219,8 +171,7 @@ async fn ensure_callback_listener() -> Result<(), ApiError> {
     Ok(())
 }
 
-/// Finishes a sign-in; `Some(url)` is a further sign-in to open.
-async fn finish_login(q: &std::collections::HashMap<String, String>) -> Result<Option<String>, ApiError> {
+async fn finish_login(q: &std::collections::HashMap<String, String>) -> Result<(), ApiError> {
     if let Some(e) = q.get("error") {
         return Err(err(StatusCode::UNAUTHORIZED, format!("Spotify sign-in: {e}")));
     }
@@ -229,47 +180,32 @@ async fn finish_login(q: &std::collections::HashMap<String, String>) -> Result<O
         return Err(err(StatusCode::BAD_REQUEST, "This Spotify sign-in expired. Try again."));
     };
     let code = q.get("code").cloned().unwrap_or_default();
-    let file = if p.library { LIBRARY_TOKENS } else { TOKENS };
-    token_request(
-        file,
-        &p.client_id,
-        &[("grant_type", "authorization_code"), ("code", &code), ("redirect_uri", REDIRECT_URI), ("client_id", &p.client_id), ("code_verifier", &p.verifier)],
-    )
-    .await?;
-    if p.library {
-        return Ok(None);
-    }
+    token_request(&[("grant_type", "authorization_code"), ("code", &code), ("redirect_uri", REDIRECT_URI), ("client_id", CLIENT_ID), ("code_verifier", &p.verifier)]).await?;
     // Sign librespot in now, so the first song starts without a wait.
     *session_cell().lock().await = None;
     let _ = std::fs::remove_file(store::data_dir().join("spotify").join("credentials.json"));
     session().await?;
-    if let Some(id) = own_client_id().await {
-        if !library_connected().await {
-            return Ok(Some(authorize_url_now(id, true)?));
-        }
-    }
-    Ok(None)
+    Ok(())
 }
 
-async fn token_request(file: &str, client_id: &str, params: &[(&str, &str)]) -> Result<(), ApiError> {
+async fn token_request(params: &[(&str, &str)]) -> Result<(), ApiError> {
     let res = client().post("https://accounts.spotify.com/api/token").form(params).send().await?;
     let status = res.status();
     let body: Value = res.json().await.unwrap_or_default();
     if !status.is_success() {
         let why = body["error_description"].as_str().or(body["error"].as_str()).unwrap_or("unknown error");
         if body["error"] == "invalid_grant" {
-            let _ = store::write_json(file, &Tokens::default(), true).await;
+            let _ = store::write_json(TOKENS, &Tokens::default(), true).await;
         }
         return Err(err(StatusCode::UNAUTHORIZED, format!("Spotify sign-in failed: {why}")));
     }
-    let old = store::read_json::<Tokens>(file).await.unwrap_or_default();
+    let old = store::read_json::<Tokens>(TOKENS).await.unwrap_or_default();
     let tokens = Tokens {
         access_token: body["access_token"].as_str().unwrap_or_default().to_owned(),
         refresh_token: body["refresh_token"].as_str().map(str::to_owned).unwrap_or(old.refresh_token),
         expires_at: now_ms() + body["expires_in"].as_u64().unwrap_or(3600) * 1000,
-        client_id: client_id.to_owned(),
     };
-    store::write_json(file, &tokens, true).await?;
+    store::write_json(TOKENS, &tokens, true).await?;
     Ok(())
 }
 
@@ -282,26 +218,9 @@ pub async fn access_token() -> Result<(String, u64), ApiError> {
     if now_ms() + 60_000 < t.expires_at {
         return Ok((t.access_token, t.expires_at));
     }
-    token_request(TOKENS, CLIENT_ID, &[("grant_type", "refresh_token"), ("refresh_token", &t.refresh_token), ("client_id", CLIENT_ID)]).await?;
+    token_request(&[("grant_type", "refresh_token"), ("refresh_token", &t.refresh_token), ("client_id", CLIENT_ID)]).await?;
     let t = store::read_json::<Tokens>(TOKENS).await.unwrap_or_default();
     Ok((t.access_token, t.expires_at))
-}
-
-/// A token for the Web API (library, playlists, search): the person's own
-/// app when signed in with it, otherwise the playback sign-in.
-pub async fn api_token() -> Result<(String, u64, bool), ApiError> {
-    if library_connected().await {
-        let _guard = token_lock().lock().await;
-        let t = store::read_json::<Tokens>(LIBRARY_TOKENS).await.unwrap_or_default();
-        if now_ms() + 60_000 < t.expires_at {
-            return Ok((t.access_token, t.expires_at, true));
-        }
-        token_request(LIBRARY_TOKENS, &t.client_id, &[("grant_type", "refresh_token"), ("refresh_token", &t.refresh_token), ("client_id", &t.client_id)]).await?;
-        let t = store::read_json::<Tokens>(LIBRARY_TOKENS).await.unwrap_or_default();
-        return Ok((t.access_token, t.expires_at, true));
-    }
-    let (t, at) = access_token().await?;
-    Ok((t, at, false))
 }
 
 pub async fn logout() -> anyhow::Result<()> {
@@ -309,7 +228,6 @@ pub async fn logout() -> anyhow::Result<()> {
         s.shutdown();
     }
     let _ = std::fs::remove_file(store::data_dir().join("spotify").join("credentials.json"));
-    store::write_json(LIBRARY_TOKENS, &Tokens::default(), true).await?;
     store::write_json(TOKENS, &Tokens::default(), true).await
 }
 
@@ -353,8 +271,8 @@ fn cache_or_err() -> Result<Cache, ApiError> {
 //
 // The Web API needs a developer app (and Spotify caps those at 5 users),
 // so Liked Songs, playlists and search are read the way Spotify's own
-// apps read them. Results come back in the Web API's shape, so the
-// catalog maps them the same way either way.
+// apps read them. Results come back in the Web API's shape, which the
+// catalog maps to tracks.
 
 fn lib_err(e: impl std::fmt::Display) -> ApiError {
     err(StatusCode::BAD_GATEWAY, format!("Spotify: {e}"))
@@ -640,11 +558,6 @@ fn pcm_body(prefix: Vec<u8>, want: u64, rx: mpsc::Receiver<Msg>, player: Option<
         }
     });
     Body::from_stream(stream)
-}
-
-pub async fn token_route() -> Result<axum::Json<Value>, ApiError> {
-    let (access_token, expires_at, _) = api_token().await?;
-    Ok(axum::Json(serde_json::json!({ "accessToken": access_token, "expiresAt": expires_at })))
 }
 
 #[cfg(test)]
