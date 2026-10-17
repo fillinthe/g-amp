@@ -242,8 +242,8 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) {
 
     // Title (or a slider's message).
     let text = v.message.as_deref().unwrap_or(&v.title).to_uppercase();
-    let scroll = if v.message.is_some() { 0 } else { v.scroll };
-    let padded = if text.chars().count() * 5 > 154 && v.message.is_none() { format!("{text}  ***  ") } else { text };
+    // Too long to fit (a title, or a long message): it scrolls.
+    let (padded, scroll) = if text.chars().count() * 5 > 154 { (format!("{text}  ***  "), v.scroll) } else { (text, 0) };
     frame.text(skin, &padded, 111, 27, 154, scroll);
 
     if v.state != PlayState::Stopped {

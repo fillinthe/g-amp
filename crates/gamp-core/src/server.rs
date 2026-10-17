@@ -30,10 +30,10 @@ fn origin(port: u16) -> String {
 /// The API and media routes; `page` serves everything else (the player page).
 pub fn router(port: u16, page: Router) -> Router {
     let o = origin(port);
-    let sc_redirect = format!("{o}/callback/soundcloud");
-    let sc_redirect2 = sc_redirect.clone();
+    let dbx = format!("{o}/callback/dropbox");
+    let dbx2 = dbx.clone();
     Router::new()
-        .route("/api/config", get(move || get_config(sc_redirect.clone())).post(move |b| post_config(b, sc_redirect2.clone())))
+        .route("/api/config", get(move || get_config(dbx.clone())).post(move |b| post_config(b, dbx2.clone())))
         .route("/api/browse", get(browse))
         .route("/api/library", get(library_list))
         .route("/api/library/status", get(|| async { Json(library::status().await) }))
@@ -43,17 +43,6 @@ pub fn router(port: u16, page: Router) -> Router {
         .route("/media/local/{id}", get(media_local))
         .route("/media/soundcloud/{file}", get(media_soundcloud))
         .route("/media/spotify/{file}", get(media_spotify))
-        .route("/auth/soundcloud/login", get(move || soundcloud_login(format!("{}/callback/soundcloud", origin(port)))))
-        .route("/callback/soundcloud", get(soundcloud_callback))
-        .route("/api/soundcloud/logout", post(|| async { soundcloud::logout().await.map(|_| Json(json!({"ok": true}))).map_err(ApiError::from) }))
-        .route("/api/soundcloud/likes", get(|| async { soundcloud::likes().await.map(Json) }))
-        .route("/api/soundcloud/playlists", get(|| async { soundcloud::playlists().await.map(Json) }))
-        .route("/api/soundcloud/playlist", get(|Query(q): Query<HashMap<String, String>>| async move {
-            soundcloud::playlist_tracks(q.get("urn").map(String::as_str).unwrap_or_default()).await.map(Json)
-        }))
-        .route("/api/soundcloud/search", get(|Query(q): Query<HashMap<String, String>>| async move {
-            soundcloud::search(q.get("q").map(String::as_str).unwrap_or_default()).await.map(Json)
-        }))
         .route("/api/sources", get(|| async { Json(sources::list().await) }))
         .route("/api/sources/discover", post(|| async {
             sources::dlna::refresh(true);
@@ -105,8 +94,6 @@ pub fn router(port: u16, page: Router) -> Router {
         }))
         .route("/api/mount", post(mount))
         .route("/auth/spotify/login", get(spotify_login))
-        .route("/auth/spotify/library", get(spotify_library_login))
-        .route("/api/spotify/token", get(spotify::token_route))
         .route("/api/spotify/logout", post(|| async { spotify::logout().await.map(|_| Json(json!({"ok": true}))).map_err(ApiError::from) }))
         .route("/media/test-tone.wav", get(test_tone))
         .route("/api/overlay", get(|| async {
@@ -165,55 +152,32 @@ struct ActionBody {
     items: Vec<Item>,
 }
 
-async fn public_config(sc_redirect: String) -> Value {
+async fn public_config(dropbox_redirect: String) -> Value {
     let c = store::config().await;
-    let dropbox_redirect = sc_redirect.replace("/callback/soundcloud", "/callback/dropbox");
-    let (configured, connected) = soundcloud::status().await;
     json!({
         "platform": std::env::consts::OS,
         "shell": crate::shell::shell(),
         "folders": c.folders,
-        "spotify": {
-            "connected": spotify::connected().await,
-            "clientId": c.spotify_client_id,
-            "library": spotify::library_connected().await,
-            "redirectUri": spotify::redirect_uri(),
-        },
-        "soundcloud": {
-            "clientId": c.soundcloud.client_id,
-            "hasSecret": !c.soundcloud.client_secret.is_empty(),
-            "redirectUri": sc_redirect,
-            "configured": configured,
-            "connected": connected,
-            "profile": c.soundcloud_profile,
-        },
+        "spotify": { "connected": spotify::connected().await },
+        "soundcloud": { "profile": c.soundcloud_profile },
         "dropbox": { "key": c.dropbox_key, "builtIn": !sources::dropbox::APP_KEY.is_empty(), "redirectUri": dropbox_redirect },
         "dlnaSearching": sources::dlna::searching(),
     })
 }
 
-async fn get_config(sc_redirect: String) -> Json<Value> {
-    Json(public_config(sc_redirect).await)
+async fn get_config(dropbox_redirect: String) -> Json<Value> {
+    Json(public_config(dropbox_redirect).await)
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ConfigPatch {
     folders: Option<Vec<String>>,
-    soundcloud: Option<SoundCloudPatch>,
     soundcloud_profile: Option<String>,
     dropbox_key: Option<String>,
-    spotify_client_id: Option<String>,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SoundCloudPatch {
-    client_id: Option<String>,
-    client_secret: Option<String>,
-}
-
-async fn post_config(Json(patch): Json<ConfigPatch>, sc_redirect: String) -> Result<Json<Value>, ApiError> {
+async fn post_config(Json(patch): Json<ConfigPatch>, dropbox_redirect: String) -> Result<Json<Value>, ApiError> {
     let mut c = store::config().await;
     if let Some(folders) = patch.folders {
         let mut out: Vec<PathBuf> = Vec::new();
@@ -225,15 +189,6 @@ async fn post_config(Json(patch): Json<ConfigPatch>, sc_redirect: String) -> Res
         }
         c.folders = out;
     }
-    if let Some(sc) = patch.soundcloud {
-        if let Some(id) = sc.client_id {
-            c.soundcloud.client_id = id.trim().to_owned();
-        }
-        // The secret is write-only: it never goes back to the page.
-        if let Some(secret) = sc.client_secret.filter(|s| !s.trim().is_empty()) {
-            c.soundcloud.client_secret = secret.trim().to_owned();
-        }
-    }
     if let Some(p) = patch.soundcloud_profile {
         let p = p.trim().to_owned();
         if !p.is_empty() {
@@ -244,11 +199,8 @@ async fn post_config(Json(patch): Json<ConfigPatch>, sc_redirect: String) -> Res
     if let Some(k) = patch.dropbox_key {
         c.dropbox_key = k.trim().to_owned();
     }
-    if let Some(id) = patch.spotify_client_id {
-        c.spotify_client_id = id.trim().to_owned();
-    }
     store::save_config(c).await?;
-    Ok(Json(public_config(sc_redirect).await))
+    Ok(Json(public_config(dropbox_redirect).await))
 }
 
 fn home() -> PathBuf {
@@ -451,30 +403,6 @@ async fn test_tone() -> StatusCode {
 }
 
 // ---- sign-ins ---------------------------------------------------------
-
-async fn soundcloud_login(redirect: String) -> Redirect {
-    match soundcloud::login_url(&redirect).await {
-        Ok(url) => Redirect::to(&url),
-        Err(e) => Redirect::to(&crate::shell::after_sign_in("SoundCloud", Err(e.1))),
-    }
-}
-
-async fn soundcloud_callback(Query(q): Query<HashMap<String, String>>) -> Redirect {
-    let result = match q.get("error") {
-        Some(e) => Err(q.get("error_description").unwrap_or(e).clone()),
-        None => soundcloud::finish_login(q.get("code").map(String::as_str).unwrap_or(""), q.get("state").map(String::as_str).unwrap_or(""))
-            .await
-            .map_err(|e| e.1),
-    };
-    Redirect::to(&crate::shell::after_sign_in("SoundCloud", result))
-}
-
-async fn spotify_library_login() -> Redirect {
-    match spotify::library_login_url().await {
-        Ok(url) => Redirect::to(&url),
-        Err(e) => Redirect::to(&crate::shell::after_sign_in("Spotify", Err(e.1))),
-    }
-}
 
 async fn spotify_login() -> Redirect {
     match spotify::login_url().await {

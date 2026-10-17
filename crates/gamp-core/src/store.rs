@@ -52,22 +52,12 @@ pub async fn write_json<T: Serialize>(name: &str, value: &T, secret: bool) -> an
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
-pub struct SoundCloudKeys {
-    pub client_id: String,
-    pub client_secret: String,
-}
-
-#[derive(Clone, Default, Serialize, Deserialize)]
-#[serde(default)]
 pub struct Config {
     pub folders: Vec<PathBuf>,
-    pub soundcloud: SoundCloudKeys,
     /// Your SoundCloud profile link: its public likes and playlists show.
     pub soundcloud_profile: String,
     /// Your Dropbox app's key (Dropbox gives every app its own).
     pub dropbox_key: String,
-    /// The Client ID of your own Spotify app (for the library and search).
-    pub spotify_client_id: String,
 }
 
 static CONFIG: OnceLock<RwLock<Config>> = OnceLock::new();

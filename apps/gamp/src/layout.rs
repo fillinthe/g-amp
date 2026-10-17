@@ -82,6 +82,17 @@ pub fn snap(moving: &[Rect], others: &[Rect], screen: Option<Rect>, threshold: i
     (best_x.unwrap_or(0), best_y.unwrap_or(0))
 }
 
+/// Where a window `w` wide docks beside `group`: on its right, or on its
+/// left when the right would run off `screen` and the left fits.
+pub fn beside(group: &[Rect], w: i32, screen: Option<Rect>) -> i32 {
+    let right = group.iter().map(Rect::right).max().unwrap_or(0);
+    let left = group.iter().map(|r| r.x).min().unwrap_or(0) - w;
+    match screen {
+        Some(s) if right + w > s.right() && left >= s.x => left,
+        _ => right,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,6 +106,18 @@ mod tests {
         let away = Rect { x: 600, y: 100, w: 275, h: 116 };
         let g = docked_group(&[MAIN, eq, pl, away], 0);
         assert_eq!(g, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn docks_on_the_side_that_fits() {
+        let s = Rect { x: 0, y: 0, w: 1440, h: 900 };
+        assert_eq!(beside(&[MAIN], 550, Some(s)), 375);
+        assert_eq!(beside(&[MAIN], 550, None), 375);
+        // Near the right edge: the left side.
+        let edge = Rect { x: 1100, ..MAIN };
+        assert_eq!(beside(&[edge], 300, Some(s)), 800);
+        // Fits on neither side: the right, as before.
+        assert_eq!(beside(&[Rect { x: 200, w: 1100, ..MAIN }], 400, Some(s)), 1300);
     }
 
     #[test]
