@@ -456,7 +456,19 @@ impl Sink for ResponseSink {
         for s in pcm {
             bytes.extend_from_slice(&s.to_le_bytes());
         }
-        self.tx.blocking_send(Msg::Pcm(bytes)).map_err(|_| SinkError::OnWrite("the listener went away".into()))
+        // librespot calls this from inside its own runtime (block_on on the
+        // player thread), where blocking_send panics; wait by polling instead.
+        let mut msg = Msg::Pcm(bytes);
+        loop {
+            match self.tx.try_send(msg) {
+                Ok(()) => return Ok(()),
+                Err(mpsc::error::TrySendError::Full(m)) => {
+                    msg = m;
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Err(mpsc::error::TrySendError::Closed(_)) => return Err(SinkError::OnWrite("the listener went away".into())),
+            }
+        }
     }
 }
 
