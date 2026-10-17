@@ -341,3 +341,76 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+/// Winamp's "Generate HTML playlist": a dark page listing the tracks.
+pub fn html(entries: &[Entry]) -> String {
+    fn esc(s: &str) -> String {
+        s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    }
+    let total: f64 = entries.iter().filter_map(|e| e.duration).sum();
+    let timed = entries.iter().filter(|e| e.duration.is_some()).count();
+    let average = if timed > 0 { total / timed as f64 } else { 0.0 };
+    let mut out = String::from(
+        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>G-Amp Generated PlayList</title>\n\
+         <style>\nbody { background: #000080; color: #ffffff; font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 20px; }\n\
+         h1 { font-family: 'Arial Black', Arial, sans-serif; font-size: 40px; margin: 0; text-align: center; letter-spacing: 2px; }\n\
+         h2 { font-size: 20px; font-weight: normal; margin: 0 0 20px; text-align: center; }\n\
+         hr { border: 0; border-top: 1px solid #ffffff; }\n\
+         p { font-size: 13px; }\n\
+         ol { font-size: 14px; line-height: 1.6; }\n\
+         .time { color: #a0a0ff; }\n\
+         </style>\n</head>\n<body>\n<h1>G-AMP</h1>\n<h2>playlist</h2>\n<hr>\n",
+    );
+    out.push_str(&format!(
+        "<p>{} track{} in playlist, average track length: {}<br>\nPlaylist length: {}<br>\nRight-click here to save this HTML file.</p>\n<hr>\n<ol>\n",
+        entries.len(),
+        if entries.len() == 1 { "" } else { "s" },
+        clock_text(average),
+        length_text(total),
+    ));
+    for e in entries {
+        let name = if e.title.is_empty() { e.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default() } else { e.display() };
+        match e.duration {
+            Some(d) => out.push_str(&format!("<li>{} <span class=\"time\">({})</span></li>\n", esc(&name), clock_text(d))),
+            None => out.push_str(&format!("<li>{}</li>\n", esc(&name))),
+        }
+    }
+    out.push_str("</ol>\n</body>\n</html>\n");
+    out
+}
+
+fn clock_text(secs: f64) -> String {
+    let s = secs.max(0.0).round() as u64;
+    if s >= 3600 { format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60) } else { format!("{}:{:02}", s / 60, s % 60) }
+}
+
+fn length_text(secs: f64) -> String {
+    let s = secs.max(0.0).round() as u64;
+    let (h, m, sec) = (s / 3600, s / 60 % 60, s % 60);
+    let mut parts = Vec::new();
+    if h > 0 {
+        parts.push(format!("{h} hour{}", if h == 1 { "" } else { "s" }));
+    }
+    if m > 0 || h > 0 {
+        parts.push(format!("{m} minute{}", if m == 1 { "" } else { "s" }));
+    }
+    parts.push(format!("{sec} second{}", if sec == 1 { "" } else { "s" }));
+    parts.join(" ")
+}
+
+#[cfg(test)]
+mod html_tests {
+    use super::*;
+
+    #[test]
+    fn html_lists_tracks_and_totals() {
+        let a = Entry { path: "/m/a.mp3".into(), title: "A <b>".into(), artist: "X".into(), duration: Some(90.0), ..Default::default() };
+        let b = Entry::remote("/media/radio/1".into(), "Station".into(), String::new(), None, true);
+        let page = html(&[a, b]);
+        assert!(page.contains("2 tracks in playlist, average track length: 1:30"));
+        assert!(page.contains("Playlist length: 1 minute 30 seconds"));
+        assert!(page.contains("<li>X - A &lt;b&gt; <span class=\"time\">(1:30)</span></li>"));
+        assert!(page.contains("<li>Station</li>"));
+        assert_eq!(length_text(3661.0), "1 hour 1 minute 1 second");
+    }
+}
