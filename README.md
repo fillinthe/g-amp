@@ -58,6 +58,7 @@ Check for updates…).
   Paste a SoundCloud link or a radio stream address into Search to play it.
 - In the playlist, MISC › Sort list sorts by title, file name or path,
   reverses or randomizes the list; the playing track keeps playing.
+  MISC › File info (Alt+3) shows a track's tags, format, size and length.
 - The playlist's LIST button saves and opens `.m3u8` playlists (`.m3u` and
   `.pls` open too). Saved lists keep radio stations and library tracks, not
   only files, and a station address from any other program plays as well.

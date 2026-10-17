@@ -39,6 +39,8 @@ pub enum Kind {
     Vis,
     /// Jump to File.
     Jump,
+    /// File Info.
+    Info,
     /// A pop-up menu; the number is its depth (sub-menus are deeper).
     Menu(usize),
 }
@@ -92,6 +94,7 @@ pub struct App {
     pub(crate) backend: Option<crate::backend::Backend>,
     pub(crate) lib: crate::library::LibState,
     pub(crate) jump: crate::jump::JumpState,
+    pub(crate) info: crate::info::InfoState,
     pub(crate) drop: crate::drop::DropState,
     /// The skin file in use (None: the built-in skin).
     pub(crate) skin_path: Option<PathBuf>,
@@ -178,6 +181,7 @@ impl App {
             backend,
             lib: Default::default(),
             jump: Default::default(),
+            info: Default::default(),
             drop: Default::default(),
             skin_path: None,
             pending_stream: false,
@@ -210,6 +214,7 @@ impl App {
             Kind::Library => return LogicalSize::new(self.lib.view.size().0, self.lib.view.size().1),
             Kind::Vis => return LogicalSize::new(self.drop.width, self.drop.height),
             Kind::Jump => return LogicalSize::new(gamp_ui::jump_window::WIDTH, gamp_ui::jump_window::HEIGHT),
+            Kind::Info => return LogicalSize::new(gamp_ui::info_window::WIDTH, gamp_ui::info_window::HEIGHT),
             Kind::Menu(i) => return self.menus.get(i).map(|m| menu::size(&m.items)).map(|(w, h)| LogicalSize::new(w, h)).unwrap_or(LogicalSize::new(1, 1)),
         };
         LogicalSize::new(w * z, h * z)
@@ -249,6 +254,9 @@ impl App {
         let mut w = Win::open(Some(el), "G-Amp Jump to File", self.logical_size(Kind::Jump), (x + (20.0 * scale) as i32, y + (40.0 * scale) as i32), false);
         w.show(false);
         self.wins.insert(Kind::Jump, w);
+        let mut w = Win::open(Some(el), "G-Amp File Info", self.logical_size(Kind::Info), (x + (30.0 * scale) as i32, y + (50.0 * scale) as i32), false);
+        w.show(false);
+        self.wins.insert(Kind::Info, w);
         if let Some(s) = self.session.take() {
             self.place_windows(&s);
         }
@@ -322,6 +330,7 @@ impl App {
             }
             Kind::Vis => self.drop_redraw(),
             Kind::Jump => self.jump_redraw(),
+            Kind::Info => self.info_redraw(),
             Kind::Menu(i) => {
                 if let Some(m) = self.menus.get_mut(i) {
                     menu::draw(&mut m.win.frame, &m.items, m.hover);
@@ -365,6 +374,7 @@ impl App {
             }
             Kind::Library | Kind::Vis => !self.wins.get(&k).is_some_and(|w| w.visible),
             Kind::Jump => return self.jump_toggle(),
+            Kind::Info => return if self.info.open { self.info_hide() } else { self.info_show_selected() },
             _ => return,
         };
         if let Some(w) = self.wins.get_mut(&k) {
@@ -896,6 +906,7 @@ impl App {
             Kind::Library => self.lib_press(x, y),
             Kind::Vis => self.drop_press(x, y),
             Kind::Jump => self.jump_press(x, y),
+            Kind::Info => self.info_press(x, y),
             Kind::Menu(_) => {}
         }
     }
@@ -911,6 +922,7 @@ impl App {
             Kind::Library => self.lib_release(),
             Kind::Vis => self.drop_release(),
             Kind::Jump => self.jump_release(),
+            Kind::Info => self.info_release(),
             Kind::Menu(i) => self.menu_release(i, el),
         }
     }
@@ -1241,6 +1253,7 @@ impl App {
             (PlMenu::Select, 0) => self.pl.selected = (0..n).filter(|i| !self.pl.selected.contains(i)).collect(),
             (PlMenu::Select, 1) => self.pl.selected.clear(),
             (PlMenu::Select, 2) => self.pl.selected = (0..n).collect(),
+            (PlMenu::Misc, 1) => self.info_show_selected(),
             (PlMenu::Misc, 0) => {
                 // Winamp's sort choices, as a pop-up at the pointer.
                 let at = self.win(Kind::Playlist).map(Win::global_cursor).unwrap_or_default();
@@ -1405,6 +1418,7 @@ impl App {
             Item::action("open:file", "Play file…").shortcut("L"),
             Item::action("open:folder", "Play folder…").shortcut("Shift+L"),
             Item::action("jump", "Jump to file…").shortcut("J"),
+            Item::action("info", "File info…").shortcut("Alt+3"),
             Item::Separator,
             Item::action("win:main", "Main window").checked(true).shortcut("Alt+W"),
             Item::action("win:playlist", "Playlist editor").checked(self.main.playlist_open).shortcut("Alt+E"),
@@ -1533,6 +1547,7 @@ impl App {
             "win:library" => self.toggle_window(Kind::Library),
             "win:vis" => self.toggle_window(Kind::Vis),
             "jump" => self.jump_toggle(),
+            "info" => self.info_show_selected(),
             "skin:load" => {
                 if let Some(f) = rfd::FileDialog::new().add_filter("Winamp skins", &["wsz", "zip"]).pick_file() {
                     self.load_skin(Some(f));
@@ -1595,6 +1610,9 @@ impl App {
         if k == Kind::Jump {
             return self.jump_key(key, text);
         }
+        if k == Kind::Info {
+            return self.info_key(key);
+        }
         let ctrl = self.modifiers.control_key() || self.modifiers.super_key();
         let alt = self.modifiers.alt_key();
         if let Kind::Menu(_) = k {
@@ -1625,6 +1643,7 @@ impl App {
                 "s" => self.set_shuffle(!self.main.shuffle),
                 "r" => self.set_repeat(!self.main.repeat),
                 "j" => self.jump_toggle(),
+                "3" if alt => self.info_show_selected(),
                 _ => {}
             },
             Key::Named(NamedKey::ArrowLeft) => self.seek_by(-5.0),
@@ -1667,6 +1686,7 @@ impl App {
                 self.jump.view.focused = focused;
                 self.jump.view.search.focused = focused;
             }
+            Kind::Info => self.info.view.focused = focused,
             Kind::Menu(_) => {
                 if !focused {
                     self.menu_lost_focus(k);
@@ -1956,6 +1976,39 @@ mod tests {
         assert_eq!(app.jump.view.selected, Some(2));
         app.key(Kind::Jump, &Key::Named(NamedKey::Escape), None);
         assert!(!app.jump.open);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn file_info_shows_tags_and_format() {
+        let dir = songs("info", 2, 3);
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.open_files(vec![dir.clone()], true);
+        settle(&mut app);
+        app.pl.selected = BTreeSet::from([1]);
+        app.pl_menu_action(PlMenu::Misc, 1, None);
+        assert!(app.info.open);
+        let rows = &app.info.view.rows;
+        assert_eq!(rows[0], (String::new(), "2. 02 Song 1".to_owned()), "{rows:?}");
+        let get = |l: &str| rows.iter().find(|(k, _)| k == l).map(|(_, v)| v.clone()).unwrap_or_default();
+        assert!(get("Format").contains("WAV") && get("Format").contains("22.05 kHz") && get("Format").contains("mono"), "{rows:?}");
+        assert_eq!(get("Length"), "0:03");
+        assert!(!get("Size").is_empty());
+        assert!(app.info.view.place.ends_with("02 Song 1.wav"));
+        app.key(Kind::Info, &Key::Named(NamedKey::Escape), None);
+        assert!(!app.info.open);
+        // A network track shows what the playlist knows.
+        app.playlist.append(vec![Entry::remote("/media/local/9".into(), "Title".into(), "Art".into(), Some(200.0), false)]);
+        app.pl.selected = BTreeSet::from([2]);
+        app.key(Kind::Playlist, &Key::Character("3".into()), None);
+        assert!(!app.info.open, "needs Alt");
+        app.modifiers = ModifiersState::ALT;
+        app.key(Kind::Playlist, &Key::Character("3".into()), None);
+        app.modifiers = ModifiersState::empty();
+        assert!(app.info.open);
+        let rows = &app.info.view.rows;
+        assert_eq!(rows[0].1, "3. Title");
+        assert!(rows.contains(&("Artist".to_owned(), "Art".to_owned())) && rows.contains(&("Length".to_owned(), "3:20".to_owned())), "{rows:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

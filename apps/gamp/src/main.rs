@@ -11,6 +11,7 @@ mod app;
 mod backend;
 mod clipboard;
 mod drop;
+mod info;
 mod jump;
 mod layout;
 mod library;
@@ -81,6 +82,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                     app.close_menus();
                 } else if k == Kind::Jump {
                     app.jump_show(false);
+                } else if k == Kind::Info {
+                    app.info_hide();
                 }
             }
             WindowEvent::RedrawRequested => app.redraw(k),
