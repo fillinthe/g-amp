@@ -44,7 +44,7 @@ impl Page {
 const KINDS: &[(&str, &str, &str)] = &[
     ("jellyfin", "Jellyfin or Emby", "http://nas:8096"),
     ("subsonic", "Navidrome / Subsonic", "http://nas:4533"),
-    ("synology", "Synology Audio Station", "http://diskstation:5000"),
+    ("synology", "Synology Audio Station", "QuickConnect ID, or http://diskstation:5000"),
     ("webdav", "WebDAV / Nextcloud", "https://nas:5006/music"),
     ("plex", "Plex (address and token)", "http://nas:32400"),
 ];
@@ -86,9 +86,7 @@ impl Default for LibState {
             ("folder_path", "Or type a path", false),
             ("share", "smb://diskstation/music", false),
             ("dbx_key", "App key", false),
-            ("sc_id", "Client ID", false),
-            ("sp_id", "Your Spotify app's Client ID", false),
-            ("sc_secret", "Client secret", true),
+            ("sc_profile", "Your profile: soundcloud.com/you", false),
         ] {
             fields.insert(id.to_owned(), Field { placeholder: ph.into(), password: pw, ..Default::default() });
         }
@@ -173,11 +171,8 @@ impl App {
                     if let Some(k) = c["dropbox"]["key"].as_str() {
                         self.lib_field_default("dbx_key", k);
                     }
-                    if let Some(k) = c["soundcloud"]["clientId"].as_str() {
-                        self.lib_field_default("sc_id", k);
-                    }
-                    if let Some(k) = c["spotify"]["clientId"].as_str() {
-                        self.lib_field_default("sp_id", k);
+                    if let Some(k) = c["soundcloud"]["profile"].as_str() {
+                        self.lib_field_default("sc_profile", k);
                     }
                     self.lib.config = c;
                     if self.lib.page == Page::Settings {
@@ -836,8 +831,7 @@ impl App {
             "folder_path" => self.lib_form_action("folder:path"),
             "share" => self.lib_form_action("share:connect"),
             "dbx_key" => self.lib_form_action("dbx:save"),
-            "sp_id" => self.lib_form_action("sp:save"),
-            "sc_id" | "sc_secret" => self.lib_form_action("sc:save"),
+            "sc_profile" => self.lib_form_action("sc:save"),
             _ => {}
         }
     }
@@ -918,52 +912,28 @@ impl App {
         for s in self.lib.sources.iter().filter(|s| s.id.starts_with("dropbox-")) {
             f.push(W::Item { id: format!("srv:rm:{}", s.id), label: s.name.clone(), button: "Disconnect".into() });
         }
-        f.push(W::Text("Dropbox gives each app its own key: at dropbox.com/developers/apps choose Create app › Scoped access › Full Dropbox; tick files.metadata.read and files.content.read; add this Redirect URI; paste the App key here.".into()));
-        let dbx_redirect = c["dropbox"]["redirectUri"].as_str().unwrap_or("").to_owned();
-        f.push(W::Item { id: format!("copy:{dbx_redirect}"), label: dbx_redirect.clone(), button: "Copy".into() });
-        let has_key = c["dropbox"]["key"].as_str().is_some_and(|k| !k.is_empty());
-        f.push(W::Row(vec![self.field("dbx_key"), W::button("dbx:save", "Save"), W::Button { id: "dbx:connect".into(), label: "Connect Dropbox".into(), enabled: has_key }]));
+        if c["dropbox"]["builtIn"] == true {
+            f.push(W::Row(vec![W::button("dbx:connect", "Connect Dropbox"), W::Text("Sign in in your web browser; your music files show up here.".into())]));
+        } else {
+            // A build without Gamp's Dropbox app: bring your own key.
+            f.push(W::Text("Dropbox gives each app its own key: at dropbox.com/developers/apps choose Create app › Scoped access › Full Dropbox; tick files.metadata.read and files.content.read; add this Redirect URI; paste the App key here.".into()));
+            let dbx_redirect = c["dropbox"]["redirectUri"].as_str().unwrap_or("").to_owned();
+            f.push(W::Item { id: format!("copy:{dbx_redirect}"), label: dbx_redirect.clone(), button: "Copy".into() });
+            let has_key = c["dropbox"]["key"].as_str().is_some_and(|k| !k.is_empty());
+            f.push(W::Row(vec![self.field("dbx_key"), W::button("dbx:save", "Save"), W::Button { id: "dbx:connect".into(), label: "Connect Dropbox".into(), enabled: has_key }]));
+        }
 
         f.push(W::Heading("Spotify (Premium)".into()));
-        f.push(W::Text("Sign in once in your web browser. Songs then play through Gamp's equalizer and visualizers.".into()));
-        f.push(W::Text("For your Liked Songs, playlists and search, Spotify wants your own (free) app: at developer.spotify.com/dashboard choose Create app, tick Web API, add this Redirect URI, then paste the Client ID here.".into()));
-        let sp_redirect = c["spotify"]["redirectUri"].as_str().unwrap_or("").to_owned();
-        f.push(W::Item { id: format!("copy:{sp_redirect}"), label: sp_redirect.clone(), button: "Copy".into() });
-        f.push(W::Row(vec![self.field("sp_id"), W::button("sp:save", "Save")]));
+        f.push(W::Text("Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.".into()));
         let sp = c["spotify"]["connected"] == true;
-        let has_id = c["spotify"]["clientId"].as_str().is_some_and(|k| !k.is_empty());
-        let library = c["spotify"]["library"] == true;
-        let mut row = vec![if sp { W::button("sp:disconnect", "Disconnect Spotify") } else { W::button("sp:connect", "Connect Spotify") }];
-        if sp && has_id && !library {
-            row.push(W::button("sp:library", "Connect library"));
-        }
-        row.push(W::Text(
-            match (sp, library, has_id) {
-                (false, _, _) => "Not connected",
-                (true, true, _) => "Connected, with your library",
-                (true, false, true) => "Playback connected; connect the library too",
-                (true, false, false) => "Playback connected; add a Client ID for your library",
-            }
-            .into(),
-        ));
-        f.push(W::Row(row));
+        f.push(W::Row(vec![
+            if sp { W::button("sp:disconnect", "Disconnect Spotify") } else { W::button("sp:connect", "Connect Spotify") },
+            W::Text(if sp { "Connected" } else { "Not connected" }.into()),
+        ]));
 
         f.push(W::Heading("SoundCloud".into()));
-        f.push(W::Text("SoundCloud gives API keys to Artist Pro accounts. Register an app at soundcloud.com/you/apps with this Redirect URI:".into()));
-        let sc_redirect = c["soundcloud"]["redirectUri"].as_str().unwrap_or("").to_owned();
-        f.push(W::Item { id: format!("copy:{sc_redirect}"), label: sc_redirect.clone(), button: "Copy".into() });
-        if c["soundcloud"]["hasSecret"] == true {
-            if let Some(fl) = self.lib.fields.get_mut("sc_secret") {
-                fl.placeholder = "•••••••• (saved)".into();
-            }
-        }
-        f.push(W::Row(vec![self.field("sc_id"), self.field("sc_secret"), W::button("sc:save", "Save")]));
-        let sc = c["soundcloud"]["connected"] == true;
-        let configured = c["soundcloud"]["configured"] == true;
-        f.push(W::Row(vec![
-            if sc { W::button("sc:disconnect", "Disconnect SoundCloud") } else { W::Button { id: "sc:connect".into(), label: "Connect SoundCloud".into(), enabled: configured } },
-            W::Text(if sc { "Connected" } else if configured { "Not connected" } else { "Save your keys first" }.into()),
-        ]));
+        f.push(W::Text("No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).".into()));
+        f.push(W::Row(vec![self.field("sc_profile"), W::button("sc:save", "Save")]));
 
         f.push(W::Heading("Internet radio, podcasts and the Internet Archive".into()));
         f.push(W::Text("Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.".into()));
@@ -1031,16 +1001,8 @@ impl App {
             "dbx:save" => b.post("/api/config", json!({ "dropboxKey": self.value("dbx_key") }), true),
             "dbx:connect" => open_in_browser(&b.url("/auth/dropbox/login")),
             "sp:connect" => open_in_browser(&b.url("/auth/spotify/login")),
-            "sp:library" => open_in_browser(&b.url("/auth/spotify/library")),
-            "sp:save" => b.post("/api/config", json!({ "spotifyClientId": self.value("sp_id") }), true),
             "sp:disconnect" => b.post("/api/spotify/logout", json!({}), true),
-            "sc:save" => {
-                let secret = self.lib.fields.get("sc_secret").map(|f| f.value.clone()).unwrap_or_default();
-                b.post("/api/config", json!({ "soundcloud": { "clientId": self.value("sc_id"), "clientSecret": secret } }), true);
-                self.clear(&["sc_secret"]);
-            }
-            "sc:connect" => open_in_browser(&b.url("/auth/soundcloud/login")),
-            "sc:disconnect" => b.post("/api/soundcloud/logout", json!({}), true),
+            "sc:save" => b.post("/api/config", json!({ "soundcloudProfile": self.value("sc_profile") }), true),
             other => {
                 if let Some(i) = other.strip_prefix("folder:rm:").and_then(|i| i.parse::<usize>().ok()) {
                     let f: Vec<String> = folders.iter().enumerate().filter(|(n, _)| *n != i).map(|(_, p)| p.clone()).collect();

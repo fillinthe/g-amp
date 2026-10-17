@@ -20,15 +20,15 @@ G-Drop. Classic `.wsz` skins load as they are. Idle, it uses next to no CPU.
 | **Plex** | Sign in with Plex. Every server on your account is added, with its home and away addresses. |
 | **Jellyfin / Emby** | Server address, user name and password. |
 | **Navidrome, Airsonic, Gonic, Ampache, LMS** (any Subsonic API server) | Server address, user name and password. |
-| **Synology Audio Station** | Your DSM address (`http://nas:5000`, or `https://you.synology.me:5001` from outside), user, password, and two-step code if you use one. |
+| **Synology Audio Station** | Your QuickConnect ID (or the DSM address, `http://nas:5000`), user, password, and two-step code if you use one. With QuickConnect, Gamp finds the NAS at home and away by itself. |
 | **WebDAV** (Synology WebDAV Server, Nextcloud, ownCloud, pCloud, QNAP...) | Folder address, user name and password. |
 | **DLNA / UPnP** (Synology Media Server, minidlna, routers, Windows Media sharing) | Nothing. Servers on your network appear by themselves. |
-| **Dropbox** | Your own Dropbox app key (Dropbox issues one per app; the steps are in Settings). |
+| **Dropbox** | Click Connect and sign in. |
 | **Internet radio** | Nothing. About 50,000 stations from the [radio-browser.info](https://www.radio-browser.info) directory. Paste any stream, `.pls` or `.m3u` address to play it. |
 | **Podcasts** | Nothing. Search Apple's directory or paste any RSS feed, then subscribe. |
 | **Internet Archive** | Nothing. The Live Music Archive, 78 RPM records, netlabels, old-time radio, and search. |
-| **Spotify** | A Premium account. Click Connect and sign in. For Liked Songs, playlists and search, also add your own free Spotify app's Client ID (steps in Settings). |
-| **SoundCloud** | Nothing to paste a link: any track, playlist or artist link plays. For your likes, playlists and search, API keys (SoundCloud gives them to Artist Pro accounts). |
+| **Spotify** | A Premium account. Click Connect and sign in: Liked Songs, playlists and search show up. |
+| **SoundCloud** | Nothing. Search, or paste any track, playlist or artist link. For your likes and playlists, add your profile's address (they need to be public). |
 
 Every server address works at home or over the internet, so a NAS can be
 played from anywhere it can be reached. Self-signed certificates (common on

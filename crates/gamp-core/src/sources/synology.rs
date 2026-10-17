@@ -1,6 +1,7 @@
 //! Synology Audio Station, over the DSM Web API: the same library the
 //! DS audio app plays, from home (http://nas:5000) or away (your DDNS
-//! address, https://you.synology.me:5001).
+//! address, https://you.synology.me:5001). A QuickConnect ID works too: its
+//! addresses at home and away are looked up, like DS audio does.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -27,6 +28,8 @@ struct Api {
 
 #[derive(Clone)]
 struct Session {
+    /// The address this session signed in at.
+    base: String,
     sid: String,
     apis: HashMap<String, Api>,
     at: Instant,
@@ -111,13 +114,77 @@ async fn login(acc: &Account, otp: &str) -> Result<(Session, String), ApiError> 
     }
     let sid = s(&body["data"]["sid"]);
     let did = s(&body["data"]["did"]);
-    Ok((Session { sid, apis, at: Instant::now() }, did))
+    Ok((Session { base: acc.base().to_owned(), sid, apis, at: Instant::now() }, did))
+}
+
+/// A QuickConnect ID's addresses: at home first, then from away.
+async fn quickconnect(id: &str) -> Option<Vec<String>> {
+    let ask = |portal: &str| json!({ "version": 1, "command": "get_server_info", "stop_when_error": false, "stop_when_success": false, "id": portal, "serverID": id, "is_gofile": false });
+    let res = client().post("https://global.quickconnect.to/Serv.php").json(&json!([ask("dsm_portal_https"), ask("dsm_portal")])).timeout(Duration::from_secs(8)).send().await.ok()?;
+    let v: Value = res.json().await.ok()?;
+    let (https, http) = (&v[0], &v[1]);
+    if https["errno"] != 0 && http["errno"] != 0 {
+        return None;
+    }
+    let port = |r: &Value, default: u64| u(&r["service"]["port"]).unwrap_or(default);
+    let away = |r: &Value, default: u64| u(&r["service"]["ext_port"]).filter(|p| *p > 0).unwrap_or(port(r, default));
+    let mut out = Vec::new();
+    // Synology's per-NAS names carry a real certificate, even at home.
+    for lan in arr(&https["smartdns"]["lan"]) {
+        out.push(format!("https://{}:{}", s(lan), port(https, 5001)));
+    }
+    for i in arr(&http["server"]["interface"]) {
+        out.push(format!("http://{}:{}", s(&i["ip"]), port(http, 5000)));
+    }
+    for host in [s(&https["server"]["ddns"]), s(&https["smartdns"]["external"]), s(&https["smartdns"]["host"])] {
+        if !host.is_empty() && host != "NULL" {
+            out.push(format!("https://{host}:{}", away(https, 5001)));
+        }
+    }
+    out.dedup();
+    Some(out)
+}
+
+/// Where to look for the NAS: a QuickConnect ID's addresses, or the
+/// address as typed with DSM's port (5000, or 5001 for https) filled in.
+async fn addresses(typed: &str) -> Vec<String> {
+    let Ok(mut url) = url::Url::parse(typed) else { return vec![typed.to_owned()] };
+    let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
+    let qc = host.strip_suffix(".quickconnect.to").map(str::to_owned).or_else(|| (host == "quickconnect.to").then(|| url.path().trim_matches('/').to_owned()));
+    // A bare name ("mynas") is a QuickConnect ID or a name on this network.
+    let bare = url.port().is_none() && !host.contains('.') && host.parse::<std::net::IpAddr>().is_err() && host != "localhost";
+    if url.port().is_none() {
+        let _ = url.set_port(Some(if url.scheme() == "https" { 5001 } else { 5000 }));
+    }
+    let typed = url.as_str().trim_end_matches('/').to_owned();
+    let found = match qc.clone().or(bare.then_some(host)).filter(|id| !id.is_empty()) {
+        Some(id) => quickconnect(&id).await.unwrap_or_default(),
+        None => Vec::new(),
+    };
+    // A bare name on this network wins over a QuickConnect ID of the same name.
+    if qc.is_some() && !found.is_empty() { found } else { std::iter::once(typed).chain(found).collect() }
+}
+
+/// The first of the account's addresses where DSM answers.
+async fn pick(acc: &mut Account) -> Result<(), ApiError> {
+    for url in acc.alt_urls.clone() {
+        let ping = acc.http().get(format!("{url}/webapi/query.cgi")).query(&[("api", "SYNO.API.Info"), ("version", "1"), ("method", "query")]).timeout(Duration::from_secs(4));
+        if let Ok(r) = ping.send().await {
+            if r.json::<Value>().await.is_ok_and(|v| v["success"] == true) {
+                acc.url = url;
+                return Ok(());
+            }
+        }
+    }
+    Err(bad_gateway(format!("Can't reach {} at {}", acc.name, acc.alt_urls.join(", "))))
 }
 
 pub async fn connect(acc: &mut Account, otp: &str) -> Result<(), ApiError> {
     if acc.username.is_empty() {
         return Err(bad_gateway("Type your DSM user name"));
     }
+    acc.alt_urls = addresses(&acc.url).await;
+    pick(acc).await?;
     let (session, did) = login(acc, otp).await?;
     if !did.is_empty() {
         acc.token = did;
@@ -133,7 +200,18 @@ async fn session(acc: &Account, fresh: bool) -> Result<Session, ApiError> {
             return Ok(s.clone());
         }
     }
-    let (s, _) = login(acc, "").await?;
+    let (s, _) = match login(acc, "").await {
+        Ok(r) => r,
+        // Moved between home and away: sign in where the NAS answers now.
+        Err(e) if acc.alt_urls.len() > 1 => {
+            let mut fresh = acc.clone();
+            pick(&mut fresh).await.map_err(|_| e)?;
+            let r = login(&fresh, "").await?;
+            let _ = save_account(fresh).await;
+            r
+        }
+        Err(e) => return Err(e),
+    };
     all.insert(acc.id.clone(), s.clone());
     Ok(s)
 }
@@ -145,14 +223,18 @@ async fn call(acc: &Account, api: &str, method: &str, params: &[(&str, &str)]) -
             return Err(bad_gateway(format!("This NAS's Audio Station has no {api}")));
         };
         let version = a.version.to_string();
-        let res = acc
+        let res = match acc
             .http()
-            .get(format!("{}/webapi/{}", acc.base(), a.path))
+            .get(format!("{}/webapi/{}", sess.base, a.path))
             .query(&[("api", api), ("version", &version), ("method", method), ("_sid", &sess.sid)])
             .query(params)
             .send()
             .await
-            .map_err(|e| unreachable(&acc.name, e))?;
+        {
+            Ok(r) => r,
+            Err(_) if attempt == 0 && acc.alt_urls.len() > 1 => continue,
+            Err(e) => return Err(unreachable(&acc.name, e)),
+        };
         let body: Value = res.json().await.map_err(|e| bad_gateway(format!("{}: {e}", acc.name)))?;
         if body["success"] == true {
             return Ok(body["data"].clone());
@@ -251,7 +333,7 @@ pub async fn media(acc: &Account, id: &str) -> Result<Upstream, ApiError> {
     }
     let sess = session(acc, false).await?;
     let a = sess.apis.get("SYNO.AudioStation.Stream").cloned().unwrap_or(Api { path: "AudioStation/stream.cgi".into(), version: 2 });
-    let mut url = url::Url::parse(&format!("{}/webapi/{}/0.mp3", acc.base(), a.path))?;
+    let mut url = url::Url::parse(&format!("{}/webapi/{}/0.mp3", sess.base, a.path))?;
     url.query_pairs_mut()
         .append_pair("api", "SYNO.AudioStation.Stream")
         .append_pair("version", &a.version.to_string())
@@ -259,4 +341,14 @@ pub async fn media(acc: &Account, id: &str) -> Result<Upstream, ApiError> {
         .append_pair("id", id)
         .append_pair("_sid", &sess.sid);
     Ok(Upstream::get(url.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn typed_addresses_get_dsm_ports() {
+        assert_eq!(super::addresses("http://nas.local").await, ["http://nas.local:5000"]);
+        assert_eq!(super::addresses("https://you.synology.me").await, ["https://you.synology.me:5001"]);
+        assert_eq!(super::addresses("http://192.168.1.20:5000").await, ["http://192.168.1.20:5000"]);
+    }
 }

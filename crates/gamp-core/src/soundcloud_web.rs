@@ -152,6 +152,53 @@ pub async fn resolve(link: &str) -> Result<Vec<Item>, ApiError> {
     Ok(tracks.iter().filter_map(track_item).collect())
 }
 
+/// Up to `max` entries of a paged list, following `next_href`.
+async fn pages(first: String, max: usize) -> Result<Vec<Value>, ApiError> {
+    let mut out = Vec::new();
+    let mut next = Some(first);
+    while let Some(url) = next.take() {
+        let v = get(&url).await?;
+        out.extend(arr(&v["collection"]).iter().cloned());
+        if out.len() < max {
+            next = v["next_href"].as_str().map(str::to_owned);
+        }
+    }
+    Ok(out)
+}
+
+/// A profile link or bare user name ("soundcloud.com/you", "you") → its user id.
+pub async fn user_id(profile: &str) -> Result<u64, ApiError> {
+    let p = profile.trim().trim_end_matches('/');
+    let link = if p.contains("soundcloud.com/") { p.to_owned() } else { format!("https://soundcloud.com/{p}") };
+    let v = get(&format!("/resolve?url={}", urlencoding::encode(&link))).await?;
+    match (v["kind"].as_str(), v["id"].as_u64()) {
+        (Some("user"), Some(id)) => Ok(id),
+        _ => Err(err(StatusCode::NOT_FOUND, "That isn't a SoundCloud profile. Use your profile page's address, like soundcloud.com/you")),
+    }
+}
+
+/// A profile's public likes.
+pub async fn likes(user: u64) -> Result<Vec<Item>, ApiError> {
+    let likes = pages(format!("/users/{user}/track_likes?limit=200"), 2000).await?;
+    Ok(likes.iter().filter_map(|l| track_item(&l["track"])).collect())
+}
+
+/// A profile's public playlists and albums, as folders `playlist:web:<id>`.
+pub async fn playlists(user: u64) -> Result<Vec<Item>, ApiError> {
+    let lists = pages(format!("/users/{user}/playlists?limit=200"), 2000).await?;
+    Ok(lists.iter().filter_map(|p| Some(Item::folder(format!("playlist:web:{}", p["id"].as_u64()?), s(&p["title"])).items(p["track_count"].as_u64()))).collect())
+}
+
+pub async fn playlist(id: &str) -> Result<Vec<Item>, ApiError> {
+    let v = get(&format!("/playlists/{id}")).await?;
+    Ok(complete(arr(&v["tracks"])).await?.iter().filter_map(track_item).collect())
+}
+
+pub async fn search(q: &str) -> Result<Vec<Item>, ApiError> {
+    let found = pages(format!("/search/tracks?q={}&limit=50", urlencoding::encode(q)), 100).await?;
+    Ok(found.iter().filter_map(track_item).collect())
+}
+
 /// The MP3 stream for track `id`: its HLS playlist (or a plain MP3).
 /// Returns (url, is_hls).
 /// A track's stream: `(url, is_hls, mime)`. MP3 when SoundCloud still

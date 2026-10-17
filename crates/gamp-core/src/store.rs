@@ -62,6 +62,8 @@ pub struct SoundCloudKeys {
 pub struct Config {
     pub folders: Vec<PathBuf>,
     pub soundcloud: SoundCloudKeys,
+    /// Your SoundCloud profile link: its public likes and playlists show.
+    pub soundcloud_profile: String,
     /// Your Dropbox app's key (Dropbox gives every app its own).
     pub dropbox_key: String,
     /// The Client ID of your own Spotify app (for the library and search).

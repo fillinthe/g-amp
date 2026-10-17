@@ -185,8 +185,9 @@ async fn public_config(sc_redirect: String) -> Value {
             "redirectUri": sc_redirect,
             "configured": configured,
             "connected": connected,
+            "profile": c.soundcloud_profile,
         },
-        "dropbox": { "key": c.dropbox_key, "redirectUri": dropbox_redirect },
+        "dropbox": { "key": c.dropbox_key, "builtIn": !sources::dropbox::APP_KEY.is_empty(), "redirectUri": dropbox_redirect },
         "dlnaSearching": sources::dlna::searching(),
     })
 }
@@ -200,6 +201,7 @@ async fn get_config(sc_redirect: String) -> Json<Value> {
 struct ConfigPatch {
     folders: Option<Vec<String>>,
     soundcloud: Option<SoundCloudPatch>,
+    soundcloud_profile: Option<String>,
     dropbox_key: Option<String>,
     spotify_client_id: Option<String>,
 }
@@ -231,6 +233,13 @@ async fn post_config(Json(patch): Json<ConfigPatch>, sc_redirect: String) -> Res
         if let Some(secret) = sc.client_secret.filter(|s| !s.trim().is_empty()) {
             c.soundcloud.client_secret = secret.trim().to_owned();
         }
+    }
+    if let Some(p) = patch.soundcloud_profile {
+        let p = p.trim().to_owned();
+        if !p.is_empty() {
+            crate::soundcloud_web::user_id(&p).await?;
+        }
+        c.soundcloud_profile = p;
     }
     if let Some(k) = patch.dropbox_key {
         c.dropbox_key = k.trim().to_owned();

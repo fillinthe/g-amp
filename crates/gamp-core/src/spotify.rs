@@ -349,6 +349,91 @@ fn cache_or_err() -> Result<Cache, ApiError> {
     Ok(cache()?)
 }
 
+// ---- the library, through the player session --------------------------
+//
+// The Web API needs a developer app (and Spotify caps those at 5 users),
+// so Liked Songs, playlists and search are read the way Spotify's own
+// apps read them. Results come back in the Web API's shape, so the
+// catalog maps them the same way either way.
+
+fn lib_err(e: impl std::fmt::Display) -> ApiError {
+    err(StatusCode::BAD_GATEWAY, format!("Spotify: {e}"))
+}
+
+/// Web API-shaped tracks for `uris`, in order (unplayable ones dropped).
+async fn tracks_for(session: &Session, uris: Vec<String>) -> Vec<Value> {
+    use futures_util::StreamExt;
+    futures_util::stream::iter(uris)
+        .map(|u| async move {
+            let uri = SpotifyUri::from_uri(&u).ok()?;
+            let t = librespot_metadata::Track::get(session, &uri).await.ok()?;
+            let artists: Vec<Value> = t.artists.iter().map(|a| serde_json::json!({ "name": a.name })).collect();
+            Some(serde_json::json!({ "id": uri.to_id().ok()?, "type": "track", "name": t.name, "artists": artists, "album": { "name": t.album.name }, "duration_ms": t.duration }))
+        })
+        .buffered(32)
+        .filter_map(|t| async { t })
+        .collect()
+        .await
+}
+
+/// The track URIs of a context, following its pages.
+async fn context_uris(session: &Session, uri: &str, max: usize) -> Result<Vec<String>, ApiError> {
+    use librespot_protocol::context_page::ContextPage;
+    let ctx = session.spclient().get_context(uri).await.map_err(lib_err)?;
+    let mut pages: std::collections::VecDeque<ContextPage> = ctx.pages.into_iter().collect();
+    let mut out = Vec::new();
+    // ponytail: 200 pages caps a runaway chain of next-page links.
+    for _ in 0..200 {
+        let Some(p) = pages.pop_front() else { break };
+        out.extend(p.tracks.iter().map(|t| t.uri().to_owned()).filter(|u| u.starts_with("spotify:track:")));
+        let next = if p.tracks.is_empty() { p.page_url() } else { p.next_page_url() };
+        if out.len() >= max || next.is_empty() {
+            continue;
+        }
+        let raw = session.spclient().get_next_page(next).await.map_err(lib_err)?;
+        pages.push_back(protobuf_json_mapping::parse_from_str::<ContextPage>(&String::from_utf8_lossy(&raw)).map_err(lib_err)?);
+    }
+    out.truncate(max);
+    Ok(out)
+}
+
+pub async fn liked() -> Result<Vec<Value>, ApiError> {
+    let s = session().await?;
+    let uris = context_uris(&s, &format!("spotify:user:{}:collection", s.username()), 5000).await?;
+    Ok(tracks_for(&s, uris).await)
+}
+
+pub async fn search(q: &str) -> Result<Vec<Value>, ApiError> {
+    let s = session().await?;
+    let uris = context_uris(&s, &format!("spotify:search:{}", urlencoding::encode(q)), 50).await?;
+    Ok(tracks_for(&s, uris).await)
+}
+
+/// Your playlists (folders flattened), Web API-shaped.
+pub async fn playlists() -> Result<Vec<Value>, ApiError> {
+    use protobuf::Message;
+    let s = session().await?;
+    let raw = s.spclient().get_rootlist(0, Some(2000)).await.map_err(lib_err)?;
+    let list = librespot_protocol::playlist4_external::SelectedListContent::parse_from_bytes(&raw).map_err(lib_err)?;
+    let c = list.contents.get_or_default();
+    Ok(c.items
+        .iter()
+        .zip(c.meta_items.iter())
+        .filter_map(|(item, meta)| {
+            let id = item.uri().strip_prefix("spotify:playlist:")?;
+            Some(serde_json::json!({ "id": id, "name": meta.attributes.name(), "items": { "total": meta.length() }, "owner": { "display_name": meta.owner_username() } }))
+        })
+        .collect())
+}
+
+pub async fn playlist(id: &str) -> Result<Vec<Value>, ApiError> {
+    let s = session().await?;
+    let uri = SpotifyUri::from_uri(&format!("spotify:playlist:{id}")).map_err(|e| err(StatusCode::BAD_REQUEST, e.to_string()))?;
+    let p = librespot_metadata::Playlist::get(&s, &uri).await.map_err(lib_err)?;
+    let uris = p.tracks().filter_map(|u| u.to_uri().ok()).filter(|u| u.starts_with("spotify:track:")).collect();
+    Ok(tracks_for(&s, uris).await)
+}
+
 // ---- playback as a WAV file ------------------------------------------
 
 enum Msg {
