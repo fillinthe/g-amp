@@ -68,7 +68,7 @@ Check for updates…).
   only files, and a station address from any other program plays as well.
 - Drop any `.wsz` skin onto the player. Thousands are at
   [skins.webamp.org](https://skins.webamp.org).
-- G-Drop has 25 presets: H for a random one, F for full screen.
+- G-Drop has 40 presets: click for the next, H for a random one, F for full screen.
 
 ## How it works
 
