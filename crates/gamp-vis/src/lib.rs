@@ -113,6 +113,9 @@ pub struct Params {
     pub gamma: f32,
     pub invert: bool,
     pub wrap: bool,
+    /// Symmetry after drawing: 0 none, 1 left-right, 2 four ways (a
+    /// kaleidoscope). It feeds the next frame, so trails turn symmetric too.
+    pub mirror: u8,
     pub shapes: [Shape; 2],
 }
 
@@ -145,6 +148,7 @@ impl Default for Params {
             gamma: 1.0,
             invert: false,
             wrap: true,
+            mirror: 0,
             shapes: [Shape::default(); 2],
         }
     }
@@ -371,6 +375,7 @@ impl GDrop {
             }
         }
         self.draw_wave(wave, spectrum, &p);
+        self.mirror(p.mirror);
         let _ = blend;
         self.present(&p);
         &self.out
@@ -487,6 +492,36 @@ impl GDrop {
             }
             // A vertical oscilloscope.
             4 => (0..n).map(|i| (cx + samp(i) * w * 0.25, i as f32 / (n - 1) as f32 * h)).collect(),
+            // Spectrum bars standing on the wave line (like Winamp's analyzer).
+            6 => {
+                let bars = 32usize;
+                let m = spectrum.len().max(1);
+                let bw = w / bars as f32;
+                for b in 0..bars {
+                    // Log-spaced bands, so the bass doesn't fill the left half.
+                    let (lo, hi) = ((m as f32).powf(b as f32 / bars as f32) as usize, (m as f32).powf((b + 1) as f32 / bars as f32) as usize);
+                    let v = spectrum[lo.min(m - 1)..hi.clamp(lo + 1, m)].iter().fold(0.0f32, |a, s| a.max(*s));
+                    let top = cy - (v.sqrt() * h * 0.8 * p.wave_scale).min(cy);
+                    let x0 = b as f32 * bw;
+                    for x in x0 as i32..(x0 + bw * 0.75) as i32 {
+                        self.line(x as f32, cy, x as f32, top, c, a, false);
+                    }
+                }
+                Vec::new()
+            }
+            // A sunburst: the spectrum as rays around a circle.
+            7 => {
+                let m = spectrum.len().min(n).max(1);
+                let r0 = h * 0.12;
+                for i in 0..m * 2 {
+                    let k = if i < m { i } else { 2 * m - 1 - i };
+                    let ang = i as f32 / (m * 2) as f32 * std::f32::consts::TAU;
+                    let r1 = r0 + spectrum[k].sqrt() * h * 0.45 * p.wave_scale;
+                    let (s, co) = ang.sin_cos();
+                    self.line(cx + r0 * co, cy + r0 * s, cx + r1 * co, cy + r1 * s, c, a, p.wave_thick);
+                }
+                Vec::new()
+            }
             // Two mirrored scopes (a butterfly).
             _ => {
                 let one: Vec<(f32, f32)> = (0..n).map(|i| (i as f32 / (n - 1) as f32 * w, cy + samp(i).abs() * h * 0.35)).collect();
@@ -522,6 +557,24 @@ impl GDrop {
                 if d < edge {
                     let fall = 1.0 - d / edge;
                     self.add(x, y, s.color, s.alpha * fall);
+                }
+            }
+        }
+    }
+
+    fn mirror(&mut self, mode: u8) {
+        let (w, h) = (self.w, self.h);
+        if mode >= 1 {
+            for y in 0..h {
+                for x in w / 2..w {
+                    self.buf[y * w + x] = self.buf[y * w + (w - 1 - x)];
+                }
+            }
+        }
+        if mode >= 2 {
+            for y in h / 2..h {
+                for x in 0..w {
+                    self.buf[y * w + x] = self.buf[(h - 1 - y) * w + x];
                 }
             }
         }

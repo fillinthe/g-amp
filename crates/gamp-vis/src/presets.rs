@@ -374,6 +374,249 @@ pub static PRESETS: &[Preset] = &[
         },
         point: None,
     },
+    Preset {
+        name: "Kaleidoscope",
+        frame: |f, p| {
+            p.zoom = 1.015 + 0.01 * f.bass_att;
+            p.rot = 0.02;
+            p.decay = 0.97;
+            p.mirror = 2;
+            p.wave_mode = 3;
+            p.wave = hue(f.time * 0.06);
+            p.wave_x = 0.35;
+            p.wave_y = 0.62;
+            p.wave_scale = 1.3;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Classic Analyzer",
+        frame: |f, p| {
+            // Bars leave trails that rise and fade, like peak hold.
+            p.dy = -0.006;
+            p.warp = 0.0;
+            p.decay = 0.9;
+            p.wrap = false;
+            p.wave_mode = 6;
+            p.wave = if f.beat { [0.85, 1.0, 0.3] } else { GREEN };
+            p.wave_y = 0.08;
+            p.wave_scale = 1.1;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Sunburst",
+        frame: |f, p| {
+            p.zoom = 1.025;
+            p.rot = 0.01 + 0.01 * f.treb_att;
+            p.decay = 0.955;
+            p.tint = [1.0, 0.95, 0.85];
+            p.wave_mode = 7;
+            p.wave = AMBER;
+            p.wave_scale = 1.2 + 0.4 * f.bass_att;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Rorschach",
+        frame: |f, p| {
+            p.warp = 2.4;
+            p.warp_speed = 0.7;
+            p.zoom = 1.004;
+            p.decay = 0.98;
+            p.mirror = 1;
+            p.wave_mode = 4;
+            p.wave = [0.75, 0.45, 1.0];
+            p.wave_x = 0.3 + 0.1 * (f.time * 0.5).sin();
+            p.wave_alpha = 0.6;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Lava Lamp",
+        frame: |f, p| {
+            p.warp = 3.0;
+            p.warp_speed = 0.4;
+            p.dy = -0.002;
+            p.decay = 0.985;
+            p.tint = [1.0, 0.92, 0.8];
+            p.wave_alpha = 0.0;
+            for (k, s) in p.shapes.iter_mut().enumerate() {
+                let k = k as f32;
+                s.on = true;
+                s.sides = 40;
+                s.x = 0.5 + 0.2 * (f.time * (0.13 + 0.05 * k) + k * 2.0).sin();
+                s.y = 0.5 + 0.3 * (f.time * (0.09 + 0.04 * k) + k).sin();
+                s.rad = 0.07 + 0.04 * f.bass_att + 0.02 * k;
+                s.color = if k == 0.0 { [1.0, 0.35, 0.1] } else { [1.0, 0.15, 0.4] };
+                s.alpha = 0.35;
+            }
+        },
+        point: None,
+    },
+    Preset {
+        name: "Hyperspace",
+        frame: |f, p| {
+            p.zoom = 1.07 + 0.04 * f.bass_att;
+            p.zoom_exp = 2.0;
+            p.decay = 0.9;
+            p.tint = [0.95, 0.97, 1.0];
+            p.wave_mode = 7;
+            p.wave = [0.75, 0.85, 1.0];
+            p.wave_scale = 0.8;
+            p.wave_alpha = 0.7;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Snowflake",
+        frame: |f, p| {
+            p.zoom = 0.99;
+            p.rot = 0.025;
+            p.decay = 0.975;
+            p.mirror = 2;
+            p.tint = [0.96, 0.99, 1.0];
+            p.wave_mode = 0;
+            p.wave = [0.8, 0.95, 1.0];
+            p.wave_x = 0.3;
+            p.wave_y = 0.7;
+            p.wave_scale = 0.5 + 0.3 * f.treb;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Disco Floor",
+        frame: |f, p| {
+            p.zoom = 1.01;
+            p.decay = 0.93;
+            p.mirror = 2;
+            p.wave_mode = 6;
+            p.wave = hue(f.time * 0.12);
+            p.wave_y = 0.5;
+            p.wave_scale = 0.9;
+            p.border = if f.beat { 0.02 } else { 0.0 };
+            p.border_color = hue(f.time * 0.12 + 0.5);
+        },
+        point: None,
+    },
+    Preset {
+        name: "Tidal Sun",
+        frame: |f, p| {
+            p.warp = 2.0;
+            p.dy = -0.004;
+            p.decay = 0.965;
+            p.wave_mode = 7;
+            p.wave = hue(0.08 + 0.06 * (f.time * 0.3).sin());
+            p.wave_y = 0.4;
+            p.wave_scale = 1.0 + 0.5 * f.bass_att;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Electric Sheep",
+        frame: |f, p| {
+            p.warp = 1.8;
+            p.zoom = 1.012;
+            p.decay = 0.97;
+            p.mirror = 1;
+            p.gamma = 1.3;
+            p.wave_mode = 5;
+            p.wave = hue(f.time * 0.05 + 0.7);
+            p.wave_scale = 1.0 + 0.4 * f.mid;
+        },
+        point: Some(|f, _p, _x, y, _rad, _ang, pt| {
+            pt.dx = 0.004 * (y * 9.0 + f.time).sin();
+        }),
+    },
+    Preset {
+        name: "Retro TV",
+        frame: |f, p| {
+            p.sx = 1.0 + 0.01 * (f.time * 1.3).sin();
+            p.sy = 1.0 + 0.01 * (f.time * 1.1).cos();
+            p.warp = 0.0;
+            p.dy = -0.004;
+            p.decay = 0.9;
+            p.tint = [1.0, 0.96, 0.85];
+            p.wave_mode = 6;
+            p.wave = AMBER;
+            p.wave_y = 0.15;
+            p.border = 0.03;
+            p.border_color = [0.08, 0.06, 0.02];
+        },
+        point: None,
+    },
+    Preset {
+        name: "Ink Drop",
+        frame: |f, p| {
+            // Drawn light on dark, shown inverted: ink spreading on paper.
+            p.warp = 1.5;
+            p.zoom = 1.01;
+            p.decay = 0.97;
+            p.invert = true;
+            p.wave_mode = 0;
+            p.wave = [0.9, 0.8, 0.5];
+            p.wave_thick = true;
+            p.wave_scale = 0.8 + 0.4 * f.bass_att;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Mandala",
+        frame: |f, p| {
+            p.zoom = 0.995;
+            p.decay = 0.94;
+            p.mirror = 2;
+            p.wave_mode = 7;
+            p.wave = hue(f.time * 0.03 + 0.1);
+            p.wave_alpha = 0.3;
+            p.wave_x = 0.3;
+            p.wave_y = 0.7;
+            for (k, s) in p.shapes.iter_mut().enumerate() {
+                s.on = true;
+                s.sides = if k == 0 { 8 } else { 5 };
+                s.ang = f.time * if k == 0 { 0.6 } else { -0.9 };
+                s.x = 0.3;
+                s.y = 0.7;
+                s.rad = 0.06 + 0.05 * if k == 0 { f.bass } else { f.treb };
+                s.color = hue(f.time * 0.03 + 0.4 + k as f32 * 0.3);
+                s.alpha = 0.15;
+            }
+        },
+        point: None,
+    },
+    Preset {
+        name: "Bass Cannon",
+        frame: |f, p| {
+            p.zoom = 1.0 + if f.beat { 0.15 } else { 0.02 * f.bass_att };
+            p.warp = 0.0;
+            p.decay = 0.86;
+            p.wave_mode = 6;
+            p.wave = [1.0, 0.25, 0.15];
+            p.wave_y = 0.3;
+            p.shapes[0].on = f.beat;
+            p.shapes[0].sides = 48;
+            p.shapes[0].rad = 0.25;
+            p.shapes[0].color = [1.0, 0.6, 0.3];
+            p.shapes[0].alpha = 0.25;
+        },
+        point: None,
+    },
+    Preset {
+        name: "Tron Horizon",
+        frame: |f, p| {
+            // Everything streams toward a vanishing point high in the frame.
+            p.zoom = 0.97;
+            p.cy = 0.8;
+            p.warp = 0.0;
+            p.decay = 0.95;
+            p.wrap = false;
+            p.wave_mode = 6;
+            p.wave = if f.beat { [1.0, 0.3, 0.9] } else { [0.2, 0.9, 1.0] };
+            p.wave_y = 0.1;
+            p.wave_scale = 0.9 + 0.2 * f.vol;
+        },
+        point: None,
+    },
 ];
 
 #[allow(dead_code)]
