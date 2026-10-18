@@ -1,6 +1,9 @@
 //! Staying up to date: Gamp asks GitHub for the latest release when it
-//! starts (and when you choose Check for updates), says so in the display,
-//! and installs it on request: the new app replaces this one and starts.
+//! starts, every few hours while open, and when you choose Check for
+//! updates; it says so in the display and installs it on request: the new
+//! app replaces this one and starts. When that doesn't work (a failed
+//! download, a read-only install, an installer that gave up), Gamp opens
+//! the release's download page so you can install it by hand.
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -9,8 +12,13 @@ use std::time::Duration;
 use crate::app::App;
 
 const API: &str = "https://api.github.com/repos/fillinthe/g-amp/releases/latest";
+const RELEASES: &str = "https://github.com/fillinthe/g-amp/releases/latest";
+/// How often a running Gamp asks again.
+pub const CHECK_EVERY: Duration = Duration::from_secs(6 * 3600);
+/// Left in the data folder while an update installs; the next start reads it.
+const ATTEMPT: &str = "update-attempt.json";
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Release {
     pub version: String,
     pub page: String,
@@ -102,9 +110,25 @@ fn this_bundle() -> Option<PathBuf> {
     (app.extension()? == "app").then(|| app.to_path_buf())
 }
 
+/// What to tell the person after a start: the update `attempt` that was
+/// left behind didn't take if this is still an older version.
+pub fn failed_attempt(attempt: &Release, ours: &str) -> bool {
+    newer(&attempt.version, ours)
+}
+
+/// Whether files can be created next to `path` (where the new app goes).
+fn can_write_beside(path: &Path) -> bool {
+    let Some(dir) = path.parent() else { return false };
+    let probe = dir.join(format!(".gamp-update-{}", std::process::id()));
+    let ok = std::fs::File::create(&probe).is_ok();
+    let _ = std::fs::remove_file(&probe);
+    ok
+}
+
 impl App {
     /// Asks GitHub in the background; `said` reports "up to date" too.
     pub fn update_check(&mut self, said: bool) {
+        self.update_checked = std::time::Instant::now();
         let (tx, rx) = mpsc::channel();
         self.update_rx = Some(rx);
         std::thread::spawn(move || {
@@ -137,9 +161,37 @@ impl App {
                     self.message_until = Some(std::time::Instant::now() + Duration::from_secs(3));
                 }
                 Msg::Ready(file, r) => self.update_apply(&file, &r),
-                Msg::Failed(e) => self.say(&format!("UPDATE FAILED: {e}")),
+                Msg::Failed(e) => self.update_by_hand(&format!("UPDATE FAILED ({e})")),
             }
             self.mark(crate::app::Kind::Main);
+        }
+    }
+
+    /// The automatic update didn't work: open the download page instead.
+    fn update_by_hand(&mut self, why: &str) {
+        let page = self.update.as_ref().map(|r| r.page.clone()).filter(|p| !p.is_empty()).unwrap_or_else(|| RELEASES.into());
+        crate::backend::open_in_browser(&page);
+        self.say(&format!("{why} - OPENED THE DOWNLOAD PAGE"));
+    }
+
+    /// At start: did the update we quit for install? If not, say so, open
+    /// its download page and return true (no need to ask GitHub again).
+    pub fn update_after_restart(&mut self) -> bool {
+        let path = self.data_dir.join(ATTEMPT);
+        let Some(attempt) = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice::<Release>(&b).ok()) else { return false };
+        let _ = std::fs::remove_file(&path);
+        if !failed_attempt(&attempt, env!("CARGO_PKG_VERSION")) {
+            return false;
+        }
+        self.update = Some(attempt.clone());
+        self.update_by_hand(&format!("GAMP {} DIDN'T INSTALL", attempt.version));
+        true
+    }
+
+    /// Asks again every few hours while Gamp stays open.
+    pub fn update_tick(&mut self) {
+        if self.update.is_none() && self.update_checked.elapsed() >= CHECK_EVERY {
+            self.update_check(false);
         }
     }
 
@@ -184,14 +236,24 @@ impl App {
         let result: Result<(), String> = if cfg!(target_os = "macos") {
             match this_bundle() {
                 None => Err("run Gamp from its .app to update it".into()),
+                // Run from the disk image, or from where macOS keeps apps that
+                // weren't moved (App Translocation): nothing can be replaced there.
+                Some(app) if !can_write_beside(&app) => Err("Gamp can't replace itself where it is".into()),
                 Some(app) => {
                     let mount = file.with_extension("mount");
+                    // Whatever happens, Gamp opens again: the new one, or the old one,
+                    // which then sees the update didn't take and opens the download page.
                     let script = format!(
                         r#"while kill -0 {pid} 2>/dev/null; do sleep 0.3; done
-hdiutil attach -nobrowse -quiet -mountpoint "{m}" "{f}" || exit 1
-new=$(ls -d "{m}"/*.app | head -1)
-rm -rf "{a}.old" && mv "{a}" "{a}.old" && cp -R "$new" "{a}" && rm -rf "{a}.old" || {{ mv "{a}.old" "{a}"; }}
-hdiutil detach -quiet "{m}"
+if hdiutil attach -nobrowse -quiet -mountpoint "{m}" "{f}"; then
+  new=$(ls -d "{m}"/*.app | head -1)
+  rm -rf "{a}.old"
+  # Only once the old app is safely aside is anything at its place touched.
+  if mv "{a}" "{a}.old"; then
+    if cp -R "$new" "{a}"; then rm -rf "{a}.old"; else rm -rf "{a}"; mv "{a}.old" "{a}"; fi
+  fi
+  hdiutil detach -quiet "{m}"
+fi
 open "{a}""#,
                         m = mount.display(),
                         f = file.display(),
@@ -212,7 +274,7 @@ open "{a}""#,
             let image = PathBuf::from(image);
             let script = format!(
                 r#"while kill -0 {pid} 2>/dev/null; do sleep 0.3; done
-chmod +x "{f}" && mv -f "{f}" "{i}" && "{i}" &"#,
+chmod +x "{f}" && mv -f "{f}" "{i}"; "{i}" &"#,
                 f = file.display(),
                 i = image.display()
             );
@@ -225,10 +287,14 @@ chmod +x "{f}" && mv -f "{f}" "{i}" && "{i}" &"#,
         };
         match result {
             Ok(()) => {
+                // The next start checks this to see whether the update took.
+                if let Ok(json) = serde_json::to_vec(r) {
+                    let _ = std::fs::write(self.data_dir.join(ATTEMPT), json);
+                }
                 self.save_session();
                 self.quit = true;
             }
-            Err(e) => self.say(&format!("UPDATE FAILED: {e}")),
+            Err(e) => self.update_by_hand(&format!("UPDATE FAILED ({e})")),
         }
     }
 }
@@ -251,5 +317,22 @@ mod tests {
         if cfg!(windows) {
             assert_eq!(names[i], "Gamp-v0.3.0-Windows-setup.exe");
         }
+    }
+
+    #[test]
+    fn a_start_after_an_update_knows_whether_it_took() {
+        let r = Release { version: "0.4.0".into(), page: String::new(), asset: None };
+        assert!(failed_attempt(&r, "0.3.0"), "still the old version: it didn't take");
+        assert!(!failed_attempt(&r, "0.4.0"));
+        assert!(!failed_attempt(&r, "0.4.1"));
+    }
+
+    #[test]
+    fn knows_where_it_can_replace_itself() {
+        let dir = std::env::temp_dir().join(format!("gamp-update-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(can_write_beside(&dir.join("Gamp.app")));
+        assert!(!can_write_beside(Path::new("/System/Gamp.app")));
+        let _ = std::fs::remove_dir(&dir);
     }
 }

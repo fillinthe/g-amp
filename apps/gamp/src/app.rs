@@ -118,6 +118,7 @@ pub struct App {
     pub(crate) media_at: Instant,
     pub(crate) update: Option<crate::update::Release>,
     pub(crate) update_rx: Option<std::sync::mpsc::Receiver<crate::update::Msg>>,
+    pub(crate) update_checked: Instant,
     /// When a display message should go away by itself.
     pub(crate) message_until: Option<Instant>,
 }
@@ -204,6 +205,7 @@ impl App {
             media_at: Instant::now(),
             update: None,
             update_rx: None,
+            update_checked: Instant::now(),
             message_until: None,
         })
     }
@@ -810,6 +812,7 @@ impl App {
     pub fn tick(&mut self) {
         self.poll_audio();
         self.update_poll();
+        self.update_tick();
         if self.message_until.is_some_and(|t| Instant::now() >= t) {
             self.message_until = None;
             if self.main.pressed.is_none() {
