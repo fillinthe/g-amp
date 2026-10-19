@@ -472,7 +472,7 @@ impl App {
         match &h {
             Hot::Resize => {
                 if let Some(w) = self.win(Kind::Library) {
-                    self.resize = Some(crate::app::Resize { start: w.global_cursor(), size: self.lib.view.size() });
+                    self.resize = Some(crate::app::Resize { start: w.global_cursor(), size: self.lib.view.size(), ..Default::default() });
                 }
                 return;
             }
@@ -634,6 +634,11 @@ impl App {
             self.playlist.append(entries);
             self.sync_playlist();
             self.queue_after(self.playlist.current);
+        } else if enqueue {
+            // Added to an empty list: ready, not playing.
+            self.playlist.set(entries);
+            self.sync_playlist();
+            self.update_title();
         } else {
             self.playlist.set(entries);
             self.sync_playlist();
@@ -641,7 +646,24 @@ impl App {
         }
     }
 
-    fn lib_button(&mut self, id: &str) {
+    /// Right-click on a track: select it (unless it's in the selection)
+    /// and offer Play / Add to playlist.
+    pub fn lib_row_menu(&mut self) -> Option<Vec<gamp_ui::menu::Item>> {
+        use gamp_ui::menu::Item as M;
+        let (x, y) = self.win(Kind::Library)?.cursor;
+        let Some(Hot::Row(i)) = self.lib_hot(x, y) else { return None };
+        if !self.lib.view.table.selected.contains(&i) {
+            self.lib.view.table.selected = BTreeSet::from([i]);
+            self.lib.anchor = Some(i);
+            self.mark(Kind::Library);
+        }
+        if !self.lib_selected().iter().any(is_playable) {
+            return None;
+        }
+        Some(vec![M::action("lib:play", "Play"), M::action("lib:enqueue", "Add to playlist (Shift+Enter)")])
+    }
+
+    pub fn lib_button(&mut self, id: &str) {
         match id {
             "play" | "enqueue" => {
                 let sel = self.lib_selected();
@@ -699,6 +721,11 @@ impl App {
         if self.lib.focus.is_none() {
             // Arrows and Enter in the table.
             match key {
+                // Shift+Enter adds the selection to the playlist.
+                Key::Named(NamedKey::Enter) if self.modifiers.shift_key() => {
+                    self.lib_button("enqueue");
+                    return true;
+                }
                 Key::Named(NamedKey::Enter) => {
                     if let Some(i) = self.lib.view.table.selected.iter().next().copied() {
                         self.lib_activate(i);

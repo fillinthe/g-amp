@@ -57,14 +57,17 @@ Check for updates…).
 - In the library, double-click a folder, album or playlist to open it, and
   Backspace (or ‹ Back) to return. Double-click a track to play from there.
   Paste a SoundCloud link or a radio stream address into Search to play it.
+  Right-click a track (or Shift+Enter) to add it to the playlist without
+  interrupting what's playing.
 - In the playlist, MISC › Sort list sorts by title, file name or path,
   reverses or randomizes the list; the playing track keeps playing.
   MISC › File info (Alt+3) shows a track's tags, format, size and length;
   for files the tags can be edited (Tab between fields) and saved.
   MISC › Misc opts generates an HTML playlist (opens in the browser) or
   re-reads the tags of the selected files.
-- The playlist's LIST button saves and opens `.m3u8` playlists (`.m3u` and
-  `.pls` open too). Saved lists keep radio stations and library tracks, not
+- The playlist is kept when Gamp quits. The playlist's LIST button saves it
+  by name (Save list) and Load list shows your saved playlists, or opens any
+  `.m3u8`, `.m3u` or `.pls` file. Saved lists keep radio stations and library tracks, not
   only files, and a station address from any other program plays as well.
 - The equalizer's PRESETS button has Winamp's presets, saves your own
   (Save…) and opens Winamp `.eqf` presets and `.q1` libraries (From file…,
@@ -73,7 +76,10 @@ Check for updates…).
   or Open With › Gamp).
 - Drop any `.wsz` skin onto the player. Thousands are at
   [skins.webamp.org](https://skins.webamp.org).
-- G-Drop has 40 presets: click for the next, H for a random one, F for full screen.
+- G-Drop has 40 presets. Right-click it for the list, next/previous/random,
+  full screen, and Cycle presets (on: it changes by itself; off: it stays on
+  one; R toggles). The □ button or F goes full screen, Esc leaves. Drag the
+  picture to move it, any edge to resize.
 - Songs play at an even volume: files with ReplayGain tags (MP3, FLAC, M4A,
   Ogg...) are leveled by them, and Spotify uses its own leveling.
 

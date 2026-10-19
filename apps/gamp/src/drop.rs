@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use gamp_audio::analysis::Spectrum;
 use gamp_ui::Frame;
+use gamp_ui::menu::Item;
 use gamp_ui::library_window::gen_frame;
 use gamp_vis::GDrop;
 use winit::keyboard::{Key, NamedKey};
@@ -81,6 +82,7 @@ impl App {
             if d.pressed_close {
                 w.frame.sprite(&self.skin, "GEN_CLOSE_SELECTED", fw as i32 - 11, 3);
             }
+            full_button(&mut w.frame, fw as i32 - 22, fw as i32 - 11);
         }
         // Render at the screen's pixels (halved on big windows, which
         // the eye can't tell and the CPU can).
@@ -119,31 +121,67 @@ impl App {
 
     pub fn drop_press(&mut self, x: i32, y: i32) {
         let d = &self.drop;
-        if !d.fullscreen && y < 20 {
-            if x >= d.width as i32 - 11 && x < d.width as i32 - 2 && y >= 3 && y < 12 {
+        let (w, h) = (d.width as i32, d.height as i32);
+        if d.fullscreen {
+            if self.double_click(Kind::Vis, x, y) {
+                self.drop_fullscreen(false);
+            }
+            return;
+        }
+        if (3..12).contains(&y) {
+            if x >= w - 11 && x < w - 2 {
                 self.drop.pressed_close = true;
                 self.mark(Kind::Vis);
                 return;
             }
-            if self.double_click(Kind::Vis, x, y) {
+            if x >= w - 22 && x < w - 13 {
                 return self.drop_fullscreen(true);
             }
-            self.start_drag(Kind::Vis);
-            return;
         }
-        if !d.fullscreen && x >= d.width as i32 - 20 && y >= d.height as i32 - 20 {
-            if let Some(w) = self.win(Kind::Vis) {
-                self.resize = Some(crate::app::Resize { start: w.global_cursor(), size: (self.drop.width, self.drop.height) });
+        // Any edge resizes (the bottom-right grip too); the rest moves.
+        const EDGE: i32 = 6;
+        let grip = x >= w - 20 && y >= h - 20;
+        let dir = (
+            if x < EDGE { -1 } else if x >= w - EDGE || grip { 1 } else { 0 },
+            if y < 3 { -1 } else if y >= h - EDGE || grip { 1 } else { 0 },
+        );
+        if dir != (0, 0) {
+            if let Some(win) = self.win(Kind::Vis) {
+                self.resize = Some(crate::app::Resize { start: win.global_cursor(), size: (self.drop.width, self.drop.height), dir, origin: win.pos });
             }
             return;
         }
         if self.double_click(Kind::Vis, x, y) {
-            let full = !self.drop.fullscreen;
-            return self.drop_fullscreen(full);
+            return self.drop_fullscreen(true);
         }
-        // A click shows the next preset.
-        self.drop.engine.next(false);
+        self.start_drag(Kind::Vis);
+    }
+
+    /// A preset change from the menu or keys; shows its name.
+    pub fn drop_step(&mut self, f: impl FnOnce(&mut gamp_vis::GDrop)) {
+        f(&mut self.drop.engine);
         self.drop_changed();
+    }
+
+    pub fn drop_cycle(&mut self, on: bool) {
+        self.drop.engine.auto = on;
+        self.say(if on { "G-DROP: CYCLES PRESETS" } else { "G-DROP: STAYS ON THIS PRESET" });
+    }
+
+    /// Right-click in G-Drop.
+    pub fn drop_menu(&self) -> Vec<Item> {
+        let now = self.drop.engine.current();
+        let presets = gamp_vis::PRESETS.iter().enumerate().map(|(i, p)| Item::action(format!("drop:preset:{i}"), p.name).checked(i == now)).collect();
+        vec![
+            Item::action("drop:full", if self.drop.fullscreen { "Leave full screen (Esc)" } else { "Full screen (F)" }),
+            Item::Separator,
+            Item::action("drop:next", "Next preset (Space)"),
+            Item::action("drop:back", "Previous preset (←)"),
+            Item::action("drop:random", "Random preset (H)"),
+            Item::submenu("Presets", presets),
+            Item::Separator,
+            Item::action("drop:cycle", "Cycle presets (R)").checked(self.drop.engine.auto),
+        ]
     }
 
     pub fn drop_release(&mut self) {
@@ -161,14 +199,22 @@ impl App {
         let Some(w) = self.win(Kind::Vis) else { return };
         let now = w.global_cursor();
         let scale = w.scale();
-        let nw = (r.size.0 as f64 + (now.0 - r.start.0) / scale).max(275.0) as u32;
-        let nh = (r.size.1 as f64 + (now.1 - r.start.1) / scale).max(116.0) as u32;
+        let (dir, origin, size) = (r.dir, r.origin, r.size);
+        let grow = |d: i8, moved: f64, from: u32| (from as f64 + d as f64 * moved / scale) as i32;
+        let nw = grow(dir.0, now.0 - r.start.0, size.0).max(275) as u32;
+        let nh = grow(dir.1, now.1 - r.start.1, size.1).max(116) as u32;
         let (nw, nh) = (275 + (nw - 275 + 12) / 25 * 25, 116 + (nh - 116 + 14) / 29 * 29);
         if (nw, nh) != (self.drop.width, self.drop.height) {
             self.drop.width = nw;
             self.drop.height = nh;
+            // Dragging the left or top edge keeps the opposite one still.
+            let shift = |d: i8, from: u32, to: u32| if d < 0 { ((from as f64 - to as f64) * scale).round() as i32 } else { 0 };
+            let pos = (origin.0 + shift(dir.0, size.0, nw), origin.1 + shift(dir.1, size.1, nh));
             if let Some(w) = self.wins.get_mut(&Kind::Vis) {
                 w.set_size(winit::dpi::LogicalSize::new(nw, nh));
+                if dir.0 < 0 || dir.1 < 0 {
+                    w.move_to(pos.0, pos.1);
+                }
             }
         }
     }
@@ -196,10 +242,7 @@ impl App {
             Key::Named(NamedKey::Enter) => self.drop_fullscreen(!self.drop.fullscreen),
             Key::Character(c) => match c.to_lowercase().as_str() {
                 "h" => self.drop.engine.random(true),
-                "r" => {
-                    self.drop.engine.auto = !self.drop.engine.auto;
-                    self.main.message = Some(format!("G-DROP: RANDOM {}", if self.drop.engine.auto { "ON" } else { "OFF" }));
-                }
+                "r" => self.drop_cycle(!self.drop.engine.auto),
                 "f" => self.drop_fullscreen(!self.drop.fullscreen),
                 _ => return false,
             },
@@ -208,4 +251,23 @@ impl App {
         self.drop_changed();
         true
     }
+}
+
+/// G-Drop's full-screen button at `x`, beside close (at `close`): the
+/// close button's face with a box where its X is, in the skin's colors.
+fn full_button(frame: &mut Frame, x: i32, close: i32) {
+    let w = frame.width as i32;
+    let at = |f: &Frame, dx: i32, dy: i32| f.pixels.get(((3 + dy) * w + close + dx) as usize).copied().unwrap_or(0);
+    for dy in 0..9 {
+        for dx in 0..9 {
+            let c = at(frame, dx, dy);
+            frame.put(x + dx, 3 + dy, c);
+        }
+    }
+    let (face, mark) = (at(frame, 4, 1), at(frame, 4, 4));
+    frame.fill(x + 2, 5, 5, 5, face);
+    frame.fill(x + 2, 5, 5, 1, mark);
+    frame.fill(x + 2, 9, 5, 1, mark);
+    frame.fill(x + 2, 5, 1, 5, mark);
+    frame.fill(x + 6, 5, 1, 5, mark);
 }
