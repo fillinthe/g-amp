@@ -85,7 +85,6 @@ impl Default for LibState {
             ("srv_otp", "Two-step code (if you use one)", false),
             ("folder_path", "Or type a path", false),
             ("share", "smb://diskstation/music", false),
-            ("dbx_key", "App key", false),
             ("sc_profile", "Your profile: soundcloud.com/you", false),
         ] {
             fields.insert(id.to_owned(), Field { placeholder: ph.into(), password: pw, ..Default::default() });
@@ -170,9 +169,6 @@ impl App {
                     }
                 }
                 Reply::Config(c) => {
-                    if let Some(k) = c["dropbox"]["key"].as_str() {
-                        self.lib_field_default("dbx_key", k);
-                    }
                     if let Some(k) = c["soundcloud"]["profile"].as_str() {
                         self.lib_field_default("sc_profile", k);
                     }
@@ -840,7 +836,6 @@ impl App {
             id if id.starts_with("srv_") => self.lib_form_action("srv:add"),
             "folder_path" => self.lib_form_action("folder:path"),
             "share" => self.lib_form_action("share:connect"),
-            "dbx_key" => self.lib_form_action("dbx:save"),
             "sc_profile" => self.lib_form_action("sc:save"),
             _ => {}
         }
@@ -895,7 +890,7 @@ impl App {
 
         f.push(W::Heading("Media servers (at home or over the internet)".into()));
         f.push(W::Text("Plex, Jellyfin, Navidrome and other Subsonic servers, Synology Audio Station, WebDAV and Nextcloud. DLNA servers on your network appear by themselves.".into()));
-        for s in self.lib.sources.iter().filter(|s| s.group == "network" && !s.id.starts_with("dlna-") && !s.id.starts_with("dropbox-")) {
+        for s in self.lib.sources.iter().filter(|s| s.group == "network" && !s.id.starts_with("dlna-") && !s.id.starts_with("dropbox-") && !s.id.starts_with("cloud-")) {
             f.push(W::Item { id: format!("srv:rm:{}", s.id), label: s.name.clone(), button: "Remove".into() });
         }
         f.push(W::Row(vec![W::button("plex:signin", "Sign in with Plex"), W::Text("Adds every Plex server on your account.".into())]));
@@ -918,20 +913,18 @@ impl App {
         f.push(W::Row(vec![W::Check { id: "srv:insecure".into(), label: "Accept a self-signed certificate".into(), checked: self.lib.insecure }, W::button("srv:add", "Add server")]));
         f.push(W::Row(vec![W::button("dlna:search", "Search the network again")]));
 
-        f.push(W::Heading("Dropbox".into()));
+        f.push(W::Heading("Dropbox, Google Drive and OneDrive".into()));
+        // Accounts signed in through Dropbox's web API (older versions).
         for s in self.lib.sources.iter().filter(|s| s.id.starts_with("dropbox-")) {
             f.push(W::Item { id: format!("srv:rm:{}", s.id), label: s.name.clone(), button: "Disconnect".into() });
         }
-        if c["dropbox"]["builtIn"] == true {
-            f.push(W::Row(vec![W::button("dbx:connect", "Connect Dropbox"), W::Text("Sign in in your web browser; your music files show up here.".into())]));
-        } else {
-            // A build without Gamp's Dropbox app: bring your own key.
-            f.push(W::Text("Dropbox gives each app its own key: at dropbox.com/developers/apps choose Create app › Scoped access › Full Dropbox; tick files.metadata.read and files.content.read; add this Redirect URI; paste the App key here.".into()));
-            let dbx_redirect = c["dropbox"]["redirectUri"].as_str().unwrap_or("").to_owned();
-            f.push(W::Item { id: format!("copy:{dbx_redirect}"), label: dbx_redirect.clone(), button: "Copy".into() });
-            let has_key = c["dropbox"]["key"].as_str().is_some_and(|k| !k.is_empty());
-            f.push(W::Row(vec![self.field("dbx_key"), W::button("dbx:save", "Save"), W::Button { id: "dbx:connect".into(), label: "Connect Dropbox".into(), enabled: has_key }]));
-        }
+        let cloud: Vec<String> = c["cloud"].as_array().map(|a| a.iter().filter_map(|v| v["name"].as_str().map(str::to_owned)).collect()).unwrap_or_default();
+        f.push(W::Text("Install the Dropbox, Google Drive or OneDrive app and sign in: its folder shows up under Network & Cloud by itself. Songs download as you play them.".into()));
+        f.push(W::Row(vec![
+            W::button("cloud:get", "Get Dropbox"),
+            W::button("cloud:look", "Look again"),
+            W::Text(if cloud.is_empty() { "None on this computer yet".into() } else { format!("Found: {}", cloud.join(", ")) }),
+        ]));
 
         f.push(W::Heading("Spotify (Premium)".into()));
         f.push(W::Text("Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.".into()));
@@ -1008,8 +1001,11 @@ impl App {
                 b.note("Looking for DLNA servers…");
                 self.pending_refresh = Some(std::time::Instant::now() + std::time::Duration::from_secs(5));
             }
-            "dbx:save" => b.post("/api/config", json!({ "dropboxKey": self.value("dbx_key") }), true),
-            "dbx:connect" => open_in_browser(&b.url("/auth/dropbox/login")),
+            "cloud:get" => open_in_browser("https://www.dropbox.com/install"),
+            "cloud:look" => {
+                b.refresh_sources();
+                b.config();
+            }
             "sp:connect" => open_in_browser(&b.url("/auth/spotify/login")),
             "sp:disconnect" => b.post("/api/spotify/logout", json!({}), true),
             "sc:save" => b.post("/api/config", json!({ "soundcloudProfile": self.value("sc_profile") }), true),

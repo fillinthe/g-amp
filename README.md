@@ -4,7 +4,7 @@
 
 The classic Winamp 2 player, rebuilt from scratch in Rust as a native app for
 macOS and Windows (Linux builds too). It plays everything you have: music
-folders and network drives, your NAS and media servers, Dropbox, internet
+folders and network drives, your NAS and media servers, Dropbox, Google Drive and OneDrive, internet
 radio, podcasts, the Internet Archive, SoundCloud and Spotify. The
 equalizer, skins and the G-Drop visualizer work on every source.
 
@@ -23,7 +23,7 @@ G-Drop. Classic `.wsz` skins load as they are. Idle, it uses next to no CPU.
 | **Synology Audio Station** | Your QuickConnect ID (or the DSM address, `http://nas:5000`), user, password, and two-step code if you use one. With QuickConnect, Gamp finds the NAS at home and away by itself. |
 | **WebDAV** (Synology WebDAV Server, Nextcloud, ownCloud, pCloud, QNAP...) | Folder address, user name and password. |
 | **DLNA / UPnP** (Synology Media Server, minidlna, routers, Windows Media sharing) | Nothing. Servers on your network appear by themselves. |
-| **Dropbox** | Click Connect and sign in. |
+| **Dropbox, Google Drive, OneDrive** | Their desktop app, signed in. Gamp finds the folder by itself and plays from it; songs download as you play them. |
 | **Internet radio** | Nothing. About 50,000 stations from the [radio-browser.info](https://www.radio-browser.info) directory. Paste any stream, `.pls` or `.m3u` address to play it. |
 | **Podcasts** | Nothing. Search Apple's directory or paste any RSS feed, then subscribe. |
 | **Internet Archive** | Nothing. The Live Music Archive, 78 RPM records, netlabels, old-time radio, and search. |
@@ -36,7 +36,7 @@ NAS boxes) can be accepted per server.
 
 Not supported: Mixcloud (its API doesn't allow playback in other apps),
 YouTube, Apple Music, Tidal and Deezer (no public playback APIs), Google
-Drive and OneDrive (yet; WebDAV via `rclone serve webdav` works meanwhile).
+Drive and OneDrive without their desktop apps.
 
 ## Download
 

@@ -34,6 +34,10 @@ pub async fn sources() -> Vec<Source> {
             needs_setup: false,
         });
     }
+    // Dropbox, Google Drive and OneDrive, through their desktop apps' folders.
+    for f in crate::cloud::folders() {
+        out.push(Source { id: f.id, name: f.name, group: "network".into(), roots: vec![("files".into(), "Files".into())], search: false, needs_setup: false });
+    }
     let sc = !crate::store::config().await.soundcloud_profile.is_empty();
     out.push(Source {
         id: "soundcloud".into(),
@@ -108,6 +112,10 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
                 _ => return Err(sources::not_found("That list")),
             };
             Ok(Listing::of(rows))
+        }
+        cloud if cloud.starts_with("cloud-") => {
+            let (sid, node) = (sid.to_owned(), node.to_owned());
+            tokio::task::spawn_blocking(move || crate::cloud::browse(&sid, &node)).await?
         }
         "spotify" => {
             let (kind, arg) = node.split_once(':').unwrap_or((node, ""));

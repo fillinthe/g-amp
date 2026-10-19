@@ -5,6 +5,7 @@
 //! No UI here: the native desktop app and the iPhone app both build on it.
 
 pub mod catalog;
+pub mod cloud;
 pub mod http;
 pub mod library;
 pub mod server;
