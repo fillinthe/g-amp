@@ -1530,7 +1530,7 @@ dependencies = [
 
 [[package]]
 name = "gamp"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "anyhow",
  "arboard",
@@ -1561,7 +1561,7 @@ dependencies = [
 
 [[package]]
 name = "gamp-audio"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "anyhow",
  "audioadapter-buffers",
@@ -1576,7 +1576,7 @@ dependencies = [
 
 [[package]]
 name = "gamp-core"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "anyhow",
  "axum",
@@ -1612,7 +1612,7 @@ dependencies = [
 
 [[package]]
 name = "gamp-skin"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "anyhow",
  "image",
@@ -1624,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "gamp-ui"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "fontdue",
  "gamp-skin",
@@ -1633,7 +1633,7 @@ dependencies = [
 
 [[package]]
 name = "gamp-vis"
-version = "0.3.4"
+version = "0.3.5"
 
 [[package]]
 name = "generic-array"
@@ -4529,7 +4529,7 @@ checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "skin-gen"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "image",
  "serde_json",
