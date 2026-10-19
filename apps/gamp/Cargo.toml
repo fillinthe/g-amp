@@ -60,6 +60,11 @@ extensions = ["wsz"]
 description = "Winamp skin"
 role = "viewer"
 
+[[package.metadata.packager.fileAssociations]]
+extensions = ["eqf", "q1"]
+description = "Winamp equalizer preset"
+role = "viewer"
+
 [package.metadata.packager.macos]
 minimumSystemVersion = "11.0"
 infoPlistPath = "packaging/Info.plist"
@@ -72,4 +77,5 @@ section = "sound"
 installMode = "currentUser"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSView", "NSWindow", "NSResponder"] }

@@ -66,6 +66,11 @@ Check for updates…).
 - The playlist's LIST button saves and opens `.m3u8` playlists (`.m3u` and
   `.pls` open too). Saved lists keep radio stations and library tracks, not
   only files, and a station address from any other program plays as well.
+- The equalizer's PRESETS button has Winamp's presets, saves your own
+  (Save…) and opens Winamp `.eqf` presets and `.q1` libraries (From file…,
+  or drop one on Gamp).
+- Songs, playlists, skins and presets open from the Finder too (double-click
+  or Open With › Gamp).
 - Drop any `.wsz` skin onto the player. Thousands are at
   [skins.webamp.org](https://skins.webamp.org).
 - G-Drop has 40 presets: click for the next, H for a random one, F for full screen.

@@ -11,6 +11,7 @@ mod app;
 mod backend;
 mod clipboard;
 mod drop;
+mod eqf;
 mod info;
 mod jump;
 mod layout;
@@ -57,6 +58,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.app.lib_open(library::Page::Settings, true);
             }
             UserEvent::Wake => {}
+            UserEvent::Open(files) => self.app.open_files(files, true),
         }
     }
 
@@ -161,6 +163,8 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
     let el = EventLoop::<UserEvent>::with_user_event().build()?;
+    #[cfg(target_os = "macos")]
+    finder::listen(el.create_proxy());
     let data = app::data_dir();
     // The sources, sign-ins and streaming; Gamp still plays files without it.
     let backend = match Backend::start(data, Some(el.create_proxy())) {
@@ -180,4 +184,51 @@ fn main() -> anyhow::Result<()> {
     app.lib_open_at_start = app.playlist.entries.is_empty() && app.session.is_none();
     el.run_app(&mut Shell { app, started: false, next_tick: Instant::now() })?;
     Ok(())
+}
+
+/// The Finder hands files to a running (or starting) app as an "open
+/// documents" message to its delegate, not as arguments. winit's delegate
+/// doesn't answer it, so Gamp adds the method to winit's delegate class.
+#[cfg(target_os = "macos")]
+mod finder {
+    use std::ffi::{c_char, CStr};
+    use std::path::PathBuf;
+    use std::sync::OnceLock;
+
+    use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
+    use objc2::{msg_send, sel};
+    use winit::event_loop::EventLoopProxy;
+
+    use crate::backend::UserEvent;
+
+    static PROXY: OnceLock<EventLoopProxy<UserEvent>> = OnceLock::new();
+
+    unsafe extern "C-unwind" fn open_urls(_this: *mut AnyObject, _cmd: Sel, _app: *mut AnyObject, urls: *mut AnyObject) {
+        let Some(urls) = (unsafe { urls.as_ref() }) else { return };
+        let count: usize = unsafe { msg_send![urls, count] };
+        let files: Vec<PathBuf> = (0..count)
+            .filter_map(|i| {
+                let url: *mut AnyObject = unsafe { msg_send![urls, objectAtIndex: i] };
+                let path: *mut AnyObject = unsafe { msg_send![url.as_ref()?, path] };
+                let s: *const c_char = unsafe { msg_send![path.as_ref()?, UTF8String] };
+                (!s.is_null()).then(|| PathBuf::from(unsafe { CStr::from_ptr(s) }.to_string_lossy().into_owned()))
+            })
+            .collect();
+        if let Some(p) = PROXY.get().filter(|_| !files.is_empty()) {
+            let _ = p.send_event(UserEvent::Open(files));
+        }
+    }
+
+    pub fn listen(proxy: EventLoopProxy<UserEvent>) {
+        let _ = PROXY.set(proxy);
+        let Some(class) = AnyClass::get(c"WinitApplicationDelegate") else {
+            log::warn!("no app delegate: files opened from the Finder won't arrive");
+            return;
+        };
+        let f: unsafe extern "C-unwind" fn(*mut AnyObject, Sel, *mut AnyObject, *mut AnyObject) = open_urls;
+        // application:openURLs: is (void)(id self, SEL _cmd, NSApplication*, NSArray<NSURL*>*).
+        unsafe {
+            objc2::ffi::class_addMethod(class as *const AnyClass as *mut AnyClass, sel!(application:openURLs:), std::mem::transmute::<_, Imp>(f), c"v@:@@".as_ptr());
+        }
+    }
 }

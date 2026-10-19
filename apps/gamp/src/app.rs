@@ -19,6 +19,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::WindowLevel;
 
+use crate::eqf;
 use crate::layout::{self, Rect};
 use crate::playlist::{self, Entry, Playlist};
 use crate::win::Win;
@@ -590,6 +591,10 @@ impl App {
     pub fn open_files(&mut self, paths: Vec<PathBuf>, replace: bool) {
         if let Some(skin) = paths.iter().find(|p| p.extension().is_some_and(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "wsz" | "zip"))) {
             self.load_skin(Some(skin.clone()));
+            return;
+        }
+        if let Some(eq) = paths.iter().find(|p| p.extension().is_some_and(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "eqf" | "q1"))) {
+            self.import_presets(&eq.clone());
             return;
         }
         if let Some(list) = paths.iter().find(|p| p.extension().is_some_and(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "m3u" | "m3u8" | "pls"))) {
@@ -1600,7 +1605,54 @@ impl App {
         let mut load: Vec<Item> = eq_window::PRESETS.iter().map(|(name, _)| Item::action(format!("preset:{name}"), *name)).collect();
         load.insert(0, Item::Separator);
         load.insert(0, Item::action("preset:flat", "Flat (reset)"));
-        vec![Item::submenu("Load", load), Item::action("preset:flat", "Reset")]
+        let saved = eqf::saved(&self.data_dir.join("presets"));
+        if !saved.is_empty() {
+            load.push(Item::Separator);
+            load.extend(saved.into_iter().map(|(path, p)| Item::action(format!("eqf:{}", path.display()), p.name)));
+        }
+        load.push(Item::Separator);
+        load.push(Item::action("preset:file", "From file…"));
+        vec![Item::submenu("Load", load), Item::action("preset:save", "Save…"), Item::action("preset:flat", "Reset")]
+    }
+
+    fn use_preset(&mut self, p: &eqf::Preset) {
+        self.eq.preamp = p.preamp;
+        self.eq.bands = p.bands;
+        self.apply_eq();
+    }
+
+    /// Opens a Winamp `.eqf` preset or `.q1` library: its presets are kept
+    /// with the saved ones (so they're in the menu) and the first is used.
+    fn import_presets(&mut self, path: &std::path::Path) {
+        let presets = std::fs::read(path).map(|b| eqf::parse(&b)).unwrap_or_default();
+        let Some(first) = presets.first().cloned() else {
+            self.say("NOT AN EQUALIZER PRESET FILE");
+            return;
+        };
+        let dir = self.data_dir.join("presets");
+        let _ = std::fs::create_dir_all(&dir);
+        let fallback = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        for (i, p) in presets.iter().enumerate() {
+            let mut name: String = p.name.chars().map(|c| if r#"/\:*?"<>|"#.contains(c) || c.is_control() { '-' } else { c }).collect();
+            if name.trim().is_empty() {
+                name = if presets.len() == 1 { fallback.clone() } else { format!("{fallback} {}", i + 1) };
+            }
+            let _ = std::fs::write(dir.join(format!("{}.eqf", name.trim())), eqf::write(p));
+        }
+        self.use_preset(&first);
+        self.say(&if presets.len() == 1 { format!("PRESET: {}", first.name) } else { format!("ADDED {} PRESETS", presets.len()) });
+    }
+
+    fn save_preset(&mut self) {
+        let dir = self.data_dir.join("presets");
+        let _ = std::fs::create_dir_all(&dir);
+        let Some(path) = rfd::FileDialog::new().set_title("Save equalizer preset").set_directory(&dir).add_filter("Winamp EQ preset", &["eqf"]).set_file_name("My preset.eqf").save_file() else { return };
+        let path = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("eqf")) { path } else { path.with_extension("eqf") };
+        let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        match std::fs::write(&path, eqf::write(&eqf::Preset { name: name.clone(), preamp: self.eq.preamp, bands: self.eq.bands })) {
+            Ok(()) => self.say(&format!("SAVED PRESET: {name}")),
+            Err(e) => self.say(&format!("COULDN'T SAVE THE PRESET: {e}")),
+        }
     }
 
     fn open_menu(&mut self, items: Vec<Item>, at: (i32, i32), el: Option<&ActiveEventLoop>) {
@@ -1713,13 +1765,23 @@ impl App {
             }
             "update:check" => self.update_check(true),
             "update:install" => self.update_install(),
+            "preset:save" => self.save_preset(),
+            "preset:file" => {
+                if let Some(f) = rfd::FileDialog::new().add_filter("Winamp EQ presets", &["eqf", "q1"]).pick_file() {
+                    self.import_presets(&f);
+                }
+            }
             "preset:flat" => {
                 self.eq.preamp = 0.0;
                 self.eq.bands = [0.0; 10];
                 self.apply_eq();
             }
             other => {
-                if let Some(path) = other.strip_prefix("skin:") {
+                if let Some(path) = other.strip_prefix("eqf:") {
+                    if let Some(p) = std::fs::read(path).ok().and_then(|b| eqf::parse(&b).into_iter().next()) {
+                        self.use_preset(&p);
+                    }
+                } else if let Some(path) = other.strip_prefix("skin:") {
                     self.load_skin(Some(PathBuf::from(path)));
                 } else if let Some(name) = other.strip_prefix("preset:") {
                     if let Some((_, bands)) = eq_window::PRESETS.iter().find(|(n, _)| *n == name) {
@@ -2002,6 +2064,20 @@ mod tests {
         assert_eq!(app.eq.bands, eq_window::PRESETS.iter().find(|p| p.0 == "Rock").unwrap().1);
         app.menu_action("preset:flat", None);
         assert_eq!(app.eq.bands, [0.0; 10]);
+        // A dropped .q1 library: every preset joins the menu, the first is used.
+        app.data_dir = std::env::temp_dir().join(format!("gamp-eqf-{}", std::process::id()));
+        let rock = eqf::Preset { name: "My Rock".into(), preamp: 3.0, bands: eq_window::PRESETS[12].1 };
+        let mut lib = eqf::write(&rock);
+        lib.extend_from_slice(&eqf::write(&eqf::Preset { name: "A/B".into(), ..rock.clone() })[31..]);
+        let file = app.data_dir.join("lib.q1");
+        std::fs::create_dir_all(&app.data_dir).unwrap();
+        std::fs::write(&file, lib).unwrap();
+        app.open_files(vec![file], true);
+        assert!((app.eq.preamp - 3.0).abs() < 0.3 && (app.eq.bands[0] - rock.bands[0]).abs() < 0.3);
+        let Item::Submenu { items, .. } = &app.preset_menu()[0] else { panic!() };
+        let names: Vec<&str> = items.iter().filter_map(|i| if let Item::Action { label, .. } = i { Some(label.as_str()) } else { None }).collect();
+        assert!(names.contains(&"My Rock") && names.contains(&"A-B"), "{names:?}");
+        let _ = std::fs::remove_dir_all(&app.data_dir);
     }
 
     #[test]
