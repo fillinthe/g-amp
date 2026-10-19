@@ -145,12 +145,28 @@ async fn quickconnect(id: &str) -> Option<Vec<String>> {
     Some(out)
 }
 
+/// The QuickConnect ID in an address, in any of the forms Synology uses:
+/// quickconnect.to/mynas, mynas.quickconnect.to, mynas.de3.quickconnect.to
+/// (relay), 192-168-1-2.mynas.direct.quickconnect.to (direct).
+fn quickconnect_id(host: &str, path: &str) -> Option<String> {
+    if host == "quickconnect.to" {
+        return path.split('/').find(|s| !s.is_empty()).map(str::to_owned);
+    }
+    let labels: Vec<&str> = host.strip_suffix(".quickconnect.to")?.split('.').collect();
+    let id = match labels.as_slice() {
+        [.., id, "direct"] => id,
+        [id, ..] => id,
+        [] => return None,
+    };
+    Some(id.to_string())
+}
+
 /// Where to look for the NAS: a QuickConnect ID's addresses, or the
 /// address as typed with DSM's port (5000, or 5001 for https) filled in.
 async fn addresses(typed: &str) -> Vec<String> {
     let Ok(mut url) = url::Url::parse(typed) else { return vec![typed.to_owned()] };
     let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
-    let qc = host.strip_suffix(".quickconnect.to").map(str::to_owned).or_else(|| (host == "quickconnect.to").then(|| url.path().trim_matches('/').to_owned()));
+    let qc = quickconnect_id(&host, url.path());
     // A bare name ("mynas") is a QuickConnect ID or a name on this network.
     let bare = url.port().is_none() && !host.contains('.') && host.parse::<std::net::IpAddr>().is_err() && host != "localhost";
     if url.port().is_none() {
@@ -165,18 +181,26 @@ async fn addresses(typed: &str) -> Vec<String> {
     if qc.is_some() && !found.is_empty() { found } else { std::iter::once(typed).chain(found).collect() }
 }
 
-/// The first of the account's addresses where DSM answers.
-async fn pick(acc: &mut Account) -> Result<(), ApiError> {
-    for url in acc.alt_urls.clone() {
-        let ping = acc.http().get(format!("{url}/webapi/query.cgi")).query(&[("api", "SYNO.API.Info"), ("version", "1"), ("method", "query")]).timeout(Duration::from_secs(4));
-        if let Ok(r) = ping.send().await {
-            if r.json::<Value>().await.is_ok_and(|v| v["success"] == true) {
-                acc.url = url;
-                return Ok(());
-            }
-        }
+/// Whether DSM answers at `url` (within 4 s).
+async fn answers(acc: &Account, url: &str) -> bool {
+    let ping = acc.http().get(format!("{url}/webapi/query.cgi")).query(&[("api", "SYNO.API.Info"), ("version", "1"), ("method", "query")]).timeout(Duration::from_secs(4));
+    match ping.send().await {
+        Ok(r) => r.json::<Value>().await.is_ok_and(|v| v["success"] == true),
+        Err(_) => false,
     }
-    Err(bad_gateway(format!("Can't reach {} at {}", acc.name, acc.alt_urls.join(", "))))
+}
+
+/// The first of the account's addresses where DSM answers (all asked at once).
+async fn pick(acc: &mut Account) -> Result<(), ApiError> {
+    let urls = acc.alt_urls.clone();
+    let ok = futures_util::future::join_all(urls.iter().map(|u| answers(acc, u))).await;
+    match urls.into_iter().zip(ok).find(|(_, ok)| *ok) {
+        Some((url, _)) => {
+            acc.url = url;
+            Ok(())
+        }
+        None => Err(bad_gateway(format!("Can't reach {} at {}", acc.name, acc.alt_urls.join(", ")))),
+    }
 }
 
 pub async fn connect(acc: &mut Account, otp: &str) -> Result<(), ApiError> {
@@ -203,7 +227,8 @@ async fn session(acc: &Account, fresh: bool) -> Result<Session, ApiError> {
     let (s, _) = match login(acc, "").await {
         Ok(r) => r,
         // Moved between home and away: sign in where the NAS answers now.
-        Err(e) if acc.alt_urls.len() > 1 => {
+        // (If it still answers here, the sign-in itself failed: say so.)
+        Err(e) if acc.alt_urls.len() > 1 && !answers(acc, acc.base()).await => {
             let mut fresh = acc.clone();
             pick(&mut fresh).await.map_err(|_| e)?;
             let r = login(&fresh, "").await?;
@@ -350,5 +375,15 @@ mod tests {
         assert_eq!(super::addresses("http://nas.local").await, ["http://nas.local:5000"]);
         assert_eq!(super::addresses("https://you.synology.me").await, ["https://you.synology.me:5001"]);
         assert_eq!(super::addresses("http://192.168.1.20:5000").await, ["http://192.168.1.20:5000"]);
+    }
+
+    #[test]
+    fn finds_quickconnect_ids_in_every_form() {
+        let id = |host: &str, path: &str| super::quickconnect_id(host, path);
+        assert_eq!(id("quickconnect.to", "/mynas").as_deref(), Some("mynas"));
+        assert_eq!(id("mynas.quickconnect.to", "/").as_deref(), Some("mynas"));
+        assert_eq!(id("mynas.de3.quickconnect.to", "/").as_deref(), Some("mynas"));
+        assert_eq!(id("192-168-1-2.mynas.direct.quickconnect.to", "/").as_deref(), Some("mynas"));
+        assert_eq!(id("you.synology.me", "/"), None);
     }
 }

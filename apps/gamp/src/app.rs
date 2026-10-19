@@ -83,6 +83,8 @@ pub struct App {
     pub(crate) marquee_at: Instant,
     /// What the display showed last tick, to scroll a new text from its start.
     pub(crate) shown: String,
+    /// Where the title had scrolled to when a message took its place.
+    pub(crate) title_scroll: Option<i32>,
     pub(crate) blink_at: Instant,
     pub(crate) spectrum: Spectrum,
     pub(crate) wave: Vec<f32>,
@@ -179,6 +181,7 @@ impl App {
             last_click: None,
             marquee_at: Instant::now(),
             shown: String::new(),
+            title_scroll: None,
             blink_at: Instant::now(),
             spectrum: Spectrum::new(512),
             wave: vec![0.0; 512],
@@ -439,12 +442,18 @@ impl App {
     }
 
     /// Moves the main-stack windows at or below `from`'s bottom edge by `dy`.
+    /// Only windows docked into the same stack as `from` (`k`'s place
+    /// before the change) move; one parked elsewhere stays put.
     fn shift_below(&mut self, k: Kind, from: Rect, dy: i32) {
-        let below: Vec<Kind> = [Kind::Main, Kind::Eq, Kind::Playlist]
-            .into_iter()
-            .filter(|o| *o != k)
-            .filter(|o| self.rect(*o).is_some_and(|r| r.y >= from.bottom() - 1))
-            .collect();
+        let stack: Vec<(Kind, Rect)> = [Kind::Main, Kind::Eq, Kind::Playlist].into_iter().filter(|o| *o != k).filter_map(|o| Some((o, self.rect(o)?))).collect();
+        let mut rects: Vec<Rect> = stack.iter().map(|s| s.1).collect();
+        rects.push(from);
+        let start = if k == Kind::Main { rects.len() - 1 } else { stack.iter().position(|s| s.0 == Kind::Main).unwrap_or(rects.len() - 1) };
+        let group = layout::docked_group(&rects, start);
+        if !group.contains(&(rects.len() - 1)) {
+            return;
+        }
+        let below: Vec<Kind> = group.into_iter().filter_map(|i| stack.get(i)).filter(|(_, r)| r.y >= from.bottom() - 1).map(|s| s.0).collect();
         for o in below {
             if let Some(w) = self.wins.get_mut(&o) {
                 let (x, y) = w.pos;
@@ -558,6 +567,7 @@ impl App {
             None => "GAMP".into(),
         };
         self.main.scroll = 0;
+        self.title_scroll = None;
         self.sync_playlist();
         self.mark(Kind::Main);
     }
@@ -857,16 +867,23 @@ impl App {
             self.main.analyzer.decay();
             self.mark(Kind::Main);
         }
+        // A message scrolls from its start; the title picks up where it was.
+        let shown = self.main.message.as_ref().unwrap_or(&self.main.title);
+        if *shown != self.shown {
+            let was_title = self.shown == self.main.title;
+            self.shown = shown.clone();
+            if self.main.message.is_some() {
+                if was_title {
+                    self.title_scroll = Some(self.main.scroll);
+                }
+                self.main.scroll = 0;
+            } else if let Some(s) = self.title_scroll.take() {
+                self.main.scroll = s;
+            }
+            self.mark(Kind::Main);
+        }
         if now.duration_since(self.marquee_at) >= MARQUEE_STEP {
             self.marquee_at = now;
-            let shown = self.main.message.as_ref().unwrap_or(&self.main.title);
-            if *shown != self.shown {
-                self.shown = shown.clone();
-                // A message scrolls from its start; the title picks up where it was.
-                if self.main.message.is_some() {
-                    self.main.scroll = 0;
-                }
-            }
             if self.shown.chars().count() * 5 > 154 {
                 self.main.scroll += 5;
                 self.mark(Kind::Main);
@@ -2256,5 +2273,40 @@ mod tests {
         app.wins.get_mut(&Kind::Vis).unwrap().move_to(3000 - vis_w, 3000);
         app.toggle_window(Kind::Vis);
         assert_eq!(r(&app, Kind::Vis).x, r(&app, Kind::Library).right());
+    }
+
+    #[test]
+    fn only_docked_windows_move_with_the_equalizer() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        for k in [Kind::Main, Kind::Eq, Kind::Playlist] {
+            app.redraw(k);
+        }
+        let pos = |app: &App, k| app.win(k).unwrap().pos;
+        let mh = app.rect(Kind::Main).unwrap().h;
+        // The equalizer floats near the top; main and playlist are stacked lower.
+        app.wins.get_mut(&Kind::Main).unwrap().move_to(0, 500);
+        app.wins.get_mut(&Kind::Playlist).unwrap().move_to(0, 500 + mh);
+        app.wins.get_mut(&Kind::Eq).unwrap().move_to(1000, 0);
+        app.toggle_window(Kind::Eq);
+        assert_eq!((pos(&app, Kind::Main), pos(&app, Kind::Playlist)), ((0, 500), (0, 500 + mh)), "closing a floating equalizer moves nothing");
+        // A playlist parked off to the side isn't pushed when the equalizer docks.
+        app.wins.get_mut(&Kind::Playlist).unwrap().move_to(1500, 900);
+        app.toggle_window(Kind::Eq);
+        assert_eq!(pos(&app, Kind::Eq), (0, 500 + mh));
+        assert_eq!(pos(&app, Kind::Playlist), (1500, 900));
+    }
+
+    #[test]
+    fn a_message_scrolls_from_its_start_and_the_title_resumes() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.main.title = "A TITLE FAR TOO LONG TO FIT IN THE LITTLE DISPLAY".into();
+        app.tick();
+        app.main.scroll = 40;
+        app.say("A MESSAGE THAT IS ALSO MUCH TOO LONG FOR THE DISPLAY");
+        app.tick();
+        assert_eq!(app.main.scroll, 0, "the message starts at its beginning");
+        app.main.message = None;
+        app.tick();
+        assert_eq!(app.main.scroll, 40, "the title picks up where it was");
     }
 }
