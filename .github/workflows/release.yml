@@ -65,7 +65,7 @@ jobs:
             esac
           done
           ls -la ../../out
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           draft: true
           name: Gamp ${{ github.ref_name }}
