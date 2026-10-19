@@ -51,6 +51,11 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
 			<key>CFBundleTypeName</key><string>Winamp skin</string>
 			<key>CFBundleTypeRole</key><string>Viewer</string>
 		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key><array><string>eqf</string><string>q1</string></array>
+			<key>CFBundleTypeName</key><string>Winamp equalizer preset</string>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+		</dict>
 	</array>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSHumanReadableCopyright</key><string>© 2026 Fill in the Blank, LLC</string>

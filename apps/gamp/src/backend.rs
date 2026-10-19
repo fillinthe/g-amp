@@ -20,6 +20,8 @@ pub enum UserEvent {
     Focus,
     /// Background work finished.
     Wake,
+    /// Files opened from the Finder (double-click, Open With, the Dock).
+    Open(Vec<std::path::PathBuf>),
 }
 
 pub enum Reply {
