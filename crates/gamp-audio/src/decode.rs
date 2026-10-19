@@ -16,7 +16,10 @@ use symphonia::core::units::Time;
 pub enum Input {
     /// A file or stream to decode. `ext` ("mp3", "flac"...) helps detection;
     /// `duration` is used when the file doesn't say (fragmented MP4).
-    Media { source: Box<dyn MediaSource>, ext: Option<String>, duration: Option<f64> },
+    /// `fragmented`: a fragmented MP4 stream (SoundCloud's AAC). Opened as
+    /// if it couldn't seek, or the reader walks every fragment first: over
+    /// HTTP, a request each, a minute for a long mix.
+    Media { source: Box<dyn MediaSource>, ext: Option<String>, duration: Option<f64>, fragmented: bool },
     /// PCM decoded elsewhere: interleaved f32 chunks. `seek` jumps the
     /// producer; chunks after a seek must start at the new position.
     Pcm { rate: u32, channels: u16, duration: Option<f64>, chunks: Receiver<Vec<f32>>, seek: Option<Box<dyn FnMut(f64) + Send>> },
@@ -29,12 +32,12 @@ impl Input {
     pub fn file(path: &std::path::Path) -> std::io::Result<Input> {
         let file = std::fs::File::open(path)?;
         let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase());
-        Ok(Input::Media { source: Box::new(file), ext, duration: None })
+        Ok(Input::Media { source: Box::new(file), ext, duration: None, fragmented: false })
     }
 
     /// An endless or unseekable stream (radio).
     pub fn stream(reader: impl std::io::Read + Send + Sync + 'static, ext: Option<String>) -> Input {
-        Input::Media { source: Box::new(ReadOnlySource::new(reader)), ext, duration: None }
+        Input::Media { source: Box::new(ReadOnlySource::new(reader)), ext, duration: None, fragmented: false }
     }
 }
 
@@ -71,6 +74,33 @@ pub struct Pcm {
     info: Format,
 }
 
+/// Says it can't seek until the reader is open (see `Input::Media`).
+struct Opening {
+    inner: Box<dyn MediaSource>,
+    opening: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl std::io::Read for Opening {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.inner.read(buf)
+    }
+}
+
+impl std::io::Seek for Opening {
+    fn seek(&mut self, to: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.inner.seek(to)
+    }
+}
+
+impl MediaSource for Opening {
+    fn is_seekable(&self) -> bool {
+        !self.opening.load(std::sync::atomic::Ordering::Relaxed) && self.inner.is_seekable()
+    }
+    fn byte_len(&self) -> Option<u64> {
+        self.inner.byte_len()
+    }
+}
+
 impl Source {
     pub fn open(input: Input) -> anyhow::Result<Source> {
         match input {
@@ -80,9 +110,11 @@ impl Source {
                 info: Format { rate, channels, duration, kbps: Some(rate * channels as u32 * 16 / 1000), seekable: seek.is_some() },
                 seek,
             })),
-            Input::Media { source, ext, duration: told } => {
+            Input::Media { source, ext, duration: told, fragmented } => {
                 let seekable = source.is_seekable();
                 let bytes = source.byte_len();
+                let opening = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(fragmented));
+                let source: Box<dyn MediaSource> = if fragmented { Box::new(Opening { inner: source, opening: opening.clone() }) } else { source };
                 let mss = MediaSourceStream::new(source, Default::default());
                 let mut hint = Hint::new();
                 if let Some(e) = ext.as_deref() {
@@ -95,6 +127,7 @@ impl Source {
                     &MetadataOptions::default(),
                 )?;
                 let mut format = probed.format;
+                opening.store(false, std::sync::atomic::Ordering::Relaxed);
                 // Tags ahead of the container (ID3v2) and the container's own.
                 let mut tags: Vec<Tag> = probed.metadata.get().and_then(|m| m.current().map(|r| r.tags().to_vec())).unwrap_or_default();
                 tags.extend(format.metadata().current().map(|r| r.tags().to_vec()).unwrap_or_default());
