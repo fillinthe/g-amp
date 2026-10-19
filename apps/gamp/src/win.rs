@@ -167,21 +167,31 @@ impl Win {
             let (sx, sy) = (bw as f32 / fw as f32, bh as f32 / fh as f32);
             ((*rx as f32 * sx) as i32, (*ry as f32 * sy) as i32, (*rw as f32 * sx) as i32, (*rh as f32 * sy) as i32)
         });
-        let cols: Vec<usize> = (0..bw).map(|x| ((x as u64 * fw as u64 / bw as u64) as usize).min(fw as usize - 1)).collect();
-        for y in 0..bh {
-            let sy = ((y as u64 * fh as u64 / bh as u64) as u32).min(fh - 1);
-            let row = (sy * fw) as usize;
-            let src = &self.frame.pixels[row..row + fw as usize];
+        // Each window pixel takes the frame pixels it covers, in proportion:
+        // whole-number sizes stay perfectly sharp, and the sizes between
+        // (110%, 150%...) get even pixels, with only the edges blended.
+        let cols = taps(bw, fw);
+        let rows = taps(bh, fh);
+        for (y, &(sy0, sy1, fy)) in rows.iter().enumerate() {
+            let y = y as u32;
+            let src0 = &self.frame.pixels[sy0 * fw as usize..(sy0 + 1) * fw as usize];
+            let src1 = &self.frame.pixels[sy1 * fw as usize..(sy1 + 1) * fw as usize];
             let dst = &mut buf[(y * bw) as usize..((y + 1) * bw) as usize];
+            let pixel = |x: usize| {
+                let (sx0, sx1, fx) = cols[x];
+                let top = if fx == 0 { src0[sx0] } else { blend(src0[sx0], src0[sx1], fx) };
+                let px = if fy == 0 { top } else { blend(top, if fx == 0 { src1[sx0] } else { blend(src1[sx0], src1[sx1], fx) }, fy) };
+                px & 0x00FF_FFFF
+            };
             match hole {
                 Some((hx, hy, hw, hh)) if (y as i32) >= hy && (y as i32) < hy + hh => {
                     for x in (0..hx.max(0) as usize).chain(((hx + hw).max(0) as usize).min(bw as usize)..bw as usize) {
-                        dst[x] = src[cols[x]] & 0x00FF_FFFF;
+                        dst[x] = pixel(x);
                     }
                 }
                 _ => {
-                    for (d, c) in dst.iter_mut().zip(&cols) {
-                        *d = src[*c] & 0x00FF_FFFF;
+                    for (x, d) in dst.iter_mut().enumerate() {
+                        *d = pixel(x);
                     }
                 }
             }
@@ -254,4 +264,56 @@ pub fn order_front(window: &Window, on_top: bool) {
     let bump = if on_top { WindowLevel::Normal } else { WindowLevel::AlwaysOnTop };
     window.set_window_level(bump);
     window.set_window_level(level);
+}
+
+/// For each of `dst` pixels along one axis, the one or two of `src` pixels
+/// it covers and how much of the second (0-256).
+fn taps(dst: u32, src: u32) -> Vec<(usize, usize, u32)> {
+    let k = src as f64 / dst as f64;
+    (0..dst)
+        .map(|x| {
+            let (a, b) = (x as f64 * k, (x + 1) as f64 * k);
+            let i = (a as usize).min(src as usize - 1);
+            let edge = (i + 1) as f64;
+            if b <= edge + 1e-9 || i + 1 >= src as usize {
+                (i, i, 0)
+            } else {
+                // Sharpened: a pixel mostly over one frame pixel takes just
+                // that one; only near-even splits blend (less blur).
+                let w = (((b - edge) / (b - a) - 0.5) * 2.0 + 0.5).clamp(0.0, 1.0);
+                (i, i + 1, (w * 256.0).round() as u32)
+            }
+        })
+        .collect()
+}
+
+/// `p` and `q` mixed, `f`/256 of `q`, two channels at a time.
+fn blend(p: u32, q: u32, f: u32) -> u32 {
+    let f = f.min(256);
+    let mix = |m: u32| (((p & m) as u64 * (256 - f) as u64 + (q & m) as u64 * f as u64) >> 8) as u32 & m;
+    mix(0x00FF_00FF) | mix(0x0000_FF00)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scaling_is_sharp_at_whole_sizes_and_even_between() {
+        // 2×: every pixel twice, nothing blended.
+        assert!(taps(550, 275).iter().all(|t| t.2 == 0));
+        assert_eq!(taps(4, 2), vec![(0, 0, 0), (0, 0, 0), (1, 1, 0), (1, 1, 0)]);
+        // 1.5×: two of every three window pixels are pure, one is half and half.
+        assert_eq!(taps(3, 2), vec![(0, 0, 0), (0, 1, 128), (1, 1, 0)]);
+        // 110%: every frame pixel shows, none is doubled (the old nearest-
+        // pixel scaling drew every tenth column twice).
+        let t = taps(303, 275);
+        let mut cover = vec![0u32; 275];
+        for (a, b, f) in t {
+            cover[a] += 256 - f;
+            cover[b] += f;
+        }
+        assert!(cover.iter().all(|c| (230..=340).contains(c)), "{cover:?}");
+        assert_eq!(blend(0x000000, 0xFFFFFF, 128), 0x7F7F7F);
+    }
 }
