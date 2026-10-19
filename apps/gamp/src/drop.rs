@@ -198,7 +198,7 @@ impl App {
         let Some(r) = &self.resize else { return };
         let Some(w) = self.win(Kind::Vis) else { return };
         let now = w.global_cursor();
-        let scale = w.scale();
+        let scale = w.scale() * self.zoom();
         let (dir, origin, size) = (r.dir, r.origin, r.size);
         let grow = |d: i8, moved: f64, from: u32| (from as f64 + d as f64 * moved / scale) as i32;
         let nw = grow(dir.0, now.0 - r.start.0, size.0).max(275) as u32;

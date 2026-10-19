@@ -79,6 +79,14 @@ fn bar_piece(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, active: bool, from:
     grooves(c, x + from, y + h / 2 - 2, to - from, active);
 }
 
+/// The 20-pixel top edge of the playlist and generic windows: a title-bar
+/// piece as tall as the main window's (14), then plain frame down to where
+/// the window's contents start, so every title bar is the same height.
+fn top_piece(c: &mut Canvas, x: i32, y: i32, w: i32, active: bool, from: i32, to: i32) {
+    bar_piece(c, x, y, w, 14, active, from, to);
+    c.rect(x, y + 14, w, 6, BODY);
+}
+
 /// A bottom-edge piece: lines only along the top and bottom, plus the
 /// outer side for corners, so tiles join without seams.
 fn edge_piece(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32, left: bool, right: bool) {
@@ -497,10 +505,11 @@ fn pledit_bmp() -> Canvas {
     let mut c = Canvas::new(280, 186, BODY);
     for (y, active) in [(0, true), (21, false)] {
         // Corners and tiles of the top edge, grooves running through.
-        bar_piece(&mut c, 0, y, 25, 20, active, 6, 25);
-        bar_piece(&mut c, 127, y, 25, 20, active, 0, 25);
-        bar_piece(&mut c, 153, y, 25, 20, active, 0, 3);
-        title_bar(&mut c, 26, y, 100, 20, "GAMP PLAYLIST", active, 0, 0);
+        top_piece(&mut c, 0, y, 25, active, 6, 25);
+        top_piece(&mut c, 127, y, 25, active, 0, 25);
+        top_piece(&mut c, 153, y, 25, active, 0, 3);
+        title_bar(&mut c, 26, y, 100, 14, "GAMP PLAYLIST", active, 0, 0);
+        c.rect(26, y + 14, 100, 6, BODY);
         // The right corner holds shade and close.
         small_button(&mut c, 153 + 25 - 21, y + 3, SYM_SHADE, false);
         small_button(&mut c, 153 + 25 - 11, y + 3, SYM_CLOSE, false);
@@ -583,14 +592,12 @@ fn gen_bmp() -> Canvas {
     for (y, active) in [(0, true), (21, false)] {
         // Left corner, left end (beside the title), centre fill (behind it),
         // right end, left/right fills, right corner (with close).
-        bar_piece(&mut c, 0, y, 25, 20, active, 6, 25);
-        bar_piece(&mut c, 26, y, 25, 20, active, 0, 21);
-        c.vgrad(52, y, 25, 20, mix(BODY, BODY_HI, 0.25), BODY);
-        c.hline(52, y, 25, BODY_HI);
-        c.hline(52, y + 19, 25, BODY_LO);
-        bar_piece(&mut c, 78, y, 25, 20, active, 4, 25);
-        bar_piece(&mut c, 104, y, 25, 20, active, 0, 25);
-        bar_piece(&mut c, 130, y, 25, 20, active, 0, 12);
+        top_piece(&mut c, 0, y, 25, active, 6, 25);
+        top_piece(&mut c, 26, y, 25, active, 0, 21);
+        top_piece(&mut c, 52, y, 25, active, 0, 0);
+        top_piece(&mut c, 78, y, 25, active, 4, 25);
+        top_piece(&mut c, 104, y, 25, active, 0, 25);
+        top_piece(&mut c, 130, y, 25, active, 0, 12);
         small_button(&mut c, 130 + 14, y + 3, SYM_CLOSE, false);
         c.vline(0, y, 20, BODY_HI);
         c.vline(154, y, 20, BODY_LO);
