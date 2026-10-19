@@ -60,9 +60,14 @@ pub(crate) struct Drag {
     group: Vec<(Kind, (i32, i32))>,
 }
 
+#[derive(Default)]
 pub(crate) struct Resize {
     pub(crate) start: (f64, f64),
     pub(crate) size: (u32, u32),
+    /// Which edges move (G-Drop): -1 left/top, 1 right/bottom, 0 neither.
+    pub(crate) dir: (i8, i8),
+    /// The window's position when it started (moving the left/top edge).
+    pub(crate) origin: (i32, i32),
 }
 
 pub struct App {
@@ -1020,7 +1025,12 @@ impl App {
     /// Right-click: Winamp's main menu, wherever you are.
     pub fn context_menu(&mut self, k: Kind, el: Option<&ActiveEventLoop>) {
         let at = self.win(k).map(Win::global_cursor).unwrap_or_default();
-        let items = self.main_menu();
+        let items = match k {
+            Kind::Library => self.lib_row_menu(),
+            Kind::Vis => Some(self.drop_menu()),
+            _ => None,
+        }
+        .unwrap_or_else(|| self.main_menu());
         self.open_menu(items, (at.0 as i32, at.1 as i32), el);
     }
 
@@ -1193,7 +1203,7 @@ impl App {
             }
             plw::Control::Resize => {
                 if let Some(w) = self.win(Kind::Playlist) {
-                    self.resize = Some(Resize { start: w.global_cursor(), size: self.pl.size() });
+                    self.resize = Some(Resize { start: w.global_cursor(), size: self.pl.size(), ..Default::default() });
                 }
                 return;
             }
@@ -1366,9 +1376,14 @@ impl App {
             (PlMenu::List, 0) => self.clear_playlist(),
             (PlMenu::List, 1) => self.save_playlist(),
             (PlMenu::List, 2) => {
-                if let Some(f) = rfd::FileDialog::new().add_filter("Playlists", &["m3u", "m3u8", "pls"]).pick_file() {
-                    self.open_files(vec![f], true);
+                // Saved playlists by name, as a pop-up at the pointer.
+                let at = self.win(Kind::Playlist).map(Win::global_cursor).unwrap_or_default();
+                let mut items: Vec<Item> = self.saved_playlists().into_iter().map(|p| Item::action(format!("list:{}", p.display()), p.file_stem().unwrap_or_default().to_string_lossy())).collect();
+                if !items.is_empty() {
+                    items.push(Item::Separator);
                 }
+                items.push(Item::action("list:file", "From file…"));
+                self.open_menu(items, (at.0 as i32, at.1 as i32), _el);
             }
             _ => {}
         }
@@ -1450,10 +1465,23 @@ impl App {
         self.sync_playlist();
     }
 
+    /// Playlists saved in Gamp's folder (LIST › Save list), by name.
+    fn saved_playlists(&self) -> Vec<PathBuf> {
+        let mut out: Vec<PathBuf> = std::fs::read_dir(self.data_dir.join("playlists"))
+            .map(|rd| rd.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| ["m3u", "m3u8", "pls"].iter().any(|x| e.eq_ignore_ascii_case(x)))).collect())
+            .unwrap_or_default();
+        out.sort_by_key(|p| p.file_stem().unwrap_or_default().to_string_lossy().to_lowercase());
+        out
+    }
+
     fn save_playlist(&mut self) {
-        let Some(path) = rfd::FileDialog::new().add_filter("M3U playlist", &["m3u8"]).set_file_name("playlist.m3u8").save_file() else { return };
-        if let Err(e) = std::fs::write(&path, self.m3u()) {
-            self.main.message = Some(format!("CAN'T SAVE: {e}"));
+        let dir = self.data_dir.join("playlists");
+        let _ = std::fs::create_dir_all(&dir);
+        let Some(path) = rfd::FileDialog::new().set_title("Save playlist").set_directory(&dir).add_filter("M3U playlist", &["m3u8"]).set_file_name("My playlist.m3u8").save_file() else { return };
+        let path = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("m3u8")) { path } else { path.with_extension("m3u8") };
+        match std::fs::write(&path, self.m3u()) {
+            Ok(()) => self.say(&format!("SAVED PLAYLIST: {}", path.file_stem().unwrap_or_default().to_string_lossy())),
+            Err(e) => self.say(&format!("CAN'T SAVE: {e}")),
         }
     }
 
@@ -1757,6 +1785,18 @@ impl App {
             "vis:off" => self.main.vis_mode = VisMode::Off,
             "exit" => self.quit = true,
             "misc:html" => self.html_playlist(),
+            "list:file" => {
+                if let Some(f) = rfd::FileDialog::new().add_filter("Playlists", &["m3u", "m3u8", "pls"]).pick_file() {
+                    self.open_files(vec![f], true);
+                }
+            }
+            "drop:full" => self.drop_fullscreen(!self.drop.fullscreen),
+            "drop:next" => self.drop_step(|e| e.next(false)),
+            "drop:back" => self.drop_step(|e| e.back()),
+            "drop:random" => self.drop_step(|e| e.random(false)),
+            "drop:cycle" => self.drop_cycle(!self.drop.engine.auto),
+            "lib:play" => self.lib_button("play"),
+            "lib:enqueue" => self.lib_button("enqueue"),
             "misc:reread" => self.reread_selected(),
             id if id.starts_with("sort:") => {
                 if let Some(how) = playlist::Sort::from_id(id) {
@@ -1777,7 +1817,11 @@ impl App {
                 self.apply_eq();
             }
             other => {
-                if let Some(path) = other.strip_prefix("eqf:") {
+                if let Some(i) = other.strip_prefix("drop:preset:").and_then(|i| i.parse().ok()) {
+                    self.drop_step(|e| e.select(i, false));
+                } else if let Some(path) = other.strip_prefix("list:") {
+                    self.open_files(vec![PathBuf::from(path)], true);
+                } else if let Some(path) = other.strip_prefix("eqf:") {
                     if let Some(p) = std::fs::read(path).ok().and_then(|b| eqf::parse(&b).into_iter().next()) {
                         self.use_preset(&p);
                     }
@@ -2045,6 +2089,62 @@ mod tests {
         click(&mut app, Kind::Main, 267, 6);
         assert!(app.quit);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn gdrop_clicks_move_edges_resize_and_cycling_is_kept() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.data_dir = std::env::temp_dir().join(format!("gamp-drop-{}", std::process::id()));
+        app.redraw(Kind::Vis);
+        let first = app.drop.engine.current();
+        // A click on the picture doesn't switch presets.
+        app.cursor_moved(Kind::Vis, 100.0, 100.0, None);
+        app.press(Kind::Vis, None);
+        app.release(Kind::Vis, None);
+        assert_eq!(app.drop.engine.current(), first);
+        // The left edge, dragged 50 px out: wider, the right edge stays put.
+        app.wins.get_mut(&Kind::Vis).unwrap().move_to(500, 300);
+        let (w0, h0) = (app.drop.width, app.drop.height);
+        app.cursor_moved(Kind::Vis, 2.0, 100.0, None);
+        app.press(Kind::Vis, None);
+        app.cursor_moved(Kind::Vis, -48.0, 100.0, None);
+        app.release(Kind::Vis, None);
+        assert_eq!((app.drop.width, app.drop.height), (w0 + 50, h0));
+        assert_eq!(app.win(Kind::Vis).unwrap().pos.0, 450);
+        // Stay on one preset, and still after a restart.
+        app.menu_action("drop:preset:5", None);
+        assert_eq!(app.drop.engine.current(), 5);
+        app.menu_action("drop:cycle", None);
+        assert!(!app.drop.engine.auto);
+        app.save_session();
+        let mut again = App::new(OutputKind::Null, None).unwrap();
+        again.data_dir = app.data_dir.clone();
+        again.load_session();
+        assert!(!again.drop.engine.auto);
+        assert_eq!(again.drop.engine.current(), 5);
+        let _ = std::fs::remove_dir_all(&app.data_dir);
+    }
+
+    #[test]
+    fn saved_playlists_keep_spotify_songs() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.data_dir = std::env::temp_dir().join(format!("gamp-lists-{}", std::process::id()));
+        // Add to an empty playlist: there, but not playing.
+        let song = gamp_core::sources::Item { url: Some("/media/spotify/4DIL3Xgnb9PAqewEf9FRZa.wav".into()), title: "Spineless".into(), artist: "Stick To Your Guns".into(), duration: Some(204.0), ..gamp_core::sources::Item::track("4DIL3Xgnb9PAqewEf9FRZa", "Spineless") };
+        app.lib_send(vec![song], true);
+        assert_eq!(app.playlist.entries.len(), 1);
+        assert_eq!(app.player.status().state, State::Stopped);
+        // Saved where LOAD LIST finds it, then loaded back.
+        let dir = app.data_dir.join("playlists");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("Road trip.m3u8"), app.m3u()).unwrap();
+        let lists = app.saved_playlists();
+        assert_eq!(lists.len(), 1);
+        app.clear_playlist();
+        app.menu_action(&format!("list:{}", lists[0].display()), None);
+        let e = &app.playlist.entries[0];
+        assert_eq!((e.url.as_deref(), e.artist.as_str(), e.title.as_str()), (Some("/media/spotify/4DIL3Xgnb9PAqewEf9FRZa.wav"), "Stick To Your Guns", "Spineless"));
+        let _ = std::fs::remove_dir_all(&app.data_dir);
     }
 
     #[test]

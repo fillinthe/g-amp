@@ -238,6 +238,10 @@ impl GDrop {
         self.out = vec![0xFF00_0000; w * h];
     }
 
+    pub fn current(&self) -> usize {
+        self.current
+    }
+
     pub fn preset_name(&self) -> &'static str {
         PRESETS[self.current].name
     }

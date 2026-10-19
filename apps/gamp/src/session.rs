@@ -32,6 +32,8 @@ pub struct Session {
     pub vis_size: (u32, u32),
     pub vis_preset: usize,
     pub vis_mode: u8,
+    /// G-Drop stays on its preset instead of changing by itself.
+    pub vis_hold: bool,
     pub time_remaining: bool,
     pub shade: (bool, bool, bool),
 }
@@ -108,6 +110,7 @@ impl App {
                 gamp_ui::vis::VisMode::Oscilloscope => 1,
                 gamp_ui::vis::VisMode::Off => 2,
             },
+            vis_hold: !self.drop.engine.auto,
             time_remaining: self.main.show_remaining,
             shade: (self.main.shade, self.eq.shade, self.pl.shade),
         };
@@ -158,6 +161,7 @@ impl App {
             (self.drop.width, self.drop.height) = s.vis_size;
         }
         self.drop.engine.select(s.vis_preset, true);
+        self.drop.engine.auto = !s.vis_hold;
         if let Some(p) = s.skin.clone().filter(|p| p.exists()) {
             self.load_skin(Some(p));
         }

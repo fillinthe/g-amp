@@ -62,6 +62,12 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
 
+    /// Quit from the Dock, the menu bar (⌘Q) or a shutdown: winit's own
+    /// exit paths save already, this one didn't.
+    fn exiting(&mut self, _el: &ActiveEventLoop) {
+        self.app.save_session();
+    }
+
     fn resumed(&mut self, el: &ActiveEventLoop) {
         if !self.started {
             self.started = true;
