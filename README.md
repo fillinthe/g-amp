@@ -69,6 +69,8 @@ Check for updates…).
 - Drop any `.wsz` skin onto the player. Thousands are at
   [skins.webamp.org](https://skins.webamp.org).
 - G-Drop has 40 presets: click for the next, H for a random one, F for full screen.
+- Songs play at an even volume: files with ReplayGain tags (MP3, FLAC, M4A,
+  Ogg...) are leveled by them, and Spotify uses its own leveling.
 
 ## How it works
 

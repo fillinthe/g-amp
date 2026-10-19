@@ -507,7 +507,8 @@ pub async fn stream(id: String, headers: HeaderMap) -> Result<Response, ApiError
     let player = if needs_audio {
         let (ms, drop) = seek_point(start.max(HEADER));
         let sink_tx = tx.clone();
-        let config = PlayerConfig { bitrate: Bitrate::Bitrate320, gapless: false, ..PlayerConfig::default() };
+        // Spotify's own volume leveling (its app's "Normal"), as files get ReplayGain.
+        let config = PlayerConfig { bitrate: Bitrate::Bitrate320, gapless: false, normalisation: true, ..PlayerConfig::default() };
         let player = Player::new(config, session.clone(), Box::new(NoOpVolume), move || Box::new(ResponseSink { tx: sink_tx }));
         let mut events = player.get_player_event_channel();
         let end_tx = tx.clone();

@@ -8,7 +8,7 @@ use symphonia::core::codecs::DecoderOptions;
 use symphonia::core::errors::Error as SymError;
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
 use symphonia::core::io::{MediaSource, MediaSourceStream, ReadOnlySource};
-use symphonia::core::meta::MetadataOptions;
+use symphonia::core::meta::{MetadataOptions, StandardTagKey, Tag};
 use symphonia::core::probe::Hint;
 use symphonia::core::units::Time;
 
@@ -61,6 +61,8 @@ pub struct Media {
     buf: Option<SampleBuffer<f32>>,
     /// After an accurate seek: frames still to drop before the target.
     skip: u64,
+    /// ReplayGain, as a factor (1.0 when the file has none).
+    gain: f32,
 }
 
 pub struct Pcm {
@@ -86,13 +88,17 @@ impl Source {
                 if let Some(e) = ext.as_deref() {
                     hint.with_extension(e);
                 }
-                let probed = symphonia::default::get_probe().format(
+                let mut probed = symphonia::default::get_probe().format(
                     &hint,
                     mss,
                     &FormatOptions { enable_gapless: true, ..Default::default() },
                     &MetadataOptions::default(),
                 )?;
-                let format = probed.format;
+                let mut format = probed.format;
+                // Tags ahead of the container (ID3v2) and the container's own.
+                let mut tags: Vec<Tag> = probed.metadata.get().and_then(|m| m.current().map(|r| r.tags().to_vec())).unwrap_or_default();
+                tags.extend(format.metadata().current().map(|r| r.tags().to_vec()).unwrap_or_default());
+                let gain = replay_gain(&tags);
                 let track = format
                     .tracks()
                     .iter()
@@ -113,7 +119,7 @@ impl Source {
                     kbps,
                     seekable: seekable && duration.is_some(),
                 };
-                Ok(Source::Media(Media { track: track.id, format, decoder, info, buf: None, skip: 0 }))
+                Ok(Source::Media(Media { track: track.id, format, decoder, info, buf: None, skip: 0, gain }))
             }
         }
     }
@@ -178,6 +184,9 @@ impl Source {
                     }
                 }
                 to_stereo(samples, ch, out);
+                if m.gain != 1.0 {
+                    out.iter_mut().for_each(|s| *s *= m.gain);
+                }
                 return Ok(Some(()));
             },
         }
@@ -208,6 +217,24 @@ impl Source {
     }
 }
 
+/// The track's ReplayGain as a factor, held under its peak so it never
+/// clips. Tag names vary in case (TXXX frames, MP4 freeform atoms), so
+/// they're matched by name as well as by symphonia's standard key.
+fn replay_gain(tags: &[Tag]) -> f32 {
+    let find = |std: StandardTagKey, name: &str| {
+        tags.iter()
+            .find(|t| t.std_key == Some(std) || t.key.to_ascii_lowercase().ends_with(name))
+            .and_then(|t| t.value.to_string().split_whitespace().next()?.parse::<f32>().ok())
+            .filter(|v| v.is_finite())
+    };
+    let Some(db) = find(StandardTagKey::ReplayGainTrackGain, "replaygain_track_gain") else { return 1.0 };
+    let gain = 10f32.powf(db.clamp(-24.0, 12.0) / 20.0);
+    match find(StandardTagKey::ReplayGainTrackPeak, "replaygain_track_peak") {
+        Some(peak) if peak > 0.0 => gain.min(1.0 / peak),
+        _ => gain,
+    }
+}
+
 /// Interleaved audio with any channel count to stereo.
 pub fn to_stereo(samples: &[f32], channels: usize, out: &mut Vec<f32>) {
     match channels {
@@ -222,5 +249,26 @@ pub fn to_stereo(samples: &[f32], channels: usize, out: &mut Vec<f32>) {
                 out.push(f[1] + c);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use symphonia::core::meta::Value;
+
+    fn tag(key: &str, v: &str) -> Tag {
+        Tag::new(None, key, Value::from(v))
+    }
+
+    #[test]
+    fn replay_gain_from_tags() {
+        assert_eq!(replay_gain(&[]), 1.0);
+        let g = replay_gain(&[tag("TXXX:replaygain_track_gain", "-6.02 dB")]);
+        assert!((g - 0.5).abs() < 0.01, "{g}");
+        // +6 dB would clip a peak of 0.8: held at 1/0.8.
+        let g = replay_gain(&[tag("----:com.apple.iTunes:REPLAYGAIN_TRACK_GAIN", "+6.0 dB"), tag("REPLAYGAIN_TRACK_PEAK", "0.8")]);
+        assert!((g - 1.25).abs() < 0.001, "{g}");
+        assert_eq!(replay_gain(&[tag("REPLAYGAIN_TRACK_GAIN", "loud")]), 1.0);
     }
 }
