@@ -61,6 +61,7 @@ pub(crate) struct Drag {
 }
 
 /// The sleep timer fades out over its last this many seconds.
+const CONNECTING: &str = "CONNECTING...";
 const SLEEP_FADE: f32 = 30.0;
 
 /// The size choices (right-click › Options › Size).
@@ -574,7 +575,9 @@ impl App {
                 Ok(Input::Later(Box::new(move || {
                     let src = crate::stream::HttpSource::open(&url)?;
                     let ext = src.ext().or_else(|| crate::stream::ext_of(&url));
-                    Ok(Input::Media { source: Box::new(src), ext, duration })
+                    // SoundCloud's AAC is HLS fragments joined into one file.
+                    let fragmented = ext.as_deref() == Some("m4a") && url.contains("/media/soundcloud/");
+                    Ok(Input::Media { source: Box::new(src), ext, duration, fragmented })
                 })))
             }
             None => Input::file(&entry.path).map_err(|e| e.to_string()),
@@ -585,6 +588,11 @@ impl App {
         let Some(entry) = self.playlist.current().cloned() else { return };
         match self.input_for(&entry) {
             Ok(input) => {
+                if play && entry.url.is_some() {
+                    // Until the first sound (cleared on Started); a long mix can take a few seconds.
+                    self.main.message = Some(CONNECTING.into());
+                    self.message_until = Some(Instant::now() + Duration::from_secs(90));
+                }
                 let id = self.player.load(input, play);
                 self.ids.insert(id, self.playlist.current);
                 // An endless stream has no "next"; anything else lines up the next.
@@ -847,6 +855,10 @@ impl App {
                     self.main.khz = Some((format.rate as f32 / 1000.0).round() as u32);
                     self.main.stereo = Some(format.channels >= 2);
                     self.main.duration = format.duration;
+                    if self.main.message.as_deref() == Some(CONNECTING) {
+                        self.main.message = None;
+                        self.message_until = None;
+                    }
                 }
                 AudioEvent::Finished { .. } => {
                     if std::mem::take(&mut self.stop_after) {

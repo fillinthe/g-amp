@@ -35,7 +35,7 @@ fn wait(app: &mut App, secs: u64, what: &str, mut done: impl FnMut(&App) -> bool
     while Instant::now() < end {
         app.tick();
         if done(app) {
-            println!("ok: {what}");
+            println!("ok: {what} ({:.1}s)", (Instant::now() + Duration::from_secs(secs) - end).as_secs_f32());
             return Ok(());
         }
         std::thread::sleep(Duration::from_millis(30));
@@ -79,8 +79,9 @@ pub fn run() -> anyhow::Result<()> {
         app.lib_open(crate::library::Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() }, true);
         app.lib.view.search.value = link;
         app.lib_submit("search");
+        wait(&mut app, 30, "a status while it connects", |a| a.main.message.as_deref() == Some("CONNECTING..."))?;
         let soundcloud = |a: &App| a.playlist.current().is_some_and(|e| e.url.as_deref().is_some_and(|u| u.contains("/soundcloud/")));
-        wait(&mut app, 30, "a SoundCloud link plays", |a| soundcloud(a) && a.main.state == PlayState::Playing && a.main.elapsed > 1.0)?;
+        wait(&mut app, 120, "a SoundCloud link plays", |a| soundcloud(a) && a.main.state == PlayState::Playing && a.main.elapsed > 1.0 && a.main.message.is_none())?;
         app.player.seek(120.0);
         wait(&mut app, 30, "seeking in a SoundCloud stream", |a| soundcloud(a) && a.main.elapsed >= 120.0)?;
     }
