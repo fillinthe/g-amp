@@ -204,7 +204,14 @@ pub async fn playlist(id: &str) -> Result<Vec<Item>, ApiError> {
 
 pub async fn search(q: &str) -> Result<Vec<Item>, ApiError> {
     let found = pages(format!("/search/tracks?q={}&limit=50", urlencoding::encode(q)), 100).await?;
-    Ok(found.iter().filter_map(track_item).collect())
+    Ok(found.iter().filter(|t| !protected(t)).filter_map(track_item).collect())
+}
+
+/// Many label releases come only as encrypted (DRM) streams, which play
+/// on soundcloud.com alone.
+fn protected(t: &Value) -> bool {
+    let codings = arr(&t["media"]["transcodings"]);
+    !codings.is_empty() && !codings.iter().any(|c| matches!(c["format"]["protocol"].as_str(), Some("hls" | "progressive")))
 }
 
 /// The MP3 stream for track `id`: its HLS playlist (or a plain MP3).
@@ -213,6 +220,9 @@ pub async fn search(q: &str) -> Result<Vec<Item>, ApiError> {
 /// serves it, otherwise AAC (HLS of fragmented MP4).
 pub async fn stream_url(id: &str) -> Result<(String, bool, &'static str), ApiError> {
     let t = get(&format!("/tracks/{id}")).await?;
+    if protected(&t) {
+        return Err(err(StatusCode::NOT_FOUND, "SoundCloud protects this track: it only plays on soundcloud.com"));
+    }
     let codings = arr(&t["media"]["transcodings"]);
     let kinds: [(&str, &str, &'static str); 3] = [("progressive", "mpeg", "audio/mpeg"), ("hls", "mpeg", "audio/mpeg"), ("hls", "mp4", "audio/mp4")];
     let mut last = err(StatusCode::NOT_FOUND, "SoundCloud has no stream for this track");
@@ -238,6 +248,14 @@ pub async fn stream_url(id: &str) -> Result<(String, bool, &'static str), ApiErr
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn spots_protected_tracks() {
+        let t = |p: &[&str]| serde_json::json!({ "media": { "transcodings": p.iter().map(|p| serde_json::json!({ "format": { "protocol": p } })).collect::<Vec<_>>() } });
+        assert!(super::protected(&t(&["cbc-encrypted-hls", "ctr-encrypted-hls"])));
+        assert!(!super::protected(&t(&["ctr-encrypted-hls", "hls"])));
+        assert!(!super::protected(&t(&[])));
+    }
+
     #[test]
     fn finds_ids_and_links() {
         assert_eq!(super::extract_client_id(r#"x={client_id:"abcdefghijABCDEFGHIJ0123456789xy",y:1}"#).as_deref(), Some("abcdefghijABCDEFGHIJ0123456789xy"));

@@ -855,8 +855,12 @@ impl App {
                 }
                 AudioEvent::Error { id, message } => {
                     log::warn!("playback: {message}");
-                    if self.ids.get(&id) == Some(&self.playlist.current) && self.playlist.next() {
-                        self.load_current(true);
+                    if self.ids.get(&id) == Some(&self.playlist.current) {
+                        // Said even when the next track takes over, so a skip isn't a mystery.
+                        if self.playlist.next() {
+                            self.load_current(true);
+                        }
+                        self.say(&format!("CAN'T PLAY: {message}"));
                     }
                 }
             }
