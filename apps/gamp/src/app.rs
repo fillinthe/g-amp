@@ -60,6 +60,9 @@ pub(crate) struct Drag {
     group: Vec<(Kind, (i32, i32))>,
 }
 
+/// The sleep timer fades out over its last this many seconds.
+const SLEEP_FADE: f32 = 30.0;
+
 /// The size choices (right-click › Options › Size).
 const SIZES: [(f64, &str); 10] = [
     (1.0, "Normal (100%)"),
@@ -96,6 +99,11 @@ pub struct App {
     pub(crate) menus: Vec<MenuLevel>,
     /// How big Gamp is drawn: 1.0 (Winamp's own size) to 3.0.
     pub size: f64,
+    /// Stop when the playing track ends (Ctrl+V).
+    pub stop_after: bool,
+    /// The sleep timer (or Shift+V): when playback stops, and over how
+    /// many seconds before that it fades out.
+    pub sleep_at: Option<(Instant, f32)>,
     pub on_top: bool,
     pub modifiers: ModifiersState,
     pub(crate) drag: Option<Drag>,
@@ -195,6 +203,8 @@ impl App {
             wins,
             menus: Vec::new(),
             size: 1.0,
+            stop_after: false,
+            sleep_at: None,
             on_top: false,
             modifiers: ModifiersState::empty(),
             drag: None,
@@ -588,6 +598,9 @@ impl App {
     }
 
     pub(crate) fn queue_after(&mut self, index: usize) {
+        if self.stop_after {
+            return;
+        }
         let Some(next) = self.playlist.after(index) else { return };
         let Some(entry) = self.playlist.entries.get(next).cloned() else { return };
         if entry.live {
@@ -835,7 +848,11 @@ impl App {
                     self.main.stereo = Some(format.channels >= 2);
                     self.main.duration = format.duration;
                 }
-                AudioEvent::Finished { .. } => {}
+                AudioEvent::Finished { .. } => {
+                    if std::mem::take(&mut self.stop_after) {
+                        self.say("STOPPED AFTER THE TRACK");
+                    }
+                }
                 AudioEvent::Error { id, message } => {
                     log::warn!("playback: {message}");
                     if self.ids.get(&id) == Some(&self.playlist.current) && self.playlist.next() {
@@ -863,9 +880,55 @@ impl App {
         }
     }
 
+    pub(crate) fn toggle_stop_after(&mut self) {
+        self.stop_after = !self.stop_after;
+        if self.stop_after {
+            self.player.unqueue();
+            self.say("STOP AFTER THIS TRACK: ON");
+        } else {
+            self.queue_after(self.playlist.current);
+            self.say("STOP AFTER THIS TRACK: OFF");
+        }
+    }
+
+    /// Starts (minutes > 0) or cancels the sleep timer.
+    pub(crate) fn set_sleep(&mut self, minutes: u64) {
+        self.player.set_volume(self.main.volume);
+        self.sleep_at = (minutes > 0).then(|| (Instant::now() + Duration::from_secs(minutes * 60), SLEEP_FADE));
+        self.say(&if minutes > 0 { format!("SLEEP TIMER: {minutes} MINUTES") } else { "SLEEP TIMER: OFF".into() });
+    }
+
+    /// Shift+V, as in Winamp: fade out over a few seconds, then stop.
+    pub(crate) fn fade_stop(&mut self) {
+        if self.main.state == PlayState::Playing {
+            self.sleep_at = Some((Instant::now() + Duration::from_secs(3), 3.0));
+        } else {
+            self.player.stop();
+        }
+    }
+
+    /// The sleep timer: the last `fade` seconds fade out, then it stops.
+    fn sleep_tick(&mut self) {
+        let Some((at, fade)) = self.sleep_at else { return };
+        let left = at.saturating_duration_since(Instant::now()).as_secs_f32();
+        if left > 0.0 {
+            if left < fade {
+                self.player.set_volume(self.main.volume * left / fade);
+            }
+            return;
+        }
+        self.sleep_at = None;
+        self.player.stop();
+        self.player.set_volume(self.main.volume);
+        if fade == SLEEP_FADE {
+            self.say("SLEEP TIMER: GOOD NIGHT");
+        }
+    }
+
     /// Animation and housekeeping, about 30 times a second while busy.
     pub fn tick(&mut self) {
         self.poll_audio();
+        self.sleep_tick();
         self.update_poll();
         self.update_tick();
         if self.message_until.is_some_and(|t| Instant::now() >= t) {
@@ -1635,6 +1698,9 @@ impl App {
                     Item::action("opt:double", "Double size").checked(self.size == 2.0).shortcut("Ctrl+D"),
                     Item::submenu("Size", SIZES.iter().map(|&(z, label)| Item::action(format!("size:{z}"), label).checked(self.size == z)).collect()),
                     Item::Separator,
+                    Item::action("opt:stopafter", "Stop after current track").checked(self.stop_after).shortcut("Ctrl+V"),
+                    Item::submenu(self.sleep_label(), [0, 15, 30, 45, 60, 90].iter().map(|&m| Item::action(format!("sleep:{m}"), if m == 0 { "Off".to_owned() } else { format!("{m} minutes") }).checked(m == 0 && self.sleep_at.is_none())).collect()),
+                    Item::Separator,
                     Item::action("opt:elapsed", "Time elapsed").checked(!self.main.show_remaining),
                     Item::action("opt:remaining", "Time remaining").checked(self.main.show_remaining),
                 ],
@@ -1663,6 +1729,14 @@ impl App {
             },
             Item::action("exit", "Exit"),
         ]
+    }
+
+    /// "Sleep timer", with the time left while it runs.
+    fn sleep_label(&self) -> String {
+        match self.sleep_at {
+            Some((at, _)) => format!("Sleep timer ({} min left)", (at.saturating_duration_since(Instant::now()).as_secs() + 59) / 60),
+            None => "Sleep timer".into(),
+        }
     }
 
     fn preset_menu(&self) -> Vec<Item> {
@@ -1806,6 +1880,7 @@ impl App {
             "skin:default" => self.load_skin(None),
             "opt:top" => self.toggle_on_top(),
             "opt:double" => self.toggle_double(),
+            "opt:stopafter" => self.toggle_stop_after(),
             "opt:elapsed" => self.main.show_remaining = false,
             "opt:remaining" => self.main.show_remaining = true,
             "play:prev" => self.step(false),
@@ -1854,7 +1929,9 @@ impl App {
                 self.apply_eq();
             }
             other => {
-                if let Some(z) = other.strip_prefix("size:").and_then(|z| z.parse().ok()) {
+                if let Some(m) = other.strip_prefix("sleep:").and_then(|m| m.parse().ok()) {
+                    self.set_sleep(m);
+                } else if let Some(z) = other.strip_prefix("size:").and_then(|z| z.parse().ok()) {
                     self.set_size(z);
                 } else if let Some(i) = other.strip_prefix("drop:preset:").and_then(|i| i.parse().ok()) {
                     self.drop_step(|e| e.select(i, false));
@@ -1927,6 +2004,8 @@ impl App {
                 "z" => self.step(false),
                 "x" => self.play(),
                 "c" => self.pause(),
+                "v" if ctrl => self.toggle_stop_after(),
+                "v" if self.modifiers.shift_key() => self.fade_stop(),
                 "v" => self.player.stop(),
                 "b" => self.step(true),
                 "l" if self.modifiers.shift_key() => self.pick_folder(true),
@@ -2203,6 +2282,34 @@ mod tests {
         again.load_session();
         assert_eq!(again.size, 2.0);
         let _ = std::fs::remove_dir_all(&app.data_dir);
+    }
+
+    #[test]
+    fn sleep_timer_fades_out_then_stops_and_stop_after_skips_the_queue() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.set_volume(0.8, false);
+        // Ten seconds left of a 30-second fade: a third of the volume.
+        app.sleep_at = Some((Instant::now() + Duration::from_secs(10), SLEEP_FADE));
+        app.tick();
+        assert!((app.player.volume() - 0.8 / 3.0).abs() < 0.02, "{}", app.player.volume());
+        // Time's up: stopped, the volume back for next time, timer gone.
+        app.sleep_at = Some((Instant::now(), SLEEP_FADE));
+        app.tick();
+        assert_eq!(app.player.status().state, State::Stopped);
+        assert_eq!(app.player.volume(), 0.8);
+        assert!(app.sleep_at.is_none());
+        app.menu_action("sleep:30", None);
+        assert!(app.sleep_label().contains("30 min left"));
+        app.menu_action("sleep:0", None);
+        assert!(app.sleep_at.is_none());
+        // Stop after current: nothing gets queued behind the track.
+        app.playlist.set(vec![Entry::remote("/a".into(), "A".into(), String::new(), None, false), Entry::remote("/b".into(), "B".into(), String::new(), None, false)]);
+        app.menu_action("opt:stopafter", None);
+        let before = app.ids.len();
+        app.queue_after(0);
+        assert_eq!(app.ids.len(), before);
+        app.menu_action("opt:stopafter", None);
+        assert!(!app.stop_after);
     }
 
     #[test]

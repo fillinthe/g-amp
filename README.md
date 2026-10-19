@@ -50,7 +50,9 @@ Check for updates…).
 
 - Drag a title bar to move a window; windows dock and snap together.
   Clicking any window brings all of them in front of other programs.
-- Z X C V B: previous, play, pause, stop, next. L opens files, S shuffle,
+- Z X C V B: previous, play, pause, stop, next. Shift+V fades out and
+  stops; Ctrl+V stops after the current track. Right-click › Options ›
+  Sleep timer stops the music after 15 to 90 minutes, fading out. L opens files, S shuffle,
   R repeat. J jumps to a file: type part of a title, Enter plays it.
   Ctrl+D double size. ⌘+ / ⌘− / ⌘0 (Ctrl on Windows and Linux) make every
   window bigger or smaller in 10% steps, up to 300%, or back to normal, as

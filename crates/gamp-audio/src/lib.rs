@@ -59,6 +59,7 @@ pub struct Status {
 enum Cmd {
     Load { id: u64, input: Input, play: bool },
     Queue { id: u64, input: Input },
+    Unqueue,
     Play,
     Pause,
     Stop,
@@ -150,6 +151,12 @@ impl Player {
         let id = self.id();
         let _ = self.cmd.send(Cmd::Queue { id, input });
         id
+    }
+
+    /// Forgets the queued next track: playback stops when this one ends
+    /// (unless its last half second is already playing into the next).
+    pub fn unqueue(&self) {
+        let _ = self.cmd.send(Cmd::Unqueue);
     }
 
     pub fn play(&self) {
@@ -384,6 +391,7 @@ impl Worker {
                     self.set_state(State::Stopped);
                 }
             }
+            Cmd::Unqueue => self.queued = None,
             Cmd::Queue { id, input } => {
                 if self.current.is_none() {
                     if self.open(id, input) {
