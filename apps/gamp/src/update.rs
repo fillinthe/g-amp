@@ -190,7 +190,7 @@ impl App {
 
     /// Asks again every few hours while Gamp stays open.
     pub fn update_tick(&mut self) {
-        if self.update.is_none() && self.update_checked.elapsed() >= CHECK_EVERY {
+        if self.update.is_none() && self.update_checked.elapsed() >= CHECK_EVERY && std::env::var_os("GAMP_NO_UPDATE_CHECK").is_none() {
             self.update_check(false);
         }
     }

@@ -101,7 +101,8 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
             let rows = match (kind, arg.strip_prefix("web:")) {
                 ("playlist", Some(id)) => web::playlist(id).await?,
                 (k @ ("likes" | "playlists"), _) => {
-                    let user = web::user_id(&crate::store::config().await.soundcloud_profile).await?;
+                    let c = crate::store::config().await;
+                    let user = if c.soundcloud_user > 0 { c.soundcloud_user } else { web::user_id(&c.soundcloud_profile).await? };
                     if k == "likes" { web::likes(user).await? } else { web::playlists(user).await? }
                 }
                 _ => return Err(sources::not_found("That list")),

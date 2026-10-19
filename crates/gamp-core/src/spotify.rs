@@ -278,20 +278,66 @@ fn lib_err(e: impl std::fmt::Display) -> ApiError {
     err(StatusCode::BAD_GATEWAY, format!("Spotify: {e}"))
 }
 
-/// Web API-shaped tracks for `uris`, in order (unplayable ones dropped).
-async fn tracks_for(session: &Session, uris: Vec<String>) -> Vec<Value> {
-    use futures_util::StreamExt;
-    futures_util::stream::iter(uris)
-        .map(|u| async move {
-            let uri = SpotifyUri::from_uri(&u).ok()?;
-            let t = librespot_metadata::Track::get(session, &uri).await.ok()?;
-            let artists: Vec<Value> = t.artists.iter().map(|a| serde_json::json!({ "name": a.name })).collect();
-            Some(serde_json::json!({ "id": uri.to_id().ok()?, "type": "track", "name": t.name, "artists": artists, "album": { "name": t.album.name }, "duration_ms": t.duration }))
-        })
-        .buffered(32)
-        .filter_map(|t| async { t })
-        .collect()
-        .await
+/// Songs already looked up, by URI: reopening a list costs nothing.
+// ponytail: never trimmed; a few hundred bytes a song, fine for a library of thousands.
+fn track_cache() -> &'static Mutex<std::collections::HashMap<String, Value>> {
+    static C: OnceLock<Mutex<std::collections::HashMap<String, Value>>> = OnceLock::new();
+    C.get_or_init(Default::default)
+}
+
+/// The Web API shape for a song's metadata.
+fn track_json(id: &str, t: &librespot_protocol::metadata::Track) -> Value {
+    let artists: Vec<Value> = t.artist.iter().map(|a| serde_json::json!({ "name": a.name() })).collect();
+    serde_json::json!({ "id": id, "type": "track", "name": t.name(), "artists": artists, "album": { "name": t.album.name() }, "duration_ms": t.duration() })
+}
+
+/// Looks up songs not in the cache yet, many per request: Spotify
+/// rate-limits one request per song after a few hundred.
+async fn fetch_tracks(session: &Session, uris: &[String]) -> Result<(), ApiError> {
+    use librespot_protocol::extended_metadata::{BatchedEntityRequest, EntityRequest, ExtensionQuery};
+    use librespot_protocol::extension_kind::ExtensionKind;
+    use protobuf::{EnumOrUnknown, Message};
+    let todo: Vec<&String> = {
+        let cache = track_cache().lock().unwrap();
+        uris.iter().filter(|u| !cache.contains_key(*u)).collect()
+    };
+    for chunk in todo.chunks(200) {
+        let req = || BatchedEntityRequest {
+            entity_request: chunk
+                .iter()
+                .map(|u| EntityRequest { entity_uri: u.to_string(), query: vec![ExtensionQuery { extension_kind: EnumOrUnknown::new(ExtensionKind::TRACK_V4), ..Default::default() }], ..Default::default() })
+                .collect(),
+            ..Default::default()
+        };
+        let res = match session.spclient().get_extended_metadata(req()).await {
+            Ok(r) => r,
+            Err(_) => {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                session.spclient().get_extended_metadata(req()).await.map_err(lib_err)?
+            }
+        };
+        let mut cache = track_cache().lock().unwrap();
+        for data in res.extended_metadata.iter().flat_map(|m| m.extension_data.iter()) {
+            let Some(any) = data.extension_data.as_ref() else { continue };
+            let Ok(t) = librespot_protocol::metadata::Track::parse_from_bytes(&any.value) else { continue };
+            let Some(id) = data.entity_uri.strip_prefix("spotify:track:") else { continue };
+            cache.insert(data.entity_uri.clone(), track_json(id, &t));
+        }
+    }
+    Ok(())
+}
+
+/// Web API-shaped tracks for `uris`, in order. A song Spotify won't
+/// describe is left out; if that's more than 1 in 10, the list is refused
+/// rather than shown with holes.
+async fn tracks_for(session: &Session, uris: Vec<String>) -> Result<Vec<Value>, ApiError> {
+    fetch_tracks(session, &uris).await?;
+    let cache = track_cache().lock().unwrap();
+    let found: Vec<Value> = uris.iter().filter_map(|u| cache.get(u).cloned()).collect();
+    if (uris.len() - found.len()) * 10 > uris.len() {
+        return Err(err(StatusCode::BAD_GATEWAY, format!("Spotify sent only {} of {} songs. Try again in a minute.", found.len(), uris.len())));
+    }
+    Ok(found)
 }
 
 /// The track URIs of a context, following its pages.
@@ -317,14 +363,14 @@ async fn context_uris(session: &Session, uri: &str, max: usize) -> Result<Vec<St
 
 pub async fn liked() -> Result<Vec<Value>, ApiError> {
     let s = session().await?;
-    let uris = context_uris(&s, &format!("spotify:user:{}:collection", s.username()), 5000).await?;
-    Ok(tracks_for(&s, uris).await)
+    let uris = context_uris(&s, &format!("spotify:user:{}:collection", s.username()), 20_000).await?;
+    tracks_for(&s, uris).await
 }
 
 pub async fn search(q: &str) -> Result<Vec<Value>, ApiError> {
     let s = session().await?;
     let uris = context_uris(&s, &format!("spotify:search:{}", urlencoding::encode(q)), 50).await?;
-    Ok(tracks_for(&s, uris).await)
+    tracks_for(&s, uris).await
 }
 
 /// Your playlists (folders flattened), Web API-shaped.
@@ -349,7 +395,7 @@ pub async fn playlist(id: &str) -> Result<Vec<Value>, ApiError> {
     let uri = SpotifyUri::from_uri(&format!("spotify:playlist:{id}")).map_err(|e| err(StatusCode::BAD_REQUEST, e.to_string()))?;
     let p = librespot_metadata::Playlist::get(&s, &uri).await.map_err(lib_err)?;
     let uris = p.tracks().filter_map(|u| u.to_uri().ok()).filter(|u| u.starts_with("spotify:track:")).collect();
-    Ok(tracks_for(&s, uris).await)
+    tracks_for(&s, uris).await
 }
 
 // ---- playback as a WAV file ------------------------------------------
@@ -636,3 +682,4 @@ pub async fn test_tone(headers: HeaderMap) -> Result<Response, ApiError> {
     }
     Ok(res.body(body)?)
 }
+

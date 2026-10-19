@@ -56,6 +56,8 @@ pub struct Config {
     pub folders: Vec<PathBuf>,
     /// Your SoundCloud profile link: its public likes and playlists show.
     pub soundcloud_profile: String,
+    /// Its user id, found when it was saved (0: look it up).
+    pub soundcloud_user: u64,
     /// Your Dropbox app's key (Dropbox gives every app its own).
     pub dropbox_key: String,
 }

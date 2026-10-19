@@ -191,9 +191,7 @@ async fn post_config(Json(patch): Json<ConfigPatch>, dropbox_redirect: String) -
     }
     if let Some(p) = patch.soundcloud_profile {
         let p = p.trim().to_owned();
-        if !p.is_empty() {
-            crate::soundcloud_web::user_id(&p).await?;
-        }
+        c.soundcloud_user = if p.is_empty() { 0 } else { crate::soundcloud_web::user_id(&p).await? };
         c.soundcloud_profile = p;
     }
     if let Some(k) = patch.dropbox_key {

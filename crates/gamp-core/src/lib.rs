@@ -28,6 +28,11 @@ pub fn port() -> u16 {
 /// everything that isn't an API route) and rescans the library.
 pub async fn start_server(data: PathBuf, documents: Option<PathBuf>, page: axum::Router) -> anyhow::Result<u16> {
     store::init(data, documents);
+    // Sign-ins Gamp no longer has (0.3.0's own-app Spotify library and
+    // SoundCloud API keys): their refresh tokens shouldn't linger.
+    for old in ["spotify-library-tokens.json", "soundcloud-tokens.json"] {
+        let _ = std::fs::remove_file(store::data_dir().join(old));
+    }
     let port = port();
     let listener = server::serve(port).await.map_err(|e| anyhow::anyhow!("Port {port} is already in use ({e}). Is Gamp already open?"))?;
     spotify::set_app_origin(format!("http://{}:{port}", server::HOST));
