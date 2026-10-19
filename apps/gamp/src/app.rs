@@ -61,7 +61,18 @@ pub(crate) struct Drag {
 }
 
 /// The size choices (right-click › Options › Size).
-const SIZES: [(f64, &str); 5] = [(1.0, "Normal (100%)"), (1.5, "Large (150%)"), (2.0, "Double (200%)"), (2.5, "Extra large (250%)"), (3.0, "Huge (300%)")];
+const SIZES: [(f64, &str); 10] = [
+    (1.0, "Normal (100%)"),
+    (1.1, "110%"),
+    (1.2, "120%"),
+    (1.3, "130%"),
+    (1.4, "140%"),
+    (1.5, "150%"),
+    (1.75, "175%"),
+    (2.0, "Double (200%)"),
+    (2.5, "250%"),
+    (3.0, "300%"),
+];
 
 #[derive(Default)]
 pub(crate) struct Resize {
@@ -494,6 +505,13 @@ impl App {
     /// Ctrl+D, Winamp's double size: between normal and twice as big.
     fn toggle_double(&mut self) {
         self.set_size(if self.size == 2.0 { 1.0 } else { 2.0 });
+    }
+
+    /// ⌘+ / ⌘− (Ctrl on Windows and Linux), as in a browser: 10% a step.
+    fn zoom_step(&mut self, steps: i32) {
+        let tenths = ((self.size * 10.0).round() as i32 + steps).clamp(10, 30);
+        self.set_size(tenths as f64 / 10.0);
+        self.say(&format!("SIZE: {}%", (self.size * 100.0).round()));
     }
 
     pub(crate) fn set_size(&mut self, size: f64) {
@@ -1863,6 +1881,17 @@ impl App {
 
     /// Winamp's keys, in any of the windows.
     pub fn key(&mut self, k: Kind, key: &Key, text: Option<&str>) {
+        // Size keys work in every window, even while typing in a field.
+        if self.modifiers.control_key() || self.modifiers.super_key() {
+            if let Key::Character(c) = key {
+                match c.as_str() {
+                    "=" | "+" => return self.zoom_step(1),
+                    "-" => return self.zoom_step(-1),
+                    "0" => return self.zoom_step(-100),
+                    _ => {}
+                }
+            }
+        }
         if k == Kind::Library && self.lib_key(key, text) {
             return;
         }
@@ -2150,6 +2179,16 @@ mod tests {
     fn the_size_setting_scales_every_window_and_is_kept() {
         let mut app = App::new(OutputKind::Null, None).unwrap();
         app.data_dir = std::env::temp_dir().join(format!("gamp-size-{}", std::process::id()));
+        // ⌘+ twice, ⌘− once, ⌘0: 120%, 110%, back to 100%.
+        app.modifiers = ModifiersState::SUPER;
+        app.key(Kind::Library, &Key::Character("=".into()), Some("="));
+        app.key(Kind::Main, &Key::Character("+".into()), Some("+"));
+        assert_eq!(app.size, 1.2);
+        app.key(Kind::Main, &Key::Character("-".into()), Some("-"));
+        assert_eq!(app.size, 1.1);
+        app.key(Kind::Eq, &Key::Character("0".into()), Some("0"));
+        assert_eq!(app.size, 1.0);
+        app.modifiers = ModifiersState::empty();
         let lib = app.logical_size(Kind::Library);
         app.menu_action("size:1.5", None);
         assert_eq!(app.logical_size(Kind::Main), LogicalSize::new(413, 174));
