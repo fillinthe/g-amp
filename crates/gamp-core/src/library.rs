@@ -21,6 +21,8 @@ pub const AUDIO_TYPES: &[(&str, &str)] = &[
     ("mp4", "audio/mp4"),
     ("flac", "audio/flac"),
     ("wav", "audio/wav"),
+    ("aif", "audio/aiff"),
+    ("aiff", "audio/aiff"),
     ("ogg", "audio/ogg"),
     ("oga", "audio/ogg"),
     ("opus", "audio/ogg"),

@@ -43,6 +43,7 @@ pub fn router(port: u16, page: Router) -> Router {
         .route("/media/local/{id}", get(media_local))
         .route("/media/soundcloud/{file}", get(media_soundcloud))
         .route("/media/spotify/{file}", get(media_spotify))
+        .route("/media/cloud/{sid}", get(media_cloud))
         .route("/api/sources", get(|| async { Json(sources::list().await) }))
         .route("/api/sources/discover", post(|| async {
             sources::dlna::refresh(true);
@@ -160,6 +161,7 @@ async fn public_config(dropbox_redirect: String) -> Value {
         "folders": c.folders,
         "spotify": { "connected": spotify::connected().await },
         "soundcloud": { "profile": c.soundcloud_profile },
+        "cloud": crate::cloud::folders().iter().map(|f| json!({ "name": f.name, "path": f.path })).collect::<Vec<_>>(),
         "dropbox": { "key": c.dropbox_key, "builtIn": !sources::dropbox::APP_KEY.is_empty(), "redirectUri": dropbox_redirect },
         "dlnaSearching": sources::dlna::searching(),
     })
@@ -346,6 +348,12 @@ async fn media_local(UrlPath(id): UrlPath<String>, headers: HeaderMap) -> Result
         return Err(err(StatusCode::NOT_FOUND, "Not in the library"));
     };
     send_file(&t.path, library::mime_for(&t.path), &headers).await
+}
+
+async fn media_cloud(UrlPath(sid): UrlPath<String>, Query(q): Query<HashMap<String, String>>, headers: HeaderMap) -> Result<Response, ApiError> {
+    let get = |k: &str| q.get(k).map(String::as_str).unwrap_or_default();
+    let path = crate::cloud::file(&sid, get("p"), get("s"))?;
+    send_file(&path, library::mime_for(&path), &headers).await
 }
 
 async fn media_soundcloud(UrlPath(file): UrlPath<String>, headers: HeaderMap) -> Result<Response, ApiError> {
