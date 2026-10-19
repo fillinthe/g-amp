@@ -60,6 +60,9 @@ pub(crate) struct Drag {
     group: Vec<(Kind, (i32, i32))>,
 }
 
+/// The size choices (right-click › Options › Size).
+const SIZES: [(f64, &str); 5] = [(1.0, "Normal (100%)"), (1.5, "Large (150%)"), (2.0, "Double (200%)"), (2.5, "Extra large (250%)"), (3.0, "Huge (300%)")];
+
 #[derive(Default)]
 pub(crate) struct Resize {
     pub(crate) start: (f64, f64),
@@ -80,7 +83,8 @@ pub struct App {
     pub pl: plw::View,
     pub wins: HashMap<Kind, Win>,
     pub(crate) menus: Vec<MenuLevel>,
-    pub double: bool,
+    /// How big Gamp is drawn: 1.0 (Winamp's own size) to 3.0.
+    pub size: f64,
     pub on_top: bool,
     pub modifiers: ModifiersState,
     pub(crate) drag: Option<Drag>,
@@ -179,7 +183,7 @@ impl App {
             pl,
             wins,
             menus: Vec::new(),
-            double: false,
+            size: 1.0,
             on_top: false,
             modifiers: ModifiersState::empty(),
             drag: None,
@@ -221,8 +225,8 @@ impl App {
 
     // ---- windows --------------------------------------------------------
 
-    fn zoom(&self) -> u32 {
-        if self.double { 2 } else { 1 }
+    pub(crate) fn zoom(&self) -> f64 {
+        self.size
     }
 
     fn logical_size(&self, k: Kind) -> LogicalSize<u32> {
@@ -231,21 +235,22 @@ impl App {
             Kind::Main => (main_window::WIDTH, if self.main.shade { main_window::SHADE_HEIGHT } else { main_window::HEIGHT }),
             Kind::Eq => (eq_window::WIDTH, if self.eq.shade { eq_window::SHADE_HEIGHT } else { eq_window::HEIGHT }),
             Kind::Playlist => self.pl.size(),
-            // The library isn't doubled (Winamp's wasn't either).
-            Kind::Library => return LogicalSize::new(self.lib.view.size().0, self.lib.view.size().1),
-            Kind::Vis => return LogicalSize::new(self.drop.width, self.drop.height),
-            Kind::Jump => return LogicalSize::new(gamp_ui::jump_window::WIDTH, gamp_ui::jump_window::HEIGHT),
-            Kind::Info => return LogicalSize::new(gamp_ui::info_window::WIDTH, gamp_ui::info_window::HEIGHT),
-            Kind::Menu(i) => return self.menus.get(i).map(|m| menu::size(&m.items)).map(|(w, h)| LogicalSize::new(w, h)).unwrap_or(LogicalSize::new(1, 1)),
+            // Every window grows with the size setting (Winamp's double
+            // size left the library small; bigger is for reading).
+            Kind::Library => self.lib.view.size(),
+            Kind::Vis => (self.drop.width, self.drop.height),
+            Kind::Jump => (gamp_ui::jump_window::WIDTH, gamp_ui::jump_window::HEIGHT),
+            Kind::Info => (gamp_ui::info_window::WIDTH, gamp_ui::info_window::HEIGHT),
+            Kind::Menu(i) => self.menus.get(i).map(|m| menu::size(&m.items)).unwrap_or((1, 1)),
         };
-        LogicalSize::new(w * z, h * z)
+        LogicalSize::new((w as f64 * z).round() as u32, (h as f64 * z).round() as u32)
     }
 
     /// Opens the three windows stacked, the way Winamp starts.
     pub fn open_windows(&mut self, el: &ActiveEventLoop) {
         let scale = el.primary_monitor().map(|m| m.scale_factor()).unwrap_or(1.0);
         let (x, y) = ((200.0 * scale) as i32, (160.0 * scale) as i32);
-        let step = |h: u32| (h as f64 * scale * self.zoom() as f64) as i32;
+        let step = |h: u32| (h as f64 * scale * self.zoom()) as i32;
         let positions = [(Kind::Main, y), (Kind::Eq, y + step(main_window::HEIGHT)), (Kind::Playlist, y + step(main_window::HEIGHT) + step(eq_window::HEIGHT))];
         for (k, py) in positions {
             let title = match k {
@@ -263,7 +268,7 @@ impl App {
             self.wins.insert(k, w);
         }
         // The library opens beside the stack when you ask for it.
-        let lx = x + (main_window::WIDTH as f64 * scale * self.zoom() as f64) as i32;
+        let lx = x + (main_window::WIDTH as f64 * scale * self.zoom()) as i32;
         let mut w = Win::open(Some(el), "Gamp Media Library", self.logical_size(Kind::Library), (lx, y), false);
         w.show(self.lib_open_at_start);
         self.wins.insert(Kind::Library, w);
@@ -486,10 +491,16 @@ impl App {
         self.shift_below(k, before, new_h - before.h);
     }
 
-    fn set_double(&mut self, on: bool) {
-        self.double = on;
+    /// Ctrl+D, Winamp's double size: between normal and twice as big.
+    fn toggle_double(&mut self) {
+        self.set_size(if self.size == 2.0 { 1.0 } else { 2.0 });
+    }
+
+    pub(crate) fn set_size(&mut self, size: f64) {
+        self.size = size.clamp(1.0, 3.0);
+        self.close_menus();
         let top = self.win(Kind::Main).map(|w| w.pos);
-        for k in [Kind::Main, Kind::Eq, Kind::Playlist] {
+        for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis, Kind::Jump, Kind::Info] {
             self.resize_window(k);
         }
         // Keep the stack docked under the main window.
@@ -502,6 +513,12 @@ impl App {
                     }
                     next += (self.logical_size(k).height as f64 * scale) as i32;
                 }
+            }
+        }
+        // The library and G-Drop stay docked beside the stack.
+        for k in [Kind::Library, Kind::Vis] {
+            if self.win(k).is_some_and(|w| w.visible) {
+                self.attach(k);
             }
         }
         self.mark_all();
@@ -1047,7 +1064,7 @@ impl App {
             return;
         }
         if c == Control::Options {
-            let at = self.win(Kind::Main).map(|w| (w.pos.0 + (6.0 * w.scale()) as i32, w.pos.1 + (14.0 * w.scale()) as i32)).unwrap_or_default();
+            let at = self.win(Kind::Main).map(|w| (w.pos.0 + (6.0 * w.scale() * self.size) as i32, w.pos.1 + (14.0 * w.scale() * self.size) as i32)).unwrap_or_default();
             let items = self.main_menu();
             self.open_menu(items, at, el);
             return;
@@ -1113,7 +1130,7 @@ impl App {
                 }
             }
             Control::Shade => self.toggle_shade(Kind::Main),
-            Control::Clutter('d') => self.set_double(!self.double),
+            Control::Clutter('d') => self.toggle_double(),
             Control::Clutter('a') => self.toggle_on_top(),
             Control::Clutter('o') => {
                 let at = self.win(Kind::Main).map(Win::global_cursor).unwrap_or_default();
@@ -1142,7 +1159,7 @@ impl App {
             return;
         }
         if c == eq_window::Control::Presets {
-            let at = self.win(Kind::Eq).map(|w| (w.pos.0 + (217.0 * w.scale()) as i32, w.pos.1 + (30.0 * w.scale()) as i32)).unwrap_or_default();
+            let at = self.win(Kind::Eq).map(|w| (w.pos.0 + (217.0 * w.scale() * self.size) as i32, w.pos.1 + (30.0 * w.scale() * self.size) as i32)).unwrap_or_default();
             let items = self.preset_menu();
             self.open_menu(items, at, el);
             return;
@@ -1504,7 +1521,7 @@ impl App {
         let Some(r) = &self.resize else { return };
         let Some(w) = self.win(Kind::Playlist) else { return };
         let now = w.global_cursor();
-        let scale = w.scale() * self.zoom() as f64;
+        let scale = w.scale() * self.zoom();
         let dw = ((now.0 - r.start.0) / scale) as i32;
         let dh = ((now.1 - r.start.1) / scale) as i32;
         if self.pl.shade {
@@ -1526,7 +1543,7 @@ impl App {
         let Some(r) = &self.resize else { return };
         let Some(w) = self.win(Kind::Library) else { return };
         let now = w.global_cursor();
-        let scale = w.scale();
+        let scale = w.scale() * self.zoom();
         let nw = (r.size.0 as f64 + (now.0 - r.start.0) / scale).max(gamp_ui::library_window::MIN_WIDTH as f64) as u32;
         let nh = (r.size.1 as f64 + (now.1 - r.start.1) / scale).max(gamp_ui::library_window::MIN_HEIGHT as f64) as u32;
         // Winamp's steps: 25 wide, 29 high.
@@ -1597,7 +1614,8 @@ impl App {
                 "Options",
                 vec![
                     Item::action("opt:top", "Always on top").checked(self.on_top).shortcut("Ctrl+A"),
-                    Item::action("opt:double", "Double size").checked(self.double).shortcut("Ctrl+D"),
+                    Item::action("opt:double", "Double size").checked(self.size == 2.0).shortcut("Ctrl+D"),
+                    Item::submenu("Size", SIZES.iter().map(|&(z, label)| Item::action(format!("size:{z}"), label).checked(self.size == z)).collect()),
                     Item::Separator,
                     Item::action("opt:elapsed", "Time elapsed").checked(!self.main.show_remaining),
                     Item::action("opt:remaining", "Time remaining").checked(self.main.show_remaining),
@@ -1690,7 +1708,8 @@ impl App {
 
     fn push_menu(&mut self, items: Vec<Item>, at: (i32, i32), el: Option<&ActiveEventLoop>) {
         let (w, h) = menu::size(&items);
-        let win = Win::open(el, "Gamp menu", LogicalSize::new(w, h), at, true);
+        let z = self.zoom();
+        let win = Win::open(el, "Gamp menu", LogicalSize::new((w as f64 * z).round() as u32, (h as f64 * z).round() as u32), at, true);
         if let Some(window) = &win.window {
             window.focus_window();
         }
@@ -1728,7 +1747,7 @@ impl App {
         let m = &self.menus[level];
         if let Some(i) = hover {
             if let Item::Submenu { items, .. } = &m.items[i] {
-                let scale = m.win.scale();
+                let scale = m.win.scale() * self.size;
                 let at = (m.win.pos.0 + ((width - 3) as f64 * scale) as i32, m.win.pos.1 + (menu::item_top(&m.items, i) as f64 * scale) as i32 - (3.0 * scale) as i32);
                 let items = items.clone();
                 self.menus[level].child_of = Some(i);
@@ -1768,7 +1787,7 @@ impl App {
             }
             "skin:default" => self.load_skin(None),
             "opt:top" => self.toggle_on_top(),
-            "opt:double" => self.set_double(!self.double),
+            "opt:double" => self.toggle_double(),
             "opt:elapsed" => self.main.show_remaining = false,
             "opt:remaining" => self.main.show_remaining = true,
             "play:prev" => self.step(false),
@@ -1817,7 +1836,9 @@ impl App {
                 self.apply_eq();
             }
             other => {
-                if let Some(i) = other.strip_prefix("drop:preset:").and_then(|i| i.parse().ok()) {
+                if let Some(z) = other.strip_prefix("size:").and_then(|z| z.parse().ok()) {
+                    self.set_size(z);
+                } else if let Some(i) = other.strip_prefix("drop:preset:").and_then(|i| i.parse().ok()) {
                     self.drop_step(|e| e.select(i, false));
                 } else if let Some(path) = other.strip_prefix("list:") {
                     self.open_files(vec![PathBuf::from(path)], true);
@@ -1872,7 +1893,7 @@ impl App {
                 "g" if alt => self.toggle_window(Kind::Eq),
                 "a" if ctrl && k == Kind::Playlist => self.pl.selected = (0..self.playlist.entries.len()).collect(),
                 "a" if ctrl => self.toggle_on_top(),
-                "d" if ctrl => self.set_double(!self.double),
+                "d" if ctrl => self.toggle_double(),
                 "t" if ctrl => self.main.show_remaining = !self.main.show_remaining,
                 "z" => self.step(false),
                 "x" => self.play(),
@@ -2122,6 +2143,26 @@ mod tests {
         again.load_session();
         assert!(!again.drop.engine.auto);
         assert_eq!(again.drop.engine.current(), 5);
+        let _ = std::fs::remove_dir_all(&app.data_dir);
+    }
+
+    #[test]
+    fn the_size_setting_scales_every_window_and_is_kept() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.data_dir = std::env::temp_dir().join(format!("gamp-size-{}", std::process::id()));
+        let lib = app.logical_size(Kind::Library);
+        app.menu_action("size:1.5", None);
+        assert_eq!(app.logical_size(Kind::Main), LogicalSize::new(413, 174));
+        assert_eq!(app.logical_size(Kind::Library).width, (lib.width as f64 * 1.5).round() as u32);
+        app.save_session();
+        let mut again = App::new(OutputKind::Null, None).unwrap();
+        again.data_dir = app.data_dir.clone();
+        again.load_session();
+        assert_eq!(again.size, 1.5);
+        // A session from before sizes: double size becomes 200%.
+        std::fs::write(app.data_dir.join("session.json"), r#"{"double": true}"#).unwrap();
+        again.load_session();
+        assert_eq!(again.size, 2.0);
         let _ = std::fs::remove_dir_all(&app.data_dir);
     }
 
@@ -2384,7 +2425,7 @@ mod tests {
         let y = menu::item_top(&app.menus[1].items, dbl) + 4;
         app.menus[1].win.cursor = (20, y);
         app.release(Kind::Menu(1), None);
-        assert!(app.double);
+        assert_eq!(app.size, 2.0);
         assert!(app.menus.is_empty());
         // A click elsewhere closes an open menu without acting.
         app.context_menu(Kind::Main, None);

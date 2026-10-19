@@ -14,7 +14,9 @@ use crate::playlist::Entry;
 #[serde(default)]
 pub struct Session {
     pub windows: HashMap<String, (i32, i32, bool)>,
+    /// Older sessions: double size (now `size`).
     pub double: bool,
+    pub size: f64,
     pub on_top: bool,
     pub volume: f32,
     pub balance: f32,
@@ -76,7 +78,8 @@ impl App {
         }
         let s = Session {
             windows,
-            double: self.double,
+            double: self.size == 2.0,
+            size: self.size,
             on_top: self.on_top,
             volume: self.main.volume,
             balance: self.main.balance,
@@ -127,7 +130,7 @@ impl App {
     pub fn load_session(&mut self) -> Option<Session> {
         let bytes = std::fs::read(self.data_dir.join(FILE)).ok()?;
         let s: Session = serde_json::from_slice(&bytes).ok()?;
-        self.double = s.double;
+        self.size = if s.size >= 1.0 { s.size.min(3.0) } else if s.double { 2.0 } else { 1.0 };
         self.on_top = s.on_top;
         self.main.volume = s.volume.clamp(0.0, 1.0);
         self.main.balance = s.balance.clamp(-1.0, 1.0);

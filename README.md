@@ -52,7 +52,8 @@ Check for updates…).
   Clicking any window brings all of them in front of other programs.
 - Z X C V B: previous, play, pause, stop, next. L opens files, S shuffle,
   R repeat. J jumps to a file: type part of a title, Enter plays it.
-  Ctrl+D double size, Ctrl+T remaining time, Ctrl+A always on top.
+  Ctrl+D double size (right-click › Options › Size makes every window
+  bigger, 100% to 300%, for easier reading), Ctrl+T remaining time, Ctrl+A always on top.
 - Alt (⌥) + L Media Library, G Equalizer, E Playlist, K G-Drop.
 - In the library, double-click a folder, album or playlist to open it, and
   Backspace (or ‹ Back) to return. Double-click a track to play from there.
