@@ -69,22 +69,38 @@ fn serde_error(body: &str) -> Option<String> {
 
 impl Read for HttpSource {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let (len, seekable) = (self.len, self.seekable);
         let inner = self.inner.get_mut().unwrap();
-        if inner.resp.is_none() {
-            let r = inner
-                .client
-                .get(&inner.url)
-                .header("Range", format!("bytes={}-", inner.pos))
-                .send()
-                .map_err(std::io::Error::other)?;
-            if !r.status().is_success() {
-                return Ok(0);
+        // A connection that drops before the end (Wi-Fi, an expired link
+        // upstream) picks up where it was, a few times, instead of ending the song.
+        for attempt in 0..4 {
+            if attempt > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(500 * attempt));
             }
-            inner.resp = Some(r);
+            if inner.resp.is_none() {
+                let r = match inner.client.get(&inner.url).header("Range", format!("bytes={}-", inner.pos)).send() {
+                    Ok(r) => r,
+                    Err(e) if attempt == 3 => return Err(std::io::Error::other(e)),
+                    Err(_) => continue,
+                };
+                if !r.status().is_success() {
+                    return Ok(0);
+                }
+                inner.resp = Some(r);
+            }
+            let want = !buf.is_empty();
+            let short = |pos: u64| want && seekable && len.is_some_and(|l| pos < l);
+            match inner.resp.as_mut().unwrap().read(buf) {
+                Ok(0) if short(inner.pos) => inner.resp = None,
+                Ok(n) => {
+                    inner.pos += n as u64;
+                    return Ok(n);
+                }
+                Err(e) if !short(inner.pos) || attempt == 3 => return Err(e),
+                Err(_) => inner.resp = None,
+            }
         }
-        let n = inner.resp.as_mut().unwrap().read(buf)?;
-        inner.pos += n as u64;
-        Ok(n)
+        Ok(0)
     }
 }
 
@@ -138,6 +154,34 @@ pub fn ext_of(url: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::{Read, Write};
+
+    #[test]
+    fn a_dropped_connection_picks_up_where_it_was() {
+        let data: Vec<u8> = (0..100_000u32).map(|i| (i % 251) as u8).collect();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/song.mp3", listener.local_addr().unwrap());
+        let body = data.clone();
+        std::thread::spawn(move || {
+            for (n, conn) in listener.incoming().enumerate() {
+                let mut c = conn.unwrap();
+                let mut req = [0u8; 2048];
+                let got = c.read(&mut req).unwrap();
+                let req = String::from_utf8_lossy(&req[..got]).to_string();
+                let from: usize = req.split("bytes=").nth(1).and_then(|r| r.split('-').next()?.parse().ok()).unwrap_or(0);
+                let head = format!("HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {from}-{}/{}\r\nAccept-Ranges: bytes\r\nConnection: close\r\n\r\n", body.len() - from, body.len() - 1, body.len());
+                c.write_all(head.as_bytes()).unwrap();
+                // The first answer hangs up a third of the way through.
+                let end = if n == 0 { body.len() / 3 } else { body.len() };
+                let _ = c.write_all(&body[from..end]);
+            }
+        });
+        let mut src = super::HttpSource::open(&url).unwrap();
+        let mut all = Vec::new();
+        src.read_to_end(&mut all).unwrap();
+        assert!(all == data, "read {} of {} bytes", all.len(), data.len());
+    }
+
     #[test]
     fn extensions() {
         assert_eq!(super::ext_of("/media/spotify/abc.wav").as_deref(), Some("wav"));
