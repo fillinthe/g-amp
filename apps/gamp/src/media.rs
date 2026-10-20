@@ -65,9 +65,9 @@ impl App {
                 MediaControlEvent::SeekBy(dir, d) => {
                     let s = d.as_secs_f64() * if matches!(dir, SeekDirection::Forward) { 1.0 } else { -1.0 };
                     let at = self.player.status().position;
-                    self.player.seek((at + s).max(0.0));
+                    self.seek((at + s).max(0.0));
                 }
-                MediaControlEvent::SetPosition(MediaPosition(p)) => self.player.seek(p.as_secs_f64()),
+                MediaControlEvent::SetPosition(MediaPosition(p)) => self.seek(p.as_secs_f64()),
                 MediaControlEvent::SetVolume(v) => self.player.set_volume(v as f32),
                 MediaControlEvent::Raise => {
                     if let Some(w) = self.win(Kind::Main).and_then(|w| w.window.clone()) {
