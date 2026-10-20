@@ -426,7 +426,7 @@ impl App {
                         _ => i.title.clone(),
                     })
                     .collect();
-                Row { cells, folder: !is_playable(i), dim: i.info.starts_with("SoundCloud only allows"), tip: i.info.clone() }
+                Row { cells, folder: !is_playable(i), dim: is_preview(i), tip: i.info.clone() }
             })
             .collect();
         let t = &mut self.lib.view.table;
@@ -622,7 +622,9 @@ impl App {
                 let url = i.url.clone()?;
                 // A station shows by its name alone, as SHOUTcast did.
                 let artist = if i.live { String::new() } else { i.artist.clone() };
-                Some(Entry::remote(url, i.title.clone(), artist, i.duration, i.live))
+                // A SoundCloud preview stops after 30 seconds: say so where it plays.
+                let (title, secs) = if is_preview(&i) { (format!("{} (preview)", i.title), Some(30.0)) } else { (i.title.clone(), i.duration) };
+                Some(Entry::remote(url, title, artist, secs, i.live))
             })
             .take(5000)
             .collect();
@@ -1135,4 +1137,8 @@ mod tests {
         assert!(form.iter().any(|w| matches!(w, W::Item { label, .. } if label.ends_with("Music"))));
         let _ = std::fs::remove_dir_all(&root);
     }
+}
+
+fn is_preview(i: &Item) -> bool {
+    i.info.starts_with("SoundCloud only allows")
 }

@@ -2347,6 +2347,11 @@ mod tests {
         app.menu_action(&format!("list:{}", lists[0].display()), None);
         let e = &app.playlist.entries[0];
         assert_eq!((e.url.as_deref(), e.artist.as_str(), e.title.as_str()), (Some("/media/spotify/4DIL3Xgnb9PAqewEf9FRZa.wav"), "Stick To Your Guns", "Spineless"));
+        // A SoundCloud preview says so, with the length it really plays.
+        let preview = gamp_core::sources::Item { url: Some("/media/soundcloud/web%3A1.mp3".into()), duration: Some(320.0), info: "SoundCloud only allows a 30-second preview of this track".into(), ..gamp_core::sources::Item::track("web:1", "One More Time") };
+        app.lib_send(vec![preview], true);
+        let e = app.playlist.entries.last().unwrap();
+        assert_eq!((e.title.as_str(), e.duration), ("One More Time (preview)", Some(30.0)));
         let _ = std::fs::remove_dir_all(&app.data_dir);
     }
 
