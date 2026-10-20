@@ -62,6 +62,7 @@ pub(crate) struct Drag {
 
 /// The sleep timer fades out over its last this many seconds.
 const CONNECTING: &str = "CONNECTING...";
+const SEEKING: &str = "SEEKING...";
 const SLEEP_FADE: f32 = 30.0;
 
 /// The size choices (right-click › Options › Size).
@@ -105,6 +106,8 @@ pub struct App {
     /// The sleep timer (or Shift+V): when playback stops, and over how
     /// many seconds before that it fades out.
     pub sleep_at: Option<(Instant, f32)>,
+    /// A seek still on its way: (target, when).
+    seek_wait: Option<(f64, Instant)>,
     pub on_top: bool,
     pub modifiers: ModifiersState,
     pub(crate) drag: Option<Drag>,
@@ -206,6 +209,7 @@ impl App {
             size: 1.0,
             stop_after: false,
             sleep_at: None,
+            seek_wait: None,
             on_top: false,
             modifiers: ModifiersState::empty(),
             drag: None,
@@ -761,7 +765,7 @@ impl App {
     fn play(&mut self) {
         match self.player.status().state {
             State::Paused => self.player.play(),
-            State::Playing => self.player.seek(0.0),
+            State::Playing => self.seek(0.0),
             State::Stopped => {
                 if self.playlist.entries.is_empty() {
                     self.pick_files(true);
@@ -798,7 +802,31 @@ impl App {
 
     fn seek_by(&mut self, secs: f64) {
         let s = self.player.status();
-        self.player.seek((s.position + secs).max(0.0));
+        self.seek((s.position + secs).max(0.0));
+    }
+
+    /// A seek; a slow one (far into a long stream) shows SEEKING... until it lands.
+    pub(crate) fn seek(&mut self, secs: f64) {
+        self.player.seek(secs);
+        if self.player.status().format.is_some_and(|f| f.seekable) {
+            self.seek_wait = Some((secs, Instant::now()));
+        }
+    }
+
+    fn seek_tick(&mut self) {
+        let Some((to, at)) = self.seek_wait else { return };
+        let s = self.player.status();
+        let waited = at.elapsed();
+        if (s.position - to).abs() < 2.0 || s.state == State::Stopped || waited > Duration::from_secs(60) {
+            self.seek_wait = None;
+            if self.main.message.as_deref() == Some(SEEKING) {
+                self.main.message = None;
+                self.mark(Kind::Main);
+            }
+        } else if waited > Duration::from_millis(600) && self.main.message.is_none() {
+            self.main.message = Some(SEEKING.into());
+            self.mark(Kind::Main);
+        }
     }
 
     fn set_volume(&mut self, v: f32, say: bool) {
@@ -945,6 +973,7 @@ impl App {
     pub fn tick(&mut self) {
         self.poll_audio();
         self.sleep_tick();
+        self.seek_tick();
         self.update_poll();
         self.update_tick();
         if self.message_until.is_some_and(|t| Instant::now() >= t) {
@@ -1195,7 +1224,7 @@ impl App {
         match c {
             Control::Position => {
                 if let (Some(p), Some(d)) = (self.main.seeking.take(), self.main.duration) {
-                    self.player.seek(d * p as f64);
+                    self.seek(d * p as f64);
                 }
             }
             Control::Volume | Control::Balance => {}

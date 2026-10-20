@@ -82,7 +82,7 @@ pub fn run() -> anyhow::Result<()> {
         wait(&mut app, 30, "a status while it connects", |a| a.main.message.as_deref() == Some("CONNECTING..."))?;
         let soundcloud = |a: &App| a.playlist.current().is_some_and(|e| e.url.as_deref().is_some_and(|u| u.contains("/soundcloud/")));
         wait(&mut app, 120, "a SoundCloud link plays", |a| soundcloud(a) && a.main.state == PlayState::Playing && a.main.elapsed > 1.0 && a.main.message.is_none())?;
-        app.player.seek(120.0);
+        app.seek(120.0);
         wait(&mut app, 30, "seeking in a SoundCloud stream", |a| soundcloud(a) && a.main.elapsed >= 120.0)?;
     }
 
