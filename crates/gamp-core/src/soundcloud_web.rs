@@ -104,7 +104,14 @@ pub fn track_item(t: &Value) -> Option<Item> {
     if t["policy"] == "SNIP" {
         i.info = "SoundCloud only allows a 30-second preview of this track".into();
     }
+    if protected(t) {
+        i.info = PROTECTED.into();
+    }
     i.url = Some(format!("/media/soundcloud/{}.mp3", urlencoding::encode(&i.id)));
+    i.date = s(&t["created_at"]).chars().take(10).collect();
+    i.plays = t["playback_count"].as_u64();
+    i.likes = t["likes_count"].as_u64().or(t["favoritings_count"].as_u64());
+    i.artist_link = s(&t["user"]["permalink_url"]);
     Some(i)
 }
 
@@ -145,7 +152,10 @@ pub async fn resolve(link: &str) -> Result<Vec<Item>, ApiError> {
         Some("playlist" | "system-playlist") => complete(arr(&v["tracks"])).await?,
         Some("user") => {
             let id = v["id"].as_u64().unwrap_or(0);
-            arr(&get(&format!("/users/{id}/tracks?limit=200")).await?["collection"]).to_vec()
+            // Their uploads, newest first.
+            let mut t = pages(format!("/users/{id}/tracks?limit=200"), 1000).await?;
+            t.sort_by(|a, b| s(&b["created_at"]).cmp(&s(&a["created_at"])));
+            t
         }
         _ => return Err(err(StatusCode::NOT_FOUND, "That link isn't a SoundCloud track, playlist or artist")),
     };
@@ -207,6 +217,8 @@ pub async fn search(q: &str) -> Result<Vec<Item>, ApiError> {
     Ok(found.iter().filter(|t| !protected(t)).filter_map(track_item).collect())
 }
 
+pub const PROTECTED: &str = "SoundCloud only plays this on soundcloud.com";
+
 /// Many label releases come only as encrypted (DRM) streams, which play
 /// on soundcloud.com alone.
 fn protected(t: &Value) -> bool {
@@ -221,7 +233,7 @@ fn protected(t: &Value) -> bool {
 pub async fn stream_url(id: &str) -> Result<(String, bool, &'static str), ApiError> {
     let t = get(&format!("/tracks/{id}")).await?;
     if protected(&t) {
-        return Err(err(StatusCode::NOT_FOUND, "SoundCloud protects this track: it only plays on soundcloud.com"));
+        return Err(err(StatusCode::NOT_FOUND, PROTECTED));
     }
     let codings = arr(&t["media"]["transcodings"]);
     let kinds: [(&str, &str, &'static str); 3] = [("progressive", "mpeg", "audio/mpeg"), ("hls", "mpeg", "audio/mpeg"), ("hls", "mp4", "audio/mp4")];

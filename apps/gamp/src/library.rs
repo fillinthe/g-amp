@@ -31,7 +31,7 @@ pub enum Page {
 }
 
 impl Page {
-    fn key(&self) -> String {
+    pub fn key(&self) -> String {
         match self {
             Page::List { sid, node, .. } => format!("{sid}\u{1f}{node}"),
             Page::Search { sid, .. } => format!("{sid}\u{1f}search"),
@@ -368,7 +368,7 @@ impl App {
         self.mark(Kind::Library);
     }
 
-    fn lib_show(&mut self) {
+    pub fn lib_show(&mut self) {
         let Some(l) = self.lib.cache.get(&self.lib.page.key()) else { return };
         self.lib.actions = l.actions.clone();
         self.lib.hint = l.hint.clone();
@@ -384,6 +384,9 @@ impl App {
                     Some("Album" | "Format") => i.album.to_lowercase(),
                     Some("Length") => format!("{:010}", i.duration.unwrap_or(0.0) as u64),
                     Some("Items") => format!("{:010}", i.count.unwrap_or(0)),
+                    Some("Posted") => i.date.clone(),
+                    Some("Plays") => format!("{:012}", i.plays.unwrap_or(0)),
+                    Some("Likes") => format!("{:012}", i.likes.unwrap_or(0)),
                     _ => i.title.to_lowercase(),
                 }
             };
@@ -402,6 +405,9 @@ impl App {
             vec![c("Name", 3.0), c("Artist", 2.0), c("Items", 0.7)]
         } else if !items.is_empty() && items.iter().all(|i| i.live) {
             vec![c("Station", 3.0), c("Genre", 2.0), c("Format", 1.1)]
+        } else if items.iter().any(|i| !i.date.is_empty() || i.plays.is_some()) {
+            // SoundCloud: when it went up and how popular it is, in place of the album.
+            vec![c("Artist", 1.2), c("Title", 2.3), c("Posted", 1.3), c("Plays", 0.8), c("Likes", 0.75), c("Length", 0.85)]
         } else {
             vec![c("Artist", 2.0), c("Title", 3.0), c("Album", 2.0), c("Length", 0.9)]
         }
@@ -423,10 +429,13 @@ impl App {
                         "Album" | "Format" => i.album.clone(),
                         "Length" => i.duration.map(clock).unwrap_or_default(),
                         "Items" => i.count.map(|n| n.to_string()).unwrap_or_default(),
+                        "Posted" => i.date.clone(),
+                        "Plays" => i.plays.map(count).unwrap_or_default(),
+                        "Likes" => i.likes.map(count).unwrap_or_default(),
                         _ => i.title.clone(),
                     })
                     .collect();
-                Row { cells, folder: !is_playable(i), dim: is_preview(i), tip: i.info.clone() }
+                Row { cells, folder: !is_playable(i), dim: is_preview(i) || i.info == gamp_core::soundcloud_web::PROTECTED, tip: i.info.clone() }
             })
             .collect();
         let t = &mut self.lib.view.table;
@@ -519,14 +528,7 @@ impl App {
                     self.lib.anchor = Some(i);
                 }
             }
-            Hot::Header(c) => {
-                let c = *c;
-                self.lib.sort = match self.lib.sort {
-                    Some((col, asc)) if col == c => Some((c, !asc)),
-                    _ => Some((c, true)),
-                };
-                self.lib_show();
-            }
+            Hot::Header(c) => self.lib_click_header(*c),
             Hot::Scroll => {
                 self.lib.view.table.top = lw::scroll_top_at(&self.lib.view, y);
             }
@@ -618,6 +620,7 @@ impl App {
         let entries: Vec<Entry> = items
             .into_iter()
             .filter(is_playable)
+            .filter(|i| i.info != gamp_core::soundcloud_web::PROTECTED)
             .filter_map(|i| {
                 let url = i.url.clone()?;
                 // A station shows by its name alone, as SHOUTcast did.
@@ -662,7 +665,36 @@ impl App {
         if !self.lib_selected().iter().any(is_playable) {
             return None;
         }
-        Some(vec![M::action("lib:play", "Play"), M::action("lib:enqueue", "Add to playlist (Shift+Enter)")])
+        let mut menu = vec![M::action("lib:play", "Play"), M::action("lib:enqueue", "Add to playlist (Shift+Enter)")];
+        if let Some(t) = self.lib.items.get(i).filter(|t| !t.artist_link.is_empty()) {
+            let who = t.artist_link.rsplit('/').next().unwrap_or_default();
+            menu.push(M::action("lib:artist", &format!("Latest from {who}")));
+        }
+        Some(menu)
+    }
+
+    pub fn lib_click_header(&mut self, c: usize) {
+        // Dates and counts start with the newest or biggest.
+        let all = self.lib.cache.get(&self.lib.page.key()).map(|l| l.items.clone()).unwrap_or_default();
+        let up = !matches!(self.lib_columns(&all).get(c).map(|c| c.0.as_str()), Some("Posted" | "Plays" | "Likes" | "Length" | "Items"));
+        self.lib.sort = match self.lib.sort {
+            Some((col, asc)) if col == c => Some((c, !asc)),
+            _ => Some((c, up)),
+        };
+        self.lib_show();
+    }
+
+    /// An uploader's tracks, newest first (what their SoundCloud link lists).
+    pub fn lib_artist(&mut self) {
+        let Some(link) = self.lib.view.table.selected.first().and_then(|i| self.lib.items.get(*i)).map(|t| t.artist_link.clone()) else { return };
+        if link.is_empty() {
+            return;
+        }
+        self.lib_open(Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() }, true);
+        self.lib.view.search.value = link;
+        self.lib_submit("search");
+        // Listed to pick from, not played.
+        self.pending_stream = false;
     }
 
     pub fn lib_button(&mut self, id: &str) {
@@ -1056,6 +1088,12 @@ impl App {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn counts_read_at_a_glance() {
+        let c: Vec<String> = [7, 950, 4321, 9_999, 45_600, 120_000, 1_234_567, 3_000_000, 12_345_678].into_iter().map(super::count).collect();
+        assert_eq!(c, ["7", "950", "4.3K", "10K", "46K", "120K", "1.2M", "3M", "12M"]);
+    }
+
     use std::time::{Duration, Instant};
 
     use gamp_audio::OutputKind;
@@ -1141,4 +1179,14 @@ mod tests {
 
 fn is_preview(i: &Item) -> bool {
     i.info.starts_with("SoundCloud only allows")
+}
+
+/// 950 → "950"; 4321 → "4.3K"; 45600 → "46K"; 1234567 → "1.2M".
+fn count(n: u64) -> String {
+    let short = |v: f64, unit: &str| if v < 10.0 { format!("{v:.1}{unit}").replace(".0", "") } else { format!("{v:.0}{unit}") };
+    match n {
+        0..=999 => n.to_string(),
+        1_000..=999_999 => short(n as f64 / 1e3, "K"),
+        _ => short(n as f64 / 1e6, "M"),
+    }
 }
