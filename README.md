@@ -45,8 +45,9 @@ Drive and OneDrive without their desktop apps.
 Builds for macOS (Apple silicon and Intel), Windows and Linux are on the
 [Releases](https://github.com/fillinthe/g-amp/releases) page. They are
 unsigned: on a Mac, right-click › Open the first time; on Windows, More info ›
-Run anyway. Gamp checks for new versions and updates itself (right-click ›
-Check for updates…).
+Run anyway. Gamp checks for new versions when it opens and every few hours,
+asks whether to update (with what's new), then updates itself and opens again.
+Right-click › Check for updates… asks now; `gamp --update` updates from a terminal.
 
 ## Using it
 

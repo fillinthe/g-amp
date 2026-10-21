@@ -74,7 +74,10 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.app.open_windows(el);
             // Did an update we quit for install? Is there a newer Gamp?
             // (Quietly; it says so if there is.)
-            if std::env::var_os("GAMP_NO_UPDATE_CHECK").is_none() {
+            self.app.update_now = std::env::args().any(|a| a == "--update");
+            if self.app.update_now {
+                self.app.update_check(true);
+            } else if std::env::var_os("GAMP_NO_UPDATE_CHECK").is_none() {
                 if !self.app.update_after_restart() {
                     self.app.update_check(false);
                 }

@@ -153,6 +153,8 @@ pub struct App {
     pub(crate) media_at: Instant,
     pub(crate) update: Option<crate::update::Release>,
     pub(crate) update_rx: Option<std::sync::mpsc::Receiver<crate::update::Msg>>,
+    /// `gamp --update`: install a newer version without asking, or quit.
+    pub(crate) update_now: bool,
     pub(crate) update_checked: Instant,
     /// When a display message should go away by itself.
     pub(crate) message_until: Option<Instant>,
@@ -244,6 +246,7 @@ impl App {
             media_at: Instant::now(),
             update: None,
             update_rx: None,
+            update_now: false,
             update_checked: Instant::now(),
             message_until: None,
         })
