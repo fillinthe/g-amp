@@ -48,7 +48,11 @@ impl Win {
             .with_decorations(false)
             .with_resizable(false)
             .with_inner_size(size)
-            .with_position(PhysicalPosition::new(pos.0, pos.1));
+            .with_position(PhysicalPosition::new(pos.0, pos.1))
+            // Hidden until shown: a window made visible and hidden straight
+            // after can stay on screen on macOS. Menus open at once.
+            .with_visible(popup);
+        w.visible = popup;
         if popup {
             attrs = attrs.with_window_level(WindowLevel::AlwaysOnTop);
         } else {
