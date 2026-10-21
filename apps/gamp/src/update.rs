@@ -24,6 +24,28 @@ pub struct Release {
     pub page: String,
     /// The file for this computer, if the release has one.
     pub asset: Option<(String, String)>,
+    /// What's new, as plain text.
+    #[serde(default)]
+    pub notes: String,
+}
+
+/// A release's notes (Markdown) as a few lines of plain text for a dialog.
+pub fn plain_notes(md: &str) -> String {
+    let mut out = String::new();
+    for line in md.lines().map(str::trim).filter(|l| !l.is_empty()) {
+        let line = line.trim_start_matches('#').trim().replace("**", "");
+        let line = match line.strip_prefix("- ") {
+            Some(item) => format!("• {item}"),
+            None => line,
+        };
+        if out.len() + line.len() > 900 {
+            out.push_str("…");
+            break;
+        }
+        out.push_str(&line);
+        out.push('\n');
+    }
+    out.trim_end().to_owned()
 }
 
 pub enum Msg {
@@ -72,7 +94,20 @@ fn check() -> Result<Option<Release>, String> {
         .unwrap_or_default();
     let names: Vec<String> = assets.iter().map(|a| a.0.clone()).collect();
     let asset = pick_asset(&names).map(|i| assets[i].clone());
-    Ok(Some(Release { version: tag.trim_start_matches('v').to_owned(), page: r["html_url"].as_str().unwrap_or("").to_owned(), asset }))
+    Ok(Some(Release { version: tag.trim_start_matches('v').to_owned(), page: r["html_url"].as_str().unwrap_or("").to_owned(), asset, notes: plain_notes(r["body"].as_str().unwrap_or("")) }))
+}
+
+/// "Gamp 0.4.0 is out: update now?", with what's new. Later: it stays in the menu.
+fn ask(r: &Release) -> bool {
+    let notes = if r.notes.is_empty() { String::new() } else { format!("\n\nWhat's new:\n{}", r.notes) };
+    let text = format!("Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.{notes}", r.version, env!("CARGO_PKG_VERSION"));
+    let answer = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Info)
+        .set_title("A new Gamp is out")
+        .set_description(text)
+        .set_buttons(rfd::MessageButtons::OkCancelCustom("Update now".into(), "Later".into()))
+        .show();
+    matches!(answer, rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes) || answer == rfd::MessageDialogResult::Custom("Update now".into())
 }
 
 fn download(url: &str, to: &Path, tx: &mpsc::Sender<Msg>) -> Result<(), String> {
@@ -144,9 +179,16 @@ impl App {
                 Msg::Checked(Ok(Some(r)), _) => {
                     self.main.message = Some(format!("GAMP {} IS OUT - RIGHT-CLICK › UPDATE", r.version));
                     self.message_until = Some(std::time::Instant::now() + Duration::from_secs(8));
-                    self.update = Some(r);
+                    self.update = Some(r.clone());
+                    if self.update_now || ask(&r) {
+                        self.update_install();
+                    }
                 }
                 Msg::Checked(Ok(None), said) => {
+                    if self.update_now {
+                        println!("Gamp {} is up to date", env!("CARGO_PKG_VERSION"));
+                        self.quit = true;
+                    }
                     if said {
                         self.say(&format!("GAMP {} IS UP TO DATE", env!("CARGO_PKG_VERSION")));
                     }
@@ -320,8 +362,15 @@ mod tests {
     }
 
     #[test]
+    fn release_notes_read_as_plain_text() {
+        let md = "## SoundCloud\n\n- **See when tracks were posted.** Click a header.\n- Latest from an artist.\n";
+        assert_eq!(plain_notes(md), "SoundCloud\n• See when tracks were posted. Click a header.\n• Latest from an artist.");
+        assert!(plain_notes(&"- word\n".repeat(500)).ends_with('…'));
+    }
+
+    #[test]
     fn a_start_after_an_update_knows_whether_it_took() {
-        let r = Release { version: "0.4.0".into(), page: String::new(), asset: None };
+        let r = Release { version: "0.4.0".into(), page: String::new(), asset: None, notes: String::new() };
         assert!(failed_attempt(&r, "0.3.0"), "still the old version: it didn't take");
         assert!(!failed_attempt(&r, "0.4.0"));
         assert!(!failed_attempt(&r, "0.4.1"));
