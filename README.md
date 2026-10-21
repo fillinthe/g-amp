@@ -8,7 +8,7 @@ folders and network drives, your NAS and media servers, Dropbox, Google Drive an
 radio, podcasts, the Internet Archive, SoundCloud and Spotify. The
 equalizer, skins and the G-Drop visualizer work on every source.
 
-<p align="center"><img src="assets/screenshot.png" width="275" alt="Gamp's player, equalizer and playlist"></p>
+<p align="center"><img src="assets/screenshot.png" width="825" alt="Gamp's player, equalizer and playlist, with the Media Library showing a SoundCloud search sorted by plays"></p>
 
 Every window is its own small borderless window drawn pixel for pixel from
 the skin, like the original: player, equalizer, playlist, Media Library and
