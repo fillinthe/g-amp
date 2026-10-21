@@ -30,7 +30,7 @@ G-Drop. Classic `.wsz` skins load as they are. Idle, it uses next to no CPU.
 | **Podcasts** | Nothing. Search Apple's directory or paste any RSS feed, then subscribe. |
 | **Internet Archive** | Nothing. The Live Music Archive, 78 RPM records, netlabels, old-time radio, and search. |
 | **Spotify** | A Premium account. Click Connect and sign in: Liked Songs, playlists and search show up. |
-| **SoundCloud** | Nothing. Search, or paste any track, playlist or artist link. For your likes and playlists, add your profile's address (they need to be public). |
+| **SoundCloud** | Nothing. Search, or paste any track, playlist or artist link. For your likes and playlists, add your profile's address (they need to be public). Tracks show when they were posted, plays and likes; click a header to sort, and right-click a track for **Latest from** its artist. |
 
 Every server address works at home or over the internet, so a NAS can be
 played from anywhere it can be reached. Self-signed certificates (common on

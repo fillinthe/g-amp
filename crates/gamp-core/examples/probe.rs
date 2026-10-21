@@ -27,8 +27,8 @@ async fn main() -> anyhow::Result<()> {
     match res {
         Ok(l) => {
             println!("{} items", l.items.len());
-            for i in l.items.iter().take(8) {
-                println!("  {} | {} | {}", i.title, i.artist, i.id);
+            for i in l.items.iter().take(std::env::var("N").ok().and_then(|n| n.parse().ok()).unwrap_or(8)) {
+                println!("  {} | {} | {} | {} plays {:?} likes {:?} {}", i.title, i.artist, i.id, i.date, i.plays, i.likes, i.artist_link);
             }
         }
         Err(e) => println!("error {}: {}", e.0, e.1),

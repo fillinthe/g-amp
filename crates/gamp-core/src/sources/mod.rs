@@ -146,6 +146,16 @@ pub struct Item {
     /// Endless (radio): the player shows no length.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub live: bool,
+    /// When it was posted, "2024-05-01" (SoundCloud).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub date: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plays: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub likes: Option<u64>,
+    /// The uploader's page, for "Latest from…" (SoundCloud).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub artist_link: String,
 }
 
 impl Item {

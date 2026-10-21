@@ -1954,6 +1954,7 @@ impl App {
             "drop:cycle" => self.drop_cycle(!self.drop.engine.auto),
             "lib:play" => self.lib_button("play"),
             "lib:enqueue" => self.lib_button("enqueue"),
+            "lib:artist" => self.lib_artist(),
             "misc:reread" => self.reread_selected(),
             id if id.starts_with("sort:") => {
                 if let Some(how) = playlist::Sort::from_id(id) {
@@ -2355,6 +2356,33 @@ mod tests {
         assert_eq!(app.ids.len(), before);
         app.menu_action("opt:stopafter", None);
         assert!(!app.stop_after);
+    }
+
+    #[test]
+    fn soundcloud_lists_show_and_sort_by_date_plays_and_likes() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.lib_open(crate::library::Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() }, true);
+        let mk = |t: &str, d: &str, p: u64, l: u64| gamp_core::sources::Item { url: Some("/x".into()), date: d.into(), plays: Some(p), likes: Some(l), artist_link: "https://soundcloud.com/porter-robinson".into(), ..gamp_core::sources::Item::track("web:1", t).by("Porter Robinson") };
+        let items = vec![mk("Old hit", "2012-04-10", 12_345_678, 900), mk("New", "2026-09-18", 4321, 245_000), mk("Middle", "2024-07-25", 101_838, 2714)];
+        app.lib.cache.insert(app.lib.page.key(), gamp_core::sources::Listing { items, ..Default::default() });
+        app.lib_show();
+        let t = &app.lib.view.table;
+        let heads: Vec<&str> = t.columns.iter().map(|c| c.0.as_str()).collect();
+        assert_eq!(heads, ["Artist", "Title", "Posted", "Plays", "Likes", "Length"]);
+        assert_eq!(t.rows[0].cells[2..5], ["2012-04-10", "12M", "900"]);
+        let titles = |a: &App| a.lib.items.iter().map(|i| i.title.clone()).collect::<Vec<_>>();
+        // A header click: newest / most first; again: the other way.
+        for (col, first) in [(2, "New"), (3, "Old hit"), (4, "New")] {
+            app.lib_click_header(col);
+            assert_eq!(titles(&app)[0], first, "column {col}");
+        }
+        app.lib_click_header(4);
+        assert_eq!(titles(&app)[0], "Old hit");
+        // Right-click a track: the uploader's latest.
+        app.lib.view.table.selected = std::collections::BTreeSet::from([0]);
+        app.lib_artist();
+        assert_eq!(app.lib.view.search.value, "https://soundcloud.com/porter-robinson");
+        assert!(!app.pending_stream);
     }
 
     #[test]
