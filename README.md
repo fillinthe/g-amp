@@ -64,7 +64,8 @@ Right-click › Check for updates… asks now; `gamp --update` updates from a te
 
 You only do this once; after that Gamp opens normally, and its updates don't
 ask again. Prefer the terminal? `xattr -dr com.apple.quarantine /Applications/Gamp.app`
-does the same.
+does the same. If macOS says Gamp "is damaged and can't be opened", your copy
+is from before 22 October 2026: delete it and download it again.
 
 ## Using it
 
