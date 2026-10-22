@@ -808,7 +808,7 @@ impl App {
                 // Keep it, so it is in the Skins menu next time.
                 if let Some(p) = &path {
                     let dir = self.data_dir.join("skins");
-                    if !p.starts_with(&dir) {
+                    if !p.starts_with(&dir) && !p.starts_with(self.data_dir.join(crate::library::MUSEUM_DIR)) {
                         let _ = std::fs::create_dir_all(&dir);
                         if let Some(name) = p.file_name() {
                             let _ = std::fs::copy(p, dir.join(name));
@@ -1788,11 +1788,30 @@ impl App {
         ]
     }
 
+    #[cfg(test)]
+    pub fn main_menu_has(&self, label: &str) -> bool {
+        fn has(items: &[Item], label: &str) -> bool {
+            items.iter().any(|i| match i {
+                Item::Action { label: l, .. } => l == label,
+                Item::Submenu { items, .. } => has(items, label),
+                _ => false,
+            })
+        }
+        has(&self.main_menu(), label)
+    }
+
     pub fn main_menu(&self) -> Vec<Item> {
-        let mut skins = vec![Item::action("skin:load", "Load skin…"), Item::Separator, Item::action("skin:default", "GAMP Classic (default)")];
+        let museum = self.data_dir.join(crate::library::MUSEUM_DIR);
+        let mut skins = vec![Item::action("skin:load", "Load skin…"), Item::action("skin:museum", "Skin Museum…").shortcut("Alt+S"), Item::action("skin:surprise", "Surprise me")];
+        // A museum skin you like: keep it in this menu.
+        if self.skin_path.as_ref().is_some_and(|p| p.starts_with(&museum)) {
+            skins.push(Item::action("skin:keep", "Keep this skin"));
+        }
+        skins.push(Item::Separator);
+        skins.push(Item::action("skin:default", "Original skin (GAMP Classic)").checked(self.skin_path.is_none()));
         for p in self.skins() {
             let name = p.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-            skins.push(Item::action(format!("skin:{}", p.display()), name));
+            skins.push(Item::action(format!("skin:{}", p.display()), name).checked(self.skin_path.as_ref() == Some(&p)));
         }
         vec![
             Item::action("about", "About Gamp…"),
@@ -1997,7 +2016,28 @@ impl App {
                     self.load_skin(Some(f));
                 }
             }
-            "skin:default" => self.load_skin(None),
+            "skin:default" => {
+                self.load_skin(None);
+                self.say("SKIN: ORIGINAL");
+            }
+            "skin:museum" => self.skin_museum(),
+            "skin:surprise" => self.skin_fetch(None),
+            "skin:keep" => {
+                if let Some(p) = self.skin_path.clone() {
+                    let dir = self.data_dir.join("skins");
+                    let kept = dir.join(p.file_name().unwrap_or_default());
+                    if std::fs::create_dir_all(&dir).and_then(|_| std::fs::copy(&p, &kept)).is_ok() {
+                        self.skin_path = Some(kept);
+                        self.say("SKIN KEPT IN THE SKINS MENU");
+                    }
+                }
+            }
+            "lib:skin" => {
+                let first = self.lib.view.table.selected.first().and_then(|i| self.lib.items.get(*i)).cloned();
+                if first.is_some() {
+                    self.skin_fetch(first);
+                }
+            }
             "opt:top" => self.toggle_on_top(),
             "opt:double" => self.toggle_double(),
             "opt:stopafter" => self.toggle_stop_after(),
@@ -2115,6 +2155,7 @@ impl App {
                 "w" if alt => self.gather(),
                 "q" if self.modifiers.super_key() => self.quit = true,
                 "l" if alt => self.toggle_window(Kind::Library),
+                "s" if alt => self.skin_museum(),
                 "k" if alt || (ctrl && self.modifiers.shift_key()) => self.toggle_window(Kind::Vis),
                 "e" if alt => self.toggle_window(Kind::Playlist),
                 "g" if alt => self.toggle_window(Kind::Eq),

@@ -9,6 +9,7 @@ pub mod cloud;
 pub mod http;
 pub mod library;
 pub mod server;
+pub mod skin_museum;
 pub mod shell;
 pub mod soundcloud;
 pub mod soundcloud_web;

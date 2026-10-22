@@ -57,6 +57,14 @@ pub async fn sources() -> Vec<Source> {
         search: sp,
         needs_setup: !sp,
     });
+    out.push(Source {
+        id: "skins".into(),
+        name: "Skin Museum".into(),
+        group: "skins".into(),
+        roots: vec![("popular".into(), "Most popular".into())],
+        search: true,
+        needs_setup: false,
+    });
     out
 }
 
@@ -127,6 +135,7 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
             };
             Ok(Listing::of(rows))
         }
+        "skins" => Ok(Listing::of(crate::skin_museum::popular().await?)),
         _ => sources::browse(sid, node).await,
     }
 }
@@ -138,6 +147,7 @@ pub async fn search(sid: &str, q: &str) -> Result<Listing, ApiError> {
     }
     match sid {
         "soundcloud" => Ok(Listing::of(crate::soundcloud_web::search(q).await?)),
+        "skins" => Ok(Listing::of(crate::skin_museum::search(q).await?)),
         "spotify" => {
             // Your own playlists whose names match come first.
             let ql = q.to_lowercase();

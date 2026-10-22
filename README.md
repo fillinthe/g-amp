@@ -84,8 +84,12 @@ Right-click › Check for updates… asks now; `gamp --update` updates from a te
   or drop one on Gamp).
 - Songs, playlists, skins and presets open from the Finder too (double-click
   or Open With › Gamp).
-- Drop any `.wsz` skin onto the player. Thousands are at
-  [skins.webamp.org](https://skins.webamp.org).
+- Skins › Skin Museum… (Alt+S) browses and searches about 100,000
+  classic skins from the [Winamp Skin Museum](https://skins.webamp.org):
+  double-click one to wear it. Skins › Surprise me puts on a random
+  favourite, Keep this skin adds one you like to the Skins menu, and
+  Skins › Original skin always goes back to GAMP Classic. Any `.wsz` you
+  drop onto the player works too.
 - G-Drop has 40 presets. Right-click it for the list, next/previous/random,
   full screen, and Cycle presets (on: it changes by itself; off: it stays on
   one; R toggles). The □ button or F goes full screen, Esc leaves. Drag the

@@ -32,6 +32,8 @@ pub enum Reply {
     Config(serde_json::Value),
     Message(String),
     Scan(gamp_core::library::Status),
+    /// A museum skin, downloaded (or why not).
+    Skin(Result<std::path::PathBuf, String>),
 }
 
 pub struct Backend {
@@ -100,6 +102,21 @@ impl Backend {
 
     pub fn search(&self, key: String, sid: String, q: String) {
         self.spawn(async move { Reply::Listing { key, result: catalog::search(&sid, &q).await.map_err(|e| e.1) } });
+    }
+
+    /// Fetches a museum skin into `dir`: this one, or one at random.
+    pub fn skin(&self, item: Option<gamp_core::sources::Item>, dir: std::path::PathBuf) {
+        use gamp_core::skin_museum as museum;
+        self.spawn(async move {
+            let got = async {
+                let i = match item {
+                    Some(i) => i,
+                    None => museum::random().await?,
+                };
+                museum::fetch(&i, &dir).await
+            };
+            Reply::Skin(got.await.map_err(|e| e.1))
+        });
     }
 
     pub fn action(&self, sid: String, action: String, items: Vec<gamp_core::sources::Item>) {
