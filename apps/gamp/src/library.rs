@@ -5,6 +5,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use gamp_core::catalog::Source;
+use gamp_core::skin_museum as museum;
 use gamp_core::sources::{Action, Item, Listing};
 use gamp_ui::library_window::{self as lw, Field, Hot, Row, TreeRow, W};
 use serde_json::{Value, json};
@@ -12,6 +13,9 @@ use serde_json::{Value, json};
 use crate::app::{App, Kind, clock};
 use crate::backend::{Reply, open_in_browser};
 use crate::playlist::Entry;
+
+/// Where museum skins wait in the data folder (Keep this skin copies one to skins/).
+pub const MUSEUM_DIR: &str = "museum";
 
 /// What a tree row opens.
 #[derive(Clone, Debug, PartialEq)]
@@ -202,6 +206,12 @@ impl App {
                         }
                     }
                 }
+                Reply::Skin(Ok(path)) => {
+                    let name = gamp_core::skin_museum::name(&path.file_name().unwrap_or_default().to_string_lossy());
+                    self.load_skin(Some(path));
+                    self.say(&format!("SKIN: {}", name.to_uppercase()));
+                }
+                Reply::Skin(Err(e)) => self.say(&e.to_uppercase()),
                 Reply::Scan(s) => {
                     let scanning = s.scanning;
                     // Follow a running scan once a second.
@@ -291,7 +301,7 @@ impl App {
                 }
             }
         }
-        for id in ["soundcloud", "spotify"] {
+        for id in ["soundcloud", "spotify", "skins"] {
             if let Some(s) = src.iter().find(|s| s.id == id) {
                 if group(&mut rows, &mut targets, id, &s.name, 0) {
                     source_rows(&mut rows, &mut targets, s, 1);
@@ -336,6 +346,7 @@ impl App {
                     "podcasts" => "Type a podcast name, or paste a feed address".into(),
                     "soundcloud" => "Paste a SoundCloud link (track, playlist or artist), or search".into(),
                     "spotify" => "Search Spotify: songs, artists, your playlists".into(),
+                    "skins" => "Search the Skin Museum: a band, a game, a colour, a name".into(),
                     _ => "Type and press Enter to search".into(),
                 };
                 self.lib.view.search.value.clear();
@@ -405,6 +416,9 @@ impl App {
 
     fn lib_columns(&self, items: &[Item]) -> Vec<(String, f32)> {
         let c = |l: &str, w: f32| (l.to_owned(), w);
+        if !items.is_empty() && items.iter().all(|i| i.kind == museum::KIND) {
+            return vec![c("Skin", 3.0), c("File", 2.0)];
+        }
         if !items.is_empty() && items.iter().all(|i| !is_playable(i)) {
             vec![c("Name", 3.0), c("Artist", 2.0), c("Items", 0.7)]
         } else if !items.is_empty() && items.iter().all(|i| i.live) {
@@ -430,7 +444,7 @@ impl App {
                     .iter()
                     .map(|(c, _)| match c.as_str() {
                         "Artist" | "Genre" => i.artist.clone(),
-                        "Album" | "Format" => i.album.clone(),
+                        "Album" | "Format" | "File" => i.album.clone(),
                         "Length" => i.duration.map(clock).unwrap_or_default(),
                         "Items" => i.count.map(|n| n.to_string()).unwrap_or_default(),
                         "Posted" => i.date.clone(),
@@ -439,7 +453,7 @@ impl App {
                         _ => i.title.clone(),
                     })
                     .collect();
-                Row { cells, folder: !is_playable(i), dim: is_preview(i) || i.info == gamp_core::soundcloud_web::PROTECTED, tip: i.info.clone() }
+                Row { cells, folder: i.kind == "folder", dim: is_preview(i) || i.info == gamp_core::soundcloud_web::PROTECTED, tip: i.info.clone() }
             })
             .collect();
         let t = &mut self.lib.view.table;
@@ -453,7 +467,11 @@ impl App {
             (Page::Search { .. }, _) if self.lib.items.is_empty() => self.lib.view.search.placeholder.clone() + ".",
             _ => self.lib.hint.clone().unwrap_or_default(),
         };
-        let mut buttons = vec![("play".to_owned(), "Play".to_owned()), ("enqueue".to_owned(), "Enqueue".to_owned()), ("playall".to_owned(), "Play all".to_owned())];
+        let skins = matches!(&self.lib.page, Page::List { sid, .. } | Page::Search { sid, .. } if sid == "skins");
+        let mut buttons: Vec<(String, String)> = if skins { [("skin:use", "Use skin"), ("skin:surprise", "Surprise me"), ("skin:default", "Original skin")] } else { [("play", "Play"), ("enqueue", "Enqueue"), ("playall", "Play all")] }
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
         for a in &self.lib.actions {
             buttons.push((format!("action:{}", a.id), a.label.to_owned()));
         }
@@ -601,6 +619,9 @@ impl App {
     /// Double-click or Enter: open a folder, or play from that track.
     fn lib_activate(&mut self, i: usize) {
         let Some(item) = self.lib.items.get(i).cloned() else { return };
+        if item.kind == museum::KIND {
+            return self.skin_fetch(Some(item));
+        }
         if !is_playable(&item) {
             let sid = match &self.lib.page {
                 Page::List { sid, .. } | Page::Search { sid, .. } => sid.clone(),
@@ -666,6 +687,9 @@ impl App {
             self.lib.anchor = Some(i);
             self.mark(Kind::Library);
         }
+        if self.lib_selected().iter().any(|i| i.kind == museum::KIND) {
+            return Some(vec![M::action("lib:skin", "Use skin"), M::action("skin:surprise", "Surprise me"), M::action("skin:default", "Original skin")]);
+        }
         if !self.lib_selected().iter().any(is_playable) {
             return None;
         }
@@ -686,6 +710,21 @@ impl App {
             _ => Some((c, up)),
         };
         self.lib_show();
+    }
+
+    /// Downloads a museum skin (or a random one) and puts it on.
+    pub fn skin_fetch(&mut self, item: Option<Item>) {
+        let Some(b) = &self.backend else { return };
+        b.skin(item, self.data_dir.join(MUSEUM_DIR));
+        self.say("FETCHING SKIN…");
+    }
+
+    /// The Skin Museum's best-loved skins, in the library window.
+    pub fn skin_museum(&mut self) {
+        if !self.wins.get(&Kind::Library).is_some_and(|w| w.visible) {
+            self.toggle_window(Kind::Library);
+        }
+        self.lib_open(Page::List { sid: "skins".into(), node: "popular".into(), title: "Skin Museum › Most popular".into() }, true);
     }
 
     /// An uploader's tracks, newest first (what their SoundCloud link lists).
@@ -712,6 +751,11 @@ impl App {
                 }
             }
             "playall" => self.lib_send(self.lib.items.clone(), false),
+            "skin:use" => match self.lib_selected().into_iter().next() {
+                Some(i) => self.skin_fetch(Some(i)),
+                None => self.lib.view.status = "Select a skin first.".into(),
+            },
+            "skin:surprise" | "skin:default" => self.menu_action(id, None),
             other => {
                 if let Some(action) = other.strip_prefix("action:") {
                     let sel = self.lib_selected();
@@ -1138,6 +1182,43 @@ mod tests {
             std::thread::sleep(Duration::from_millis(30));
         }
         panic!("timed out: config {} scan {:?} status {:?} items {} state {:?} msg {:?}", app.lib.config, app.lib.scan.as_ref().map(|s| (s.scanning, s.found)), app.lib.view.status, app.lib.items.len(), app.main.state, app.main.message);
+    }
+
+    /// Online: the Skin Museum lists, a skin downloads and goes on, Surprise
+    /// me picks another, Original goes back, Keep puts one in the Skins menu.
+    #[test]
+    #[ignore]
+    fn skin_museum_round_trip() {
+        let root = std::env::temp_dir().join(format!("gamp-skin-test-{}", std::process::id()));
+        // SAFETY: this test runs alone (it's ignored by default).
+        unsafe { std::env::set_var("WINAMP_PORT", "8794") };
+        let backend = Backend::start(root.join("data"), None).unwrap();
+        let mut app = App::new(OutputKind::Null, Some(backend)).unwrap();
+        app.data_dir = root.join("data");
+        app.lib_start();
+        app.lib_open(Page::List { sid: "skins".into(), node: "popular".into(), title: "Skin Museum".into() }, true);
+        wait(&mut app, 30, |a| a.lib.items.len() > 100);
+        assert_eq!(app.lib.view.table.columns[0].0, "Skin");
+        assert_eq!(app.lib.view.buttons[0].1, "Use skin");
+        app.lib_activate(0);
+        let museum = app.data_dir.join(MUSEUM_DIR);
+        wait(&mut app, 60, |a| a.skin_path.as_ref().is_some_and(|p| p.starts_with(&museum)));
+        let first = app.skin_path.clone().unwrap();
+        app.menu_action("skin:surprise", None);
+        wait(&mut app, 60, |a| a.skin_path.as_ref().is_some_and(|p| *p != first));
+        app.menu_action("skin:default", None);
+        assert!(app.skin_path.is_none());
+        app.load_skin(Some(first.clone()));
+        assert!(app.main_menu_has("Keep this skin"));
+        app.menu_action("skin:keep", None);
+        assert!(app.skin_path.as_ref().unwrap().starts_with(app.data_dir.join("skins")));
+        assert!(!app.main_menu_has("Keep this skin"));
+        // Searching works too.
+        app.lib_open(Page::Search { sid: "skins".into(), title: "Skin Museum › Search".into() }, true);
+        app.lib.view.search.value = "metal".into();
+        app.lib_submit("search");
+        wait(&mut app, 30, |a| !a.lib.items.is_empty());
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
