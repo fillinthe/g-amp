@@ -30,12 +30,14 @@ pub struct Win {
     /// Outer position, physical pixels (tracked; set when we move it).
     pub pos: (i32, i32),
     pub visible: bool,
+    /// Fully covered or on another Space: nothing to draw for.
+    pub occluded: bool,
     pub dirty: bool,
 }
 
 impl Win {
     pub fn headless() -> Win {
-        Win { window: None, surface: None, frame: Frame::new(1, 1), cursor: (0, 0), local: (0.0, 0.0), pos: (0, 0), visible: true, dirty: true }
+        Win { window: None, surface: None, frame: Frame::new(1, 1), cursor: (0, 0), local: (0.0, 0.0), pos: (0, 0), visible: true, occluded: false, dirty: true }
     }
 
     /// A borderless window `size` logical pixels big at `pos` (physical).
@@ -115,6 +117,8 @@ impl Win {
 
     pub fn show(&mut self, on: bool) {
         self.visible = on;
+        // Shown again: draw, and let the system say if it's covered.
+        self.occluded = false;
         if let Some(w) = &self.window {
             w.set_visible(on);
         }

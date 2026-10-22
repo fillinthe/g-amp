@@ -350,6 +350,13 @@ impl App {
         }
     }
 
+    pub fn occluded(&mut self, k: Kind, o: bool) {
+        if let Some(w) = self.win_mut(k) {
+            w.occluded = o;
+            w.dirty |= !o;
+        }
+    }
+
     fn mark_all(&mut self) {
         for w in self.wins.values_mut() {
             w.dirty = true;
@@ -396,7 +403,7 @@ impl App {
     }
 
     pub fn dirty_kinds(&self) -> Vec<Kind> {
-        let mut out: Vec<Kind> = self.wins.iter().filter(|(_, w)| w.dirty && w.visible).map(|(k, _)| *k).collect();
+        let mut out: Vec<Kind> = self.wins.iter().filter(|(_, w)| w.dirty && w.visible && !w.occluded).map(|(k, _)| *k).collect();
         out.extend(self.menus.iter().enumerate().filter(|(_, m)| m.win.dirty).map(|(i, _)| Kind::Menu(i)));
         out
     }
@@ -987,9 +994,6 @@ impl App {
             }
         }
         self.media_tick();
-        if self.drop_visible() {
-            self.mark(Kind::Vis);
-        }
         self.lib_poll();
         if self.pending_scan.is_some_and(|t| Instant::now() >= t) {
             self.pending_scan = None;
@@ -1055,7 +1059,7 @@ impl App {
     }
 
     pub fn busy(&self) -> bool {
-        self.drop_visible() || self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.message.as_ref().unwrap_or(&self.main.title).chars().count() * 5 > 154 || self.drag.is_some()
+        self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.message.as_ref().unwrap_or(&self.main.title).chars().count() * 5 > 154 || self.drag.is_some()
     }
 
     // ---- pointer --------------------------------------------------------

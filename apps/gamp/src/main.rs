@@ -41,6 +41,8 @@ struct Shell {
     started: bool,
     /// When animation next steps (marquee, visualizers, time).
     next_tick: Instant,
+    /// G-Drop steps on its own, faster clock; the rest stays at TICK.
+    next_drop: Instant,
 }
 
 impl ApplicationHandler<UserEvent> for Shell {
@@ -104,6 +106,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => app.mark(k),
             WindowEvent::Moved(p) => app.moved(k, p.x, p.y),
             WindowEvent::Focused(f) => app.set_focus(k, f),
+            WindowEvent::Occluded(o) => app.occluded(k, o),
             WindowEvent::ModifiersChanged(m) => app.modifiers = m.state(),
             WindowEvent::CursorMoved { position, .. } => app.cursor_moved(k, position.x, position.y, Some(el)),
             WindowEvent::MouseInput { state, button, .. } => match (button, state) {
@@ -136,8 +139,12 @@ impl ApplicationHandler<UserEvent> for Shell {
         let now = Instant::now();
         if now >= self.next_tick {
             app.tick();
-            let step = if app.drop_visible() { app.drop_tick() } else { TICK };
-            self.next_tick = now + step;
+            self.next_tick = now + TICK;
+        }
+        let drop = app.drop_animating();
+        if drop && now >= self.next_drop {
+            app.mark(Kind::Vis);
+            self.next_drop = now + app.drop_tick();
         }
         for k in app.dirty_kinds() {
             match k {
@@ -158,7 +165,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             app.save_session();
         }
         // Wake often only while something moves; idle is idle.
-        el.set_control_flow(if app.busy() { ControlFlow::WaitUntil(self.next_tick) } else { ControlFlow::Wait });
+        el.set_control_flow(if app.busy() { ControlFlow::WaitUntil(if drop { self.next_tick.min(self.next_drop) } else { self.next_tick }) } else { ControlFlow::Wait });
     }
 }
 
@@ -191,7 +198,7 @@ fn main() -> anyhow::Result<()> {
     }
     // Nothing to play yet: show where music comes from.
     app.lib_open_at_start = app.playlist.entries.is_empty() && app.session.is_none();
-    el.run_app(&mut Shell { app, started: false, next_tick: Instant::now() })?;
+    el.run_app(&mut Shell { app, started: false, next_tick: Instant::now(), next_drop: Instant::now() })?;
     Ok(())
 }
 

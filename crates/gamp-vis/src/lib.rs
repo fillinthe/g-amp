@@ -389,14 +389,18 @@ impl GDrop {
     fn warp(&mut self, uv: &[(f32, f32)], p: &Params) {
         let (w, h) = (self.w, self.h);
         let decay = [p.decay * p.tint[0], p.decay * p.tint[1], p.decay * p.tint[2]];
+        let cols: Vec<(usize, f32)> = (0..w)
+            .map(|x| {
+                let gx = x as f32 / (w - 1).max(1) as f32 * GW as f32;
+                let i = (gx as usize).min(GW - 1);
+                (i, gx - i as f32)
+            })
+            .collect();
         for y in 0..h {
             let gy = y as f32 / (h - 1).max(1) as f32 * GH as f32;
             let j = (gy as usize).min(GH - 1);
             let fy = gy - j as f32;
-            for x in 0..w {
-                let gx = x as f32 / (w - 1).max(1) as f32 * GW as f32;
-                let i = (gx as usize).min(GW - 1);
-                let fx = gx - i as f32;
+            for (x, &(i, fx)) in cols.iter().enumerate() {
                 let a = uv[j * (GW + 1) + i];
                 let b = uv[j * (GW + 1) + i + 1];
                 let c = uv[(j + 1) * (GW + 1) + i];
@@ -415,12 +419,16 @@ impl GDrop {
         let (w, h) = (self.w as i32, self.h as i32);
         let (x0, y0) = (x.floor(), y.floor());
         let (fx, fy) = (x - x0, y - y0);
-        let at = |xi: i32, yi: i32| -> [f32; 3] {
-            let (xi, yi) = if wrap { (xi.rem_euclid(w), yi.rem_euclid(h)) } else { (xi.clamp(0, w - 1), yi.clamp(0, h - 1)) };
-            self.buf[(yi * w + xi) as usize]
-        };
+        // Two wraps (or clamps) per pixel, not eight: it's the hottest loop.
         let (xi, yi) = (x0 as i32, y0 as i32);
-        let (a, b, c, d) = (at(xi, yi), at(xi + 1, yi), at(xi, yi + 1), at(xi + 1, yi + 1));
+        let (xa, xb, ya, yb) = if wrap {
+            let (xa, ya) = (xi.rem_euclid(w), yi.rem_euclid(h));
+            (xa, if xa + 1 == w { 0 } else { xa + 1 }, ya, if ya + 1 == h { 0 } else { ya + 1 })
+        } else {
+            (xi.clamp(0, w - 1), (xi + 1).clamp(0, w - 1), yi.clamp(0, h - 1), (yi + 1).clamp(0, h - 1))
+        };
+        let (ra, rb) = ((ya * w) as usize, (yb * w) as usize);
+        let (a, b, c, d) = (self.buf[ra + xa as usize], self.buf[ra + xb as usize], self.buf[rb + xa as usize], self.buf[rb + xb as usize]);
         let mut o = [0.0; 3];
         for k in 0..3 {
             let top = a[k] + (b[k] - a[k]) * fx;
