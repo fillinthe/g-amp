@@ -61,6 +61,16 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             UserEvent::Wake => {}
             UserEvent::Open(files) => self.app.open_files(files, true),
+            // A window off every screen comes back with the rest; otherwise
+            // the windows just come forward.
+            UserEvent::Reopen if self.app.window_lost() => self.app.gather(),
+            UserEvent::Reopen => {
+                for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis] {
+                    if let Some(w) = self.app.win(k).filter(|w| w.visible).and_then(|w| w.window.as_ref()) {
+                        win::order_front(w, self.app.on_top);
+                    }
+                }
+            }
         }
     }
 
@@ -211,7 +221,7 @@ mod finder {
     use std::path::PathBuf;
     use std::sync::OnceLock;
 
-    use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
+    use objc2::runtime::{AnyClass, AnyObject, Bool, Imp, Sel};
     use objc2::{msg_send, sel};
     use winit::event_loop::EventLoopProxy;
 
@@ -235,6 +245,14 @@ mod finder {
         }
     }
 
+    /// A Dock click on the running app.
+    unsafe extern "C-unwind" fn reopen(_this: *mut AnyObject, _cmd: Sel, _app: *mut AnyObject, _visible: Bool) -> Bool {
+        if let Some(p) = PROXY.get() {
+            let _ = p.send_event(UserEvent::Reopen);
+        }
+        Bool::YES
+    }
+
     pub fn listen(proxy: EventLoopProxy<UserEvent>) {
         let _ = PROXY.set(proxy);
         let Some(class) = AnyClass::get(c"WinitApplicationDelegate") else {
@@ -245,6 +263,9 @@ mod finder {
         // application:openURLs: is (void)(id self, SEL _cmd, NSApplication*, NSArray<NSURL*>*).
         unsafe {
             objc2::ffi::class_addMethod(class as *const AnyClass as *mut AnyClass, sel!(application:openURLs:), std::mem::transmute::<_, Imp>(f), c"v@:@@".as_ptr());
+            let r: unsafe extern "C-unwind" fn(*mut AnyObject, Sel, *mut AnyObject, Bool) -> Bool = reopen;
+            let types = if cfg!(target_arch = "aarch64") { c"B@:@B" } else { c"c@:@c" };
+            objc2::ffi::class_addMethod(class as *const AnyClass as *mut AnyClass, sel!(applicationShouldHandleReopen:hasVisibleWindows:), std::mem::transmute::<_, Imp>(r), types.as_ptr());
         }
     }
 }

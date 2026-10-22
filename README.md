@@ -53,6 +53,9 @@ Right-click › Check for updates… asks now; `gamp --update` updates from a te
 
 - Drag a title bar to move a window; windows dock and snap together.
   Clicking any window brings all of them in front of other programs.
+  Lost one? Right-click › Gather windows (Alt+W) stacks them all back on
+  the main window; on a Mac, clicking Gamp in the Dock does it when a
+  window is off-screen.
 - Z X C V B: previous, play, pause, stop, next. Shift+V fades out and
   stops; Ctrl+V stops after the current track. Right-click › Options ›
   Sleep timer stops the music after 15 to 90 minutes, fading out. L opens files, S shuffle,

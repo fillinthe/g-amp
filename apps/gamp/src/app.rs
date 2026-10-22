@@ -481,6 +481,72 @@ impl App {
         }
     }
 
+    /// Puts every open window back together, for when some got lost: the
+    /// main window fully on a screen, the equalizer and playlist stacked
+    /// under it, the library and G-Drop beside them, all in front.
+    pub(crate) fn gather(&mut self) {
+        let Some(m) = self.rect(Kind::Main) else { return };
+        let stack: Vec<Kind> = [Kind::Eq, Kind::Playlist].into_iter().filter(|k| self.rect(*k).is_some()).collect();
+        let side: Vec<Kind> = [Kind::Library, Kind::Vis].into_iter().filter(|k| self.rect(*k).is_some()).collect();
+        let height = m.h + stack.iter().filter_map(|k| self.rect(*k)).map(|r| r.h).sum::<i32>();
+        let screens = self.screens();
+        let s = screens.iter().find(|s| s.x <= m.x && m.x < s.right() && s.y <= m.y && m.y < s.bottom()).or(screens.first()).copied();
+        let (x, y) = match s {
+            Some(s) => (m.x.min(s.right() - m.w).max(s.x), m.y.min(s.bottom() - height).max(s.y)),
+            None => (m.x, m.y),
+        };
+        let mut placed = vec![Kind::Main];
+        let mut at = (x, y);
+        if let Some(w) = self.wins.get_mut(&Kind::Main) {
+            w.move_to(x, y);
+        }
+        for k in stack {
+            at.1 += self.rect(*placed.last().unwrap()).map_or(0, |r| r.h);
+            if let Some(w) = self.wins.get_mut(&k) {
+                w.move_to(at.0, at.1);
+            }
+            placed.push(k);
+        }
+        for k in side {
+            let group: Vec<Rect> = placed.iter().filter_map(|k| self.rect(*k)).collect();
+            let w = self.rect(k).map_or(0, |r| r.w);
+            let bx = layout::beside(&group, w, s);
+            if let Some(win) = self.wins.get_mut(&k) {
+                win.move_to(bx, y);
+            }
+            placed.push(k);
+        }
+        for k in placed {
+            if let Some(w) = self.win(k).and_then(|w| w.window.as_ref()) {
+                crate::win::order_front(w, self.on_top);
+            }
+        }
+        if let Some(w) = self.win(Kind::Main).and_then(|w| w.window.as_ref()) {
+            w.focus_window();
+        }
+    }
+
+    /// Whether any open window is off every screen (a display unplugged,
+    /// a window dragged away).
+    pub(crate) fn window_lost(&self) -> bool {
+        let screens = self.screens();
+        !screens.is_empty()
+            && [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis].into_iter().filter_map(|k| self.rect(k)).any(|r| {
+                // Its title bar must show enough to grab.
+                !screens.iter().any(|s| r.x < s.right() - 40 && r.right() > s.x + 40 && r.y >= s.y - 10 && r.y < s.bottom() - 20)
+            })
+    }
+
+    /// Every display, in physical pixels; the main one first.
+    fn screens(&self) -> Vec<Rect> {
+        let Some(w) = self.win(Kind::Main).and_then(|w| w.window.as_ref()) else { return Vec::new() };
+        let primary = w.primary_monitor();
+        primary.iter().cloned().chain(w.available_monitors().filter(|m| Some(m) != primary.as_ref())).map(|m| {
+            let (p, s) = (m.position(), m.size());
+            Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 }
+        }).collect()
+    }
+
     /// The display the main window is on, in physical pixels.
     fn screen(&self) -> Option<Rect> {
         let m = self.win(Kind::Main)?.window.as_ref()?.current_monitor()?;
@@ -1736,11 +1802,12 @@ impl App {
             Item::action("jump", "Jump to file…").shortcut("J"),
             Item::action("info", "File info…").shortcut("Alt+3"),
             Item::Separator,
-            Item::action("win:main", "Main window").checked(true).shortcut("Alt+W"),
+            Item::action("win:main", "Main window").checked(true),
             Item::action("win:playlist", "Playlist editor").checked(self.main.playlist_open).shortcut("Alt+E"),
             Item::action("win:eq", "Equalizer").checked(self.main.eq_open).shortcut("Alt+G"),
             Item::action("win:vis", "G-Drop visualizer").checked(self.drop_visible()).shortcut("Alt+K"),
             Item::action("win:library", "Media Library").checked(self.wins.get(&Kind::Library).is_some_and(|w| w.visible)).shortcut("Alt+L"),
+            Item::action("win:gather", "Gather windows").shortcut("Alt+W"),
             Item::Separator,
             Item::submenu("Skins", skins),
             Item::submenu(
@@ -1922,6 +1989,7 @@ impl App {
             "win:eq" => self.toggle_window(Kind::Eq),
             "win:library" => self.toggle_window(Kind::Library),
             "win:vis" => self.toggle_window(Kind::Vis),
+            "win:main" | "win:gather" => self.gather(),
             "jump" => self.jump_toggle(),
             "info" => self.info_show_selected(),
             "skin:load" => {
@@ -2044,7 +2112,7 @@ impl App {
         }
         match key {
             Key::Character(c) => match c.to_lowercase().as_str() {
-                "w" if alt => {}
+                "w" if alt => self.gather(),
                 "q" if self.modifiers.super_key() => self.quit = true,
                 "l" if alt => self.toggle_window(Kind::Library),
                 "k" if alt || (ctrl && self.modifiers.shift_key()) => self.toggle_window(Kind::Vis),
@@ -2721,6 +2789,26 @@ mod tests {
         app.wins.get_mut(&Kind::Vis).unwrap().move_to(3000 - vis_w, 3000);
         app.toggle_window(Kind::Vis);
         assert_eq!(r(&app, Kind::Vis).x, r(&app, Kind::Library).right());
+    }
+
+    #[test]
+    fn gather_puts_scattered_windows_back_around_the_main_window() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis] {
+            app.redraw(k);
+            app.wins.get_mut(&k).unwrap().show(true);
+        }
+        for (k, p) in [(Kind::Main, (100, 100)), (Kind::Eq, (-3000, 50)), (Kind::Playlist, (4000, 4000)), (Kind::Library, (10, 900)), (Kind::Vis, (-500, -500))] {
+            app.wins.get_mut(&k).unwrap().move_to(p.0, p.1);
+        }
+        app.gather();
+        let r = |k| app.rect(k).unwrap();
+        let m = r(Kind::Main);
+        assert_eq!((m.x, m.y), (100, 100));
+        assert_eq!((r(Kind::Eq).x, r(Kind::Eq).y), (m.x, m.bottom()));
+        assert_eq!((r(Kind::Playlist).x, r(Kind::Playlist).y), (m.x, r(Kind::Eq).bottom()));
+        assert_eq!((r(Kind::Library).x, r(Kind::Library).y), (m.right(), m.y));
+        assert_eq!((r(Kind::Vis).x, r(Kind::Vis).y), (r(Kind::Library).right(), m.y));
     }
 
     #[test]
