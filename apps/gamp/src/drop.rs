@@ -59,6 +59,12 @@ impl App {
         self.wins.get(&Kind::Vis).is_some_and(|w| w.visible)
     }
 
+    /// Animates only while music plays and it can be seen; stopped or
+    /// paused it holds its last frame, as Winamp's visualizers did.
+    pub fn drop_animating(&self) -> bool {
+        self.main.state == gamp_ui::main_window::PlayState::Playing && self.wins.get(&Kind::Vis).is_some_and(|w| w.visible && !w.occluded)
+    }
+
     /// Draws a frame of the visualizer into the window.
     /// 60 frames a second when the machine keeps up easily, else 30.
     pub fn drop_tick(&self) -> std::time::Duration {
@@ -117,6 +123,7 @@ impl App {
 
     fn drop_changed(&mut self) {
         self.drop.name_until = Some(Instant::now() + std::time::Duration::from_secs(3));
+        self.mark(Kind::Vis);
     }
 
     pub fn drop_press(&mut self, x: i32, y: i32) {
