@@ -137,6 +137,10 @@ impl App {
     pub fn lib_poll(&mut self) {
         let Some(b) = &self.backend else { return };
         let replies: Vec<Reply> = b.rx.try_iter().collect();
+        // Called every tick: redraw only when something came in.
+        if replies.is_empty() {
+            return;
+        }
         for r in replies {
             match r {
                 Reply::Sources(s) => {
