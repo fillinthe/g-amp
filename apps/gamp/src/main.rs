@@ -100,6 +100,10 @@ impl ApplicationHandler<UserEvent> for Shell {
     fn window_event(&mut self, el: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
         let Some(k) = self.app.kind_of(id) else { return };
         let app = &mut self.app;
+        // The library redraws on what happens to it (and on replies), not every tick.
+        if k == Kind::Library && !matches!(event, WindowEvent::RedrawRequested) || matches!(k, Kind::Menu(_)) && matches!(event, WindowEvent::MouseInput { .. }) {
+            app.mark(Kind::Library);
+        }
         match event {
             WindowEvent::CloseRequested => {
                 if k == Kind::Main {
