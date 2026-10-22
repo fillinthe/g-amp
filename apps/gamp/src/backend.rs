@@ -22,6 +22,8 @@ pub enum UserEvent {
     Wake,
     /// Files opened from the Finder (double-click, Open With, the Dock).
     Open(Vec<std::path::PathBuf>),
+    /// The Dock icon was clicked.
+    Reopen,
 }
 
 pub enum Reply {
