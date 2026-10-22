@@ -10,6 +10,9 @@ equalizer, skins and the G-Drop visualizer work on every source.
 
 <p align="center"><img src="assets/screenshot.png" width="825" alt="Gamp's player, equalizer and playlist, with the Media Library showing a SoundCloud search sorted by plays"></p>
 
+<p align="center"><img src="assets/screenshot-skins.png" width="825" alt="Gamp wearing the Vaporwave skin from the Winamp Skin Museum, with the Media Library listing the museum's most popular skins"></p>
+<p align="center"><em>Wearing Vaporwave, one of about 100,000 classic skins in the built-in Skin Museum.</em></p>
+
 Every window is its own small borderless window drawn pixel for pixel from
 the skin, like the original: player, equalizer, playlist, Media Library and
 G-Drop. Classic `.wsz` skins load as they are. Idle, it uses next to no CPU.
