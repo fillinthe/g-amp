@@ -74,7 +74,11 @@ fn plays_seeks_and_continues_gaplessly() {
 
     // Seek near the end; position follows.
     p.seek(2.5);
-    std::thread::sleep(Duration::from_millis(150));
+    // A busy CI machine can take a moment to land the seek.
+    let until = std::time::Instant::now() + Duration::from_secs(5);
+    while p.status().position < 2.5 && std::time::Instant::now() < until {
+        std::thread::sleep(Duration::from_millis(20));
+    }
     let s = p.status();
     assert!(s.position >= 2.5 && s.position < 3.0, "{}", s.position);
 
