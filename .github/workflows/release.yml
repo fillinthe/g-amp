@@ -50,6 +50,25 @@ jobs:
         working-directory: apps/gamp
         shell: bash
         run: cargo packager --release --target ${{ matrix.target }} --formats ${{ matrix.formats }}
+      # The linker only signs the program, not the app around it; a
+      # downloaded app signed like that is "damaged" to macOS, with no Open
+      # Anyway. Sign the whole app (ad hoc: no Apple account) inside the dmg.
+      - name: Sign the Mac app
+        if: runner.os == 'macOS'
+        working-directory: target/packages
+        run: |
+          for f in *.dmg; do
+            hdiutil convert "$f" -quiet -format UDRW -o rw.dmg
+            hdiutil resize -quiet -size 300m rw.dmg
+            m=$(mktemp -d)
+            hdiutil attach -quiet -nobrowse -mountpoint "$m" rw.dmg
+            codesign --force --deep --sign - "$m/Gamp.app"
+            codesign --verify --deep --strict --verbose=2 "$m/Gamp.app"
+            hdiutil detach -quiet "$m"
+            rm "$f"
+            hdiutil convert rw.dmg -quiet -format UDZO -o "$f"
+            rm rw.dmg
+          done
       - name: Name the files by platform
         shell: bash
         run: |
