@@ -144,6 +144,9 @@ pub struct App {
     pub(crate) pending_refresh: Option<Instant>,
     /// When to ask how a folder scan is going.
     pub(crate) pending_scan: Option<Instant>,
+    /// Where the track was when Gamp last closed: (playlist index, what it
+    /// plays, seconds). Play picks up there.
+    pub(crate) resume: Option<(usize, PathBuf, Option<String>, f64)>,
     /// Files dropped in one go (each arrives as its own event).
     pub(crate) drops: Vec<PathBuf>,
     pub(crate) drop_target: Option<Kind>,
@@ -243,6 +246,7 @@ impl App {
             pending_stream: false,
             pending_refresh: None,
             pending_scan: None,
+            resume: None,
             lib_open_at_start: false,
             session: None,
             last_save: Instant::now(),
@@ -716,6 +720,12 @@ impl App {
                 }
                 let id = self.player.load(input, play);
                 self.ids.insert(id, self.playlist.current);
+                // The engine opens the track before it takes the seek, so it starts there.
+                if let Some((i, path, url, at)) = self.resume.take() {
+                    if i == self.playlist.current && path == entry.path && url == entry.url {
+                        self.seek(at);
+                    }
+                }
                 // An endless stream has no "next"; anything else lines up the next.
                 if !entry.live {
                     self.queue_after(self.playlist.current);
@@ -1237,7 +1247,13 @@ impl App {
         let others: Vec<Rect> = Self::DOCKABLE.iter().filter(|k| !group.iter().any(|(g, _)| g == *k)).filter_map(|k| self.rect(*k)).collect();
         let screen = self.screen();
         let scale = self.win(d.kind).map(Win::scale).unwrap_or(1.0);
-        let (sx, sy) = layout::snap(&moving, &others, screen, (10.0 * scale) as i32);
+        let (sx, mut sy) = layout::snap(&moving, &others, screen, (10.0 * scale) as i32);
+        // macOS keeps each window below the menu bar on its own, which would
+        // push the main window down over the ones docked under it: the
+        // whole group stops there instead (unless a screen above takes it).
+        if cfg!(target_os = "macos") {
+            sy += layout::below_top(&moving.iter().map(|r| Rect { x: r.x + sx, y: r.y + sy, ..*r }).collect::<Vec<_>>(), &self.screens());
+        }
         for (k, (x, y)) in group {
             if let Some(w) = self.wins.get_mut(&k) {
                 w.move_to(x + dx + sx, y + dy + sy);
@@ -2370,6 +2386,37 @@ mod tests {
             tone(&dir.join(format!("{:02} Song {i}.wav", i + 1)), secs);
         }
         dir
+    }
+
+    #[test]
+    fn play_picks_up_where_it_was_when_gamp_closed() {
+        let dir = songs("resume", 2, 6);
+        let data = std::env::temp_dir().join(format!("gamp-resume-{}", std::process::id()));
+        std::fs::create_dir_all(&data).unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.data_dir = data.clone();
+        app.open_files(vec![dir.clone()], true);
+        settle(&mut app);
+        app.play_index(1);
+        settle(&mut app);
+        app.seek(4.0);
+        settle(&mut app);
+        app.save_session();
+        drop(app);
+
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.data_dir = data.clone();
+        app.load_session().unwrap();
+        assert_eq!(app.playlist.current, 1);
+        assert_eq!(app.main.state, PlayState::Stopped);
+        app.play();
+        settle(&mut app);
+        let at = app.player.status().position;
+        assert!(at >= 4.0, "{at}");
+        // Only once: next time, the start.
+        assert!(app.resume.is_none());
+        let _ = std::fs::remove_dir_all(&data);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
