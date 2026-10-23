@@ -150,6 +150,8 @@ pub struct App {
     /// The last place heard in the current track, kept after Stop, so
     /// Gamp opens again where you were.
     pub(crate) heard: Option<(usize, PathBuf, Option<String>, f64)>,
+    /// Waiting, paused, where Gamp last closed (until it plays).
+    pub(crate) reopened: bool,
     /// Files dropped in one go (each arrives as its own event).
     pub(crate) drops: Vec<PathBuf>,
     pub(crate) drop_target: Option<Kind>,
@@ -251,6 +253,7 @@ impl App {
             pending_scan: None,
             resume: None,
             heard: None,
+            reopened: false,
             lib_open_at_start: false,
             session: None,
             last_save: Instant::now(),
@@ -925,6 +928,10 @@ impl App {
     }
 
     pub(crate) fn play_index(&mut self, i: usize) {
+        // The track Gamp reopened on, picked: it goes on from its place.
+        if i == self.playlist.current && self.reopened && self.player.status().state == State::Paused {
+            return self.player.play();
+        }
         if i < self.playlist.entries.len() {
             self.playlist.current = i;
             self.load_current(true);
@@ -1050,6 +1057,9 @@ impl App {
         }
         self.main.state = state;
         self.main.elapsed = s.position;
+        if state == PlayState::Playing {
+            self.reopened = false;
+        }
         if state != PlayState::Stopped && s.track.is_some() {
             if let Some(e) = self.playlist.current() {
                 self.heard = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
@@ -2429,8 +2439,8 @@ mod tests {
         drop(app);
         let mut app = open();
         assert!((app.main.elapsed - 12.0).abs() < 1.0, "{}", app.main.elapsed);
-        // Play goes on from there.
-        app.play();
+        // Play goes on from there (double-clicking it in the playlist too).
+        app.play_index(1);
         settle(&mut app);
         assert_eq!(app.main.state, PlayState::Playing);
         assert!(app.main.elapsed >= 12.0 && app.main.elapsed < 14.0, "{}", app.main.elapsed);

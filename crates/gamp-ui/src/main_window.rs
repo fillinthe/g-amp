@@ -169,14 +169,21 @@ pub fn position_at(x: i32, shade: bool) -> f32 {
     if shade { ((x - 226) as f32 / 17.0).clamp(0.0, 1.0) } else { ((x - 16 - 14) as f32 / 219.0).clamp(0.0, 1.0) }
 }
 
+/// The time shown: where it plays, or where the position bar is being
+/// dragged to. Past 99 minutes (a long mix) it reads hours:minutes.
 fn time_parts(v: &View) -> (bool, u32, u32) {
+    let at = match (v.seeking, v.duration) {
+        (Some(p), Some(d)) => d * p as f64,
+        _ => v.elapsed,
+    };
     let secs = match (v.show_remaining, v.duration) {
-        (true, Some(d)) => (d - v.elapsed).max(0.0),
-        _ => v.elapsed.max(0.0),
+        (true, Some(d)) => (d - at).max(0.0),
+        _ => at.max(0.0),
     };
     let s = secs as u32;
     let (m, s) = (s / 60, s % 60);
-    (v.show_remaining && v.duration.is_some(), m.min(99), s)
+    let (a, b) = if m >= 100 { (m / 60, m % 60) } else { (m, s) };
+    (v.show_remaining && v.duration.is_some(), a.min(99), b)
 }
 
 pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) {
@@ -339,6 +346,23 @@ fn draw_shade(frame: &mut Frame, skin: &Skin, v: &View) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_time_follows_a_drag_and_reads_long_mixes() {
+        let mut v = View { state: PlayState::Playing, elapsed: 83.0, duration: Some(12470.0), ..Default::default() };
+        assert_eq!(time_parts(&v), (false, 1, 23));
+        // Dragged to 40%: 4988 s, 83:08.
+        v.seeking = Some(0.4);
+        assert_eq!(time_parts(&v), (false, 83, 8));
+        // 60%: 7482 s, past 99 minutes: 2 h 04 min.
+        v.seeking = Some(0.6);
+        assert_eq!(time_parts(&v), (false, 2, 4));
+        v.seeking = Some(0.1);
+        assert_eq!(time_parts(&v), (false, 20, 47));
+        v.seeking = None;
+        v.elapsed = 99.0 * 60.0 + 30.0;
+        assert_eq!(time_parts(&v), (false, 99, 30));
+    }
 
     #[test]
     fn controls_are_where_winamp_put_them() {

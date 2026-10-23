@@ -191,6 +191,7 @@ impl App {
             if let Some(e) = self.playlist.current().filter(|_| s.position >= 1.0) {
                 self.resume = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
                 self.load_current(false);
+                self.reopened = true;
             }
         }
         self.main.eq_open = s.windows.get("equalizer").is_none_or(|w| w.2);
