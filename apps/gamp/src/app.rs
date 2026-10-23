@@ -112,6 +112,9 @@ pub struct App {
     pub modifiers: ModifiersState,
     pub(crate) drag: Option<Drag>,
     pub(crate) resize: Option<Resize>,
+    /// The displays, and where the windows docked to the main window sit
+    /// from it; kept for a moment after the displays change.
+    docked: (Vec<Rect>, Vec<(Kind, i32, i32)>, Option<Instant>),
     pub(crate) last_click: Option<(Instant, Kind, i32, i32)>,
     pub(crate) marquee_at: Instant,
     /// What the display showed last tick, to scroll a new text from its start.
@@ -216,6 +219,7 @@ impl App {
             modifiers: ModifiersState::empty(),
             drag: None,
             resize: None,
+            docked: Default::default(),
             last_click: None,
             marquee_at: Instant::now(),
             shown: String::new(),
@@ -277,7 +281,7 @@ impl App {
 
     /// Opens the three windows stacked, the way Winamp starts.
     pub fn open_windows(&mut self, el: &ActiveEventLoop) {
-        let scale = el.primary_monitor().map(|m| m.scale_factor()).unwrap_or(1.0);
+        let scale = crate::win::units(el.primary_monitor().map(|m| m.scale_factor()).unwrap_or(1.0));
         let (x, y) = ((200.0 * scale) as i32, (160.0 * scale) as i32);
         let step = |h: u32| (h as f64 * scale * self.zoom()) as i32;
         let positions = [(Kind::Main, y), (Kind::Eq, y + step(main_window::HEIGHT)), (Kind::Playlist, y + step(main_window::HEIGHT) + step(eq_window::HEIGHT))];
@@ -526,6 +530,43 @@ impl App {
         }
     }
 
+    /// When a display is plugged in, unplugged or changes resolution, the
+    /// system can push windows one by one; the ones that were docked to the
+    /// main window go back around it, for a couple of seconds while it
+    /// settles.
+    fn keep_docked(&mut self) {
+        let screens = self.screens();
+        self.redock(screens);
+    }
+
+    fn redock(&mut self, screens: Vec<Rect>) {
+        if self.drag.is_some() || self.resize.is_some() || screens.is_empty() {
+            return;
+        }
+        if screens != self.docked.0 && !self.docked.0.is_empty() {
+            self.docked.2 = Some(Instant::now() + Duration::from_secs(2));
+        }
+        self.docked.0 = screens;
+        let Some(m) = self.rect(Kind::Main) else { return };
+        if self.docked.2.is_some_and(|t| Instant::now() < t) {
+            for (k, dx, dy) in self.docked.1.clone() {
+                if self.rect(k).is_some_and(|r| (r.x, r.y) != (m.x + dx, m.y + dy)) {
+                    if let Some(w) = self.wins.get_mut(&k) {
+                        w.move_to(m.x + dx, m.y + dy);
+                    }
+                }
+            }
+            if self.window_lost() {
+                self.gather();
+            }
+            return;
+        }
+        self.docked.2 = None;
+        let kinds: Vec<Kind> = [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis].into_iter().filter(|k| self.rect(*k).is_some()).collect();
+        let rects: Vec<Rect> = kinds.iter().filter_map(|k| self.rect(*k)).collect();
+        self.docked.1 = layout::docked_group(&rects, 0).into_iter().skip(1).map(|i| (kinds[i], rects[i].x - m.x, rects[i].y - m.y)).collect();
+    }
+
     /// Whether any open window is off every screen (a display unplugged,
     /// a window dragged away).
     pub(crate) fn window_lost(&self) -> bool {
@@ -537,21 +578,21 @@ impl App {
             })
     }
 
-    /// Every display, in physical pixels; the main one first.
+    /// Every display, in desktop units; the main one first.
     fn screens(&self) -> Vec<Rect> {
         let Some(w) = self.win(Kind::Main).and_then(|w| w.window.as_ref()) else { return Vec::new() };
         let primary = w.primary_monitor();
         primary.iter().cloned().chain(w.available_monitors().filter(|m| Some(m) != primary.as_ref())).map(|m| {
-            let (p, s) = (m.position(), m.size());
-            Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 }
+            let (x, y, w, h) = crate::win::monitor_area(&m);
+            Rect { x, y, w, h }
         }).collect()
     }
 
-    /// The display the main window is on, in physical pixels.
+    /// The display the main window is on, in desktop units.
     fn screen(&self) -> Option<Rect> {
         let m = self.win(Kind::Main)?.window.as_ref()?.current_monitor()?;
-        let (p, s) = (m.position(), m.size());
-        Some(Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 })
+        let (x, y, w, h) = crate::win::monitor_area(&m);
+        Some(Rect { x, y, w, h })
     }
 
     /// Moves the main-stack windows at or below `from`'s bottom edge by `dy`.
@@ -1047,6 +1088,7 @@ impl App {
 
     /// Animation and housekeeping, about 30 times a second while busy.
     pub fn tick(&mut self) {
+        self.keep_docked();
         self.poll_audio();
         self.sleep_tick();
         self.seek_tick();
@@ -2259,9 +2301,9 @@ impl App {
         self.open_files(files, replace);
     }
 
-    pub fn moved(&mut self, k: Kind, x: i32, y: i32) {
+    pub fn moved(&mut self, k: Kind, p: winit::dpi::PhysicalPosition<i32>) {
         if let Some(w) = self.win_mut(k) {
-            w.pos = (x, y);
+            w.moved(p);
         }
     }
 }
@@ -2830,6 +2872,37 @@ mod tests {
         app.wins.get_mut(&Kind::Vis).unwrap().move_to(3000 - vis_w, 3000);
         app.toggle_window(Kind::Vis);
         assert_eq!(r(&app, Kind::Vis).x, r(&app, Kind::Library).right());
+    }
+
+    #[test]
+    fn docked_windows_go_back_when_the_displays_change() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library] {
+            app.redraw(k);
+            app.wins.get_mut(&k).unwrap().show(true);
+        }
+        app.wins.get_mut(&Kind::Main).unwrap().move_to(100, 100);
+        let m = app.rect(Kind::Main).unwrap();
+        let eq = app.rect(Kind::Eq).unwrap().h;
+        app.wins.get_mut(&Kind::Eq).unwrap().move_to(m.x, m.bottom());
+        app.wins.get_mut(&Kind::Playlist).unwrap().move_to(m.x, m.bottom() + eq);
+        app.wins.get_mut(&Kind::Library).unwrap().move_to(2000, 2000);
+        let laptop = vec![Rect { x: 0, y: 0, w: 1512, h: 982 }];
+        app.redock(laptop.clone());
+        // A bigger monitor: the system pushes the equalizer away.
+        app.wins.get_mut(&Kind::Eq).unwrap().move_to(900, 40);
+        app.redock(vec![Rect { x: 0, y: 0, w: 2560, h: 1440 }]);
+        let pos = |app: &App, k| app.win(k).unwrap().pos;
+        assert_eq!(pos(&app, Kind::Eq), (m.x, m.bottom()));
+        assert_eq!(pos(&app, Kind::Playlist), (m.x, m.bottom() + eq));
+        // Not docked before, not moved now.
+        assert_eq!(pos(&app, Kind::Library), (2000, 2000));
+        // Same displays: moving a window yourself stays.
+        app.docked.2 = None;
+        app.redock(vec![Rect { x: 0, y: 0, w: 2560, h: 1440 }]);
+        app.wins.get_mut(&Kind::Eq).unwrap().move_to(900, 40);
+        app.redock(vec![Rect { x: 0, y: 0, w: 2560, h: 1440 }]);
+        assert_eq!(pos(&app, Kind::Eq), (900, 40));
     }
 
     #[test]
