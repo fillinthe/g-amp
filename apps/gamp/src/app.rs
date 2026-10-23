@@ -147,6 +147,9 @@ pub struct App {
     /// Where the track was when Gamp last closed: (playlist index, what it
     /// plays, seconds). Play picks up there.
     pub(crate) resume: Option<(usize, PathBuf, Option<String>, f64)>,
+    /// The last place heard in the current track, kept after Stop, so
+    /// Gamp opens again where you were.
+    pub(crate) heard: Option<(usize, PathBuf, Option<String>, f64)>,
     /// Files dropped in one go (each arrives as its own event).
     pub(crate) drops: Vec<PathBuf>,
     pub(crate) drop_target: Option<Kind>,
@@ -247,6 +250,7 @@ impl App {
             pending_refresh: None,
             pending_scan: None,
             resume: None,
+            heard: None,
             lib_open_at_start: false,
             session: None,
             last_save: Instant::now(),
@@ -1046,6 +1050,11 @@ impl App {
         }
         self.main.state = state;
         self.main.elapsed = s.position;
+        if state != PlayState::Stopped && s.track.is_some() {
+            if let Some(e) = self.playlist.current() {
+                self.heard = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
+            }
+        }
         if let Some(f) = s.format {
             self.main.duration = f.duration;
         }
@@ -2389,32 +2398,61 @@ mod tests {
     }
 
     #[test]
-    fn play_picks_up_where_it_was_when_gamp_closed() {
-        let dir = songs("resume", 2, 6);
+    fn gamp_opens_where_you_were() {
+        let dir = songs("resume", 2, 20);
         let data = std::env::temp_dir().join(format!("gamp-resume-{}", std::process::id()));
         std::fs::create_dir_all(&data).unwrap();
-        let mut app = App::new(OutputKind::Null, None).unwrap();
-        app.data_dir = data.clone();
+        let open = || {
+            let mut app = App::new(OutputKind::Null, None).unwrap();
+            app.data_dir = data.clone();
+            app.load_session();
+            settle(&mut app);
+            app
+        };
+        let mut app = open();
         app.open_files(vec![dir.clone()], true);
         settle(&mut app);
         app.play_index(1);
         settle(&mut app);
-        app.seek(4.0);
+        app.seek(12.0);
         settle(&mut app);
         app.save_session();
         drop(app);
 
-        let mut app = App::new(OutputKind::Null, None).unwrap();
-        app.data_dir = data.clone();
-        app.load_session().unwrap();
+        // Opens on that track, paused at its place, the time showing.
+        let mut app = open();
         assert_eq!(app.playlist.current, 1);
-        assert_eq!(app.main.state, PlayState::Stopped);
+        assert_eq!(app.main.state, PlayState::Paused);
+        assert!((app.main.elapsed - 12.0).abs() < 1.0, "{}", app.main.elapsed);
+        // Closed again without playing: still there.
+        app.save_session();
+        drop(app);
+        let mut app = open();
+        assert!((app.main.elapsed - 12.0).abs() < 1.0, "{}", app.main.elapsed);
+        // Play goes on from there.
         app.play();
         settle(&mut app);
-        let at = app.player.status().position;
-        assert!(at >= 4.0, "{at}");
-        // Only once: next time, the start.
-        assert!(app.resume.is_none());
+        assert_eq!(app.main.state, PlayState::Playing);
+        assert!(app.main.elapsed >= 12.0 && app.main.elapsed < 14.0, "{}", app.main.elapsed);
+
+        // Stopped, then closed: where it stopped.
+        app.seek(8.0);
+        settle(&mut app);
+        app.player.stop(); // the Stop button
+        settle(&mut app);
+        app.save_session();
+        drop(app);
+        let mut app = open();
+        assert!(app.main.elapsed >= 8.0 && app.main.elapsed < 10.0, "{}", app.main.elapsed);
+
+        // Heard to the end: the start next time.
+        app.play();
+        app.seek(18.0);
+        settle(&mut app);
+        app.save_session();
+        drop(app);
+        let app = open();
+        assert_eq!(app.main.state, PlayState::Stopped);
         let _ = std::fs::remove_dir_all(&data);
         let _ = std::fs::remove_dir_all(&dir);
     }

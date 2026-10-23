@@ -186,9 +186,11 @@ impl App {
             self.playlist.current = s.current.min(self.playlist.entries.len() - 1);
             self.sync_playlist();
             self.update_title();
+            // Back where you were: the track loaded, paused at its place
+            // (the display shows it), and Play goes on from there.
             if let Some(e) = self.playlist.current().filter(|_| s.position >= 1.0) {
                 self.resume = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
-                self.say(&format!("PLAY RESUMES AT {}", crate::app::clock(s.position)));
+                self.load_current(false);
             }
         }
         self.main.eq_open = s.windows.get("equalizer").is_none_or(|w| w.2);
@@ -196,18 +198,14 @@ impl App {
         Some(s)
     }
 
-    /// Where to pick up next time: the current track's place, unless it's
-    /// stopped, live, or not started yet (then the place it was to resume at).
+    /// Where to pick up next time: the last place heard in the current
+    /// track (even after Stop), or where it was to resume; its start if it's
+    /// live or was heard to the end.
     fn resume_point(&self) -> f64 {
-        let st = self.player.status();
-        let live = self.playlist.current().is_some_and(|e| e.live);
-        if live {
-            0.0
-        } else if st.track.is_some() && st.state != gamp_audio::State::Stopped {
-            st.position
-        } else {
-            self.resume.as_ref().map_or(0.0, |r| r.3)
-        }
+        let Some(e) = self.playlist.current().filter(|e| !e.live) else { return 0.0 };
+        let this = |r: &&(usize, PathBuf, Option<String>, f64)| r.0 == self.playlist.current && r.1 == e.path && r.2 == e.url;
+        let at = self.heard.as_ref().filter(this).or(self.resume.as_ref().filter(this)).map_or(0.0, |r| r.3);
+        if e.duration.is_some_and(|d| at > d - 5.0) { 0.0 } else { at }
     }
 
     /// Puts the windows where they were (if that's still on a screen).
