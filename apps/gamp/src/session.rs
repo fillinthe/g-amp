@@ -14,6 +14,9 @@ use crate::playlist::Entry;
 #[serde(default)]
 pub struct Session {
     pub windows: HashMap<String, (i32, i32, bool)>,
+    /// `windows` are in desktop units (on a Mac, points; older sessions
+    /// saved a Mac's physical pixels).
+    pub units: bool,
     /// Older sessions: double size (now `size`).
     pub double: bool,
     pub size: f64,
@@ -78,6 +81,7 @@ impl App {
         }
         let s = Session {
             windows,
+            units: true,
             double: self.size == 2.0,
             size: self.size,
             on_top: self.on_top,
@@ -188,12 +192,20 @@ impl App {
     /// Puts the windows where they were (if that's still on a screen).
     pub fn place_windows(&mut self, s: &Session) {
         for k in [Kind::Main, Kind::Eq, Kind::Playlist, Kind::Library, Kind::Vis] {
-            let Some(&(x, y, visible)) = s.windows.get(name(k)) else { continue };
-            let on_screen = self.win(k).and_then(|w| w.window.as_ref()).is_some_and(|w| {
-                w.available_monitors().any(|m| {
+            let Some(&(mut x, mut y, visible)) = s.windows.get(name(k)) else { continue };
+            let monitors: Vec<_> = self.win(k).and_then(|w| w.window.as_ref()).map(|w| w.available_monitors().collect()).unwrap_or_default();
+            if !s.units && cfg!(target_os = "macos") {
+                // Saved in physical pixels of the display it was on.
+                let on = monitors.iter().find(|m| {
                     let (p, z) = (m.position(), m.size());
-                    x >= p.x - 50 && y >= p.y - 10 && x < p.x + z.width as i32 - 40 && y < p.y + z.height as i32 - 20
-                })
+                    x >= p.x && y >= p.y && x < p.x + z.width as i32 && y < p.y + z.height as i32
+                });
+                let sf = on.map_or(1.0, |m| m.scale_factor());
+                (x, y) = ((x as f64 / sf).round() as i32, (y as f64 / sf).round() as i32);
+            }
+            let on_screen = monitors.iter().any(|m| {
+                let (px, py, w, h) = crate::win::monitor_area(m);
+                x >= px - 50 && y >= py - 10 && x < px + w - 40 && y < py + h - 20
             });
             if let Some(w) = self.win_mut(k) {
                 if on_screen {

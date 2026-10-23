@@ -118,7 +118,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::RedrawRequested => app.redraw(k),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => app.mark(k),
-            WindowEvent::Moved(p) => app.moved(k, p.x, p.y),
+            WindowEvent::Moved(p) => app.moved(k, p),
             WindowEvent::Focused(f) => app.set_focus(k, f),
             WindowEvent::Occluded(o) => app.occluded(k, o),
             WindowEvent::ModifiersChanged(m) => app.modifiers = m.state(),

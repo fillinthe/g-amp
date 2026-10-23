@@ -5,11 +5,48 @@ use std::num::NonZeroU32;
 use std::rc::Rc;
 
 use gamp_ui::Frame;
-use winit::dpi::{LogicalSize, PhysicalPosition};
+use winit::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
+use winit::monitor::MonitorHandle;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowLevel};
 
 type Surface = softbuffer::Surface<Rc<Window>, Rc<Window>>;
+
+// Window places and sizes are in desktop units: physical pixels, except on
+// macOS, where they're points. A Mac's physical pixels depend on each
+// window's display, so windows docked across a Retina and a regular screen
+// would disagree on where they are, and fly apart.
+const POINTS: bool = cfg!(target_os = "macos");
+
+/// Desktop units per logical pixel on a display of scale factor `sf`.
+pub fn units(sf: f64) -> f64 {
+    if POINTS { 1.0 } else { sf }
+}
+
+fn desk_pos(p: PhysicalPosition<i32>, sf: f64) -> (i32, i32) {
+    if POINTS {
+        let l = p.to_logical::<f64>(sf);
+        (l.x.round() as i32, l.y.round() as i32)
+    } else {
+        (p.x, p.y)
+    }
+}
+
+fn desk_size(s: PhysicalSize<u32>, sf: f64) -> (i32, i32) {
+    if POINTS {
+        let l = s.to_logical::<f64>(sf);
+        (l.width.round() as i32, l.height.round() as i32)
+    } else {
+        (s.width as i32, s.height as i32)
+    }
+}
+
+/// A display's area (x, y, w, h), in desktop units.
+pub fn monitor_area(m: &MonitorHandle) -> (i32, i32, i32, i32) {
+    let sf = m.scale_factor();
+    let ((x, y), (w, h)) = (desk_pos(m.position(), sf), desk_size(m.size(), sf));
+    (x, y, w, h)
+}
 
 /// Gamp's icon for the taskbar (Windows, Linux).
 fn icon() -> Option<winit::window::Icon> {
@@ -27,7 +64,7 @@ pub struct Win {
     pub cursor: (i32, i32),
     /// Pointer in the window's physical pixels.
     pub local: (f64, f64),
-    /// Outer position, physical pixels (tracked; set when we move it).
+    /// Outer position, desktop units (tracked; set when we move it).
     pub pos: (i32, i32),
     pub visible: bool,
     /// Fully covered or on another Space: nothing to draw for.
@@ -40,7 +77,7 @@ impl Win {
         Win { window: None, surface: None, frame: Frame::new(1, 1), cursor: (0, 0), local: (0.0, 0.0), pos: (0, 0), visible: true, occluded: false, dirty: true }
     }
 
-    /// A borderless window `size` logical pixels big at `pos` (physical).
+    /// A borderless window `size` logical pixels big at `pos` (desktop units).
     pub fn open(el: Option<&ActiveEventLoop>, title: &str, size: LogicalSize<u32>, pos: (i32, i32), popup: bool) -> Win {
         let mut w = Win::headless();
         w.pos = pos;
@@ -50,7 +87,7 @@ impl Win {
             .with_decorations(false)
             .with_resizable(false)
             .with_inner_size(size)
-            .with_position(PhysicalPosition::new(pos.0, pos.1))
+            .with_position(if POINTS { LogicalPosition::new(pos.0, pos.1).into() } else { winit::dpi::Position::from(PhysicalPosition::new(pos.0, pos.1)) })
             // Hidden until shown: a window made visible and hidden straight
             // after can stay on screen on macOS. Menus open at once.
             .with_visible(popup);
@@ -65,7 +102,7 @@ impl Win {
                 let window = Rc::new(window);
                 let surface = softbuffer::Context::new(window.clone()).ok().and_then(|ctx| Surface::new(&ctx, window.clone()).ok());
                 if let Ok(p) = window.outer_position() {
-                    w.pos = (p.x, p.y);
+                    w.pos = desk_pos(p, window.scale_factor());
                 }
                 w.window = Some(window);
                 w.surface = surface;
@@ -86,19 +123,23 @@ impl Win {
         }
     }
 
+    /// Desktop units per logical pixel.
     pub fn scale(&self) -> f64 {
-        self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0)
+        units(self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0))
     }
 
-    /// Outer size in physical pixels.
+    /// Outer size in desktop units.
     pub fn size_px(&self) -> (i32, i32) {
         match &self.window {
-            Some(w) => {
-                let s = w.outer_size();
-                (s.width as i32, s.height as i32)
-            }
+            Some(w) => desk_size(w.outer_size(), w.scale_factor()),
             None => (self.frame.width as i32, self.frame.height as i32),
         }
+    }
+
+    /// The system moved the window to `p`.
+    pub fn moved(&mut self, p: PhysicalPosition<i32>) {
+        let sf = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
+        self.pos = desk_pos(p, sf);
     }
 
     pub fn set_size(&mut self, size: LogicalSize<u32>) {
@@ -111,7 +152,11 @@ impl Win {
     pub fn move_to(&mut self, x: i32, y: i32) {
         self.pos = (x, y);
         if let Some(w) = &self.window {
-            w.set_outer_position(PhysicalPosition::new(x, y));
+            if POINTS {
+                w.set_outer_position(LogicalPosition::new(x, y));
+            } else {
+                w.set_outer_position(PhysicalPosition::new(x, y));
+            }
         }
     }
 
@@ -145,9 +190,10 @@ impl Win {
         self.cursor = ((x * self.frame.width as f64 / ww) as i32, (y * self.frame.height as f64 / wh) as i32);
     }
 
-    /// Pointer position on the screen, physical pixels.
+    /// Pointer position on the screen, desktop units.
     pub fn global_cursor(&self) -> (f64, f64) {
-        (self.pos.0 as f64 + self.local.0, self.pos.1 as f64 + self.local.1)
+        let k = if POINTS { 1.0 / self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0) } else { 1.0 };
+        (self.pos.0 as f64 + self.local.0 * k, self.pos.1 as f64 + self.local.1 * k)
     }
 
     /// Copies the frame to the window, scaled up sharply to fill it.
