@@ -145,6 +145,10 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) {
     frame.sprite(skin, if v.focused { "EQ_TITLE_BAR_SELECTED" } else { "EQ_TITLE_BAR" }, 0, 0);
     if pressed(Control::Shade) {
         frame.sprite(skin, "EQ_MAXIMIZE_BUTTON_ACTIVE_FALLBACK", 254, 3);
+    } else if !v.focused {
+        // The unfocused title bar's shade button is the pressed one (the
+        // two share pixels in eqmain.bmp); Winamp shows it up.
+        frame.sprite(skin, "EQ_SHADE_BUTTON", 254, 3);
     }
     if pressed(Control::Close) {
         frame.sprite(skin, "EQ_CLOSE_BUTTON_ACTIVE", 264, 3);
@@ -246,5 +250,18 @@ mod tests {
         if let Ok(dir) = std::env::var("GAMP_SNAPSHOTS") {
             f.to_image().save(format!("{dir}/eq.png")).unwrap();
         }
+    }
+
+    #[test]
+    fn shade_button_is_up_when_not_focused() {
+        let skin = Skin::default_skin();
+        let button = |v: &View| {
+            let mut f = Frame::new(1, 1);
+            draw(&mut f, &skin, v);
+            (3..12).flat_map(|y| (254..263).map(move |x| (x, y))).map(|(x, y)| f.pixels[(y * WIDTH + x) as usize]).collect::<Vec<_>>()
+        };
+        let up = button(&View { focused: true, ..Default::default() });
+        assert_eq!(button(&View::default()), up);
+        assert_ne!(button(&View { pressed: Some(Control::Shade), ..Default::default() }), up);
     }
 }
