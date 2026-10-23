@@ -41,11 +41,32 @@ fn desk_size(s: PhysicalSize<u32>, sf: f64) -> (i32, i32) {
     }
 }
 
-/// A display's area (x, y, w, h), in desktop units.
+/// A display's area (x, y, w, h), in desktop units. On a Mac, without the
+/// menu bar and the Dock: macOS keeps windows out from under the menu bar,
+/// so a window put there is pushed down, away from the ones docked to it.
 pub fn monitor_area(m: &MonitorHandle) -> (i32, i32, i32, i32) {
     let sf = m.scale_factor();
     let ((x, y), (w, h)) = (desk_pos(m.position(), sf), desk_size(m.size(), sf));
+    #[cfg(target_os = "macos")]
+    if let Some(v) = visible_area((x, y, w, h)) {
+        return v;
+    }
     (x, y, w, h)
+}
+
+/// The visible part of the screen at `area` (top-left points).
+#[cfg(target_os = "macos")]
+fn visible_area(area: (i32, i32, i32, i32)) -> Option<(i32, i32, i32, i32)> {
+    let mtm = objc2::MainThreadMarker::new()?;
+    let screens = objc2_app_kit::NSScreen::screens(mtm);
+    // AppKit counts up from the bottom of the first screen.
+    let top = screens.firstObject()?.frame().size.height;
+    let flip = |r: objc2_foundation::NSRect| (r.origin.x.round() as i32, (top - r.origin.y - r.size.height).round() as i32, r.size.width.round() as i32, r.size.height.round() as i32);
+    let s = screens.iter().find(|s| {
+        let f = flip(s.frame());
+        (f.0 - area.0).abs() <= 1 && (f.1 - area.1).abs() <= 1 && (f.2 - area.2).abs() <= 1
+    })?;
+    Some(flip(s.visibleFrame()))
 }
 
 /// Gamp's icon for the taskbar (Windows, Linux).

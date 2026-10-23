@@ -82,6 +82,18 @@ pub fn snap(moving: &[Rect], others: &[Rect], screen: Option<Rect>, threshold: i
     (best_x.unwrap_or(0), best_y.unwrap_or(0))
 }
 
+/// How far down `rects` must move so none starts above the top of the
+/// screen it's on (0 if a top-left corner is on some screen).
+pub fn below_top(rects: &[Rect], screens: &[Rect]) -> i32 {
+    let on = |x: i32, y: i32, s: &Rect| x >= s.x && x < s.right() && y >= s.y && y < s.bottom();
+    rects
+        .iter()
+        .filter(|r| !screens.iter().any(|s| on(r.x, r.y, s)))
+        .filter_map(|r| screens.iter().filter(|s| r.x >= s.x && r.x < s.right() && r.y < s.y).map(|s| s.y - r.y).min())
+        .max()
+        .unwrap_or(0)
+}
+
 /// Where a window `w` wide docks beside `group`: on its right, or on its
 /// left when the right would run off `screen` and the left fits.
 pub fn beside(group: &[Rect], w: i32, screen: Option<Rect>) -> i32 {
@@ -118,6 +130,16 @@ mod tests {
         assert_eq!(beside(&[edge], 300, Some(s)), 800);
         // Fits on neither side: the right, as before.
         assert_eq!(beside(&[Rect { x: 200, w: 1100, ..MAIN }], 400, Some(s)), 1300);
+    }
+
+    #[test]
+    fn stops_under_the_menu_bar_unless_a_screen_is_above() {
+        let below_bar = Rect { x: 0, y: 25, w: 1512, h: 900 };
+        let up = Rect { x: 10, y: 5, w: 275, h: 116 };
+        assert_eq!(below_top(&[up, Rect { y: 121, ..up }], &[below_bar]), 20);
+        assert_eq!(below_top(&[Rect { y: 40, ..up }], &[below_bar]), 0);
+        let above = Rect { x: 0, y: -1440, w: 2560, h: 1440 };
+        assert_eq!(below_top(&[Rect { y: -30, ..up }], &[below_bar, above]), 0);
     }
 
     #[test]

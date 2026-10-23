@@ -41,6 +41,8 @@ pub struct Session {
     pub vis_hold: bool,
     pub time_remaining: bool,
     pub shade: (bool, bool, bool),
+    /// Where the current track was (seconds; 0 at its start or stopped).
+    pub position: f64,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -120,6 +122,7 @@ impl App {
             vis_hold: !self.drop.engine.auto,
             time_remaining: self.main.show_remaining,
             shade: (self.main.shade, self.eq.shade, self.pl.shade),
+            position: self.resume_point(),
         };
         if let Ok(json) = serde_json::to_vec_pretty(&s) {
             let path = self.data_dir.join(FILE);
@@ -183,10 +186,28 @@ impl App {
             self.playlist.current = s.current.min(self.playlist.entries.len() - 1);
             self.sync_playlist();
             self.update_title();
+            if let Some(e) = self.playlist.current().filter(|_| s.position >= 1.0) {
+                self.resume = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
+                self.say(&format!("PLAY RESUMES AT {}", crate::app::clock(s.position)));
+            }
         }
         self.main.eq_open = s.windows.get("equalizer").is_none_or(|w| w.2);
         self.main.playlist_open = s.windows.get("playlist").is_none_or(|w| w.2);
         Some(s)
+    }
+
+    /// Where to pick up next time: the current track's place, unless it's
+    /// stopped, live, or not started yet (then the place it was to resume at).
+    fn resume_point(&self) -> f64 {
+        let st = self.player.status();
+        let live = self.playlist.current().is_some_and(|e| e.live);
+        if live {
+            0.0
+        } else if st.track.is_some() && st.state != gamp_audio::State::Stopped {
+            st.position
+        } else {
+            self.resume.as_ref().map_or(0.0, |r| r.3)
+        }
     }
 
     /// Puts the windows where they were (if that's still on a screen).
