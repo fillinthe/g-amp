@@ -899,7 +899,8 @@ impl App {
     fn play(&mut self) {
         match self.player.status().state {
             State::Paused => self.player.play(),
-            State::Playing => self.seek(0.0),
+            // Play while playing pauses (Winamp restarted the track).
+            State::Playing => self.player.pause(),
             State::Stopped => {
                 if self.playlist.entries.is_empty() {
                     self.pick_files(true);
@@ -2482,6 +2483,15 @@ mod tests {
         settle(&mut app);
         assert_eq!(app.main.state, PlayState::Paused);
         click(&mut app, Kind::Main, 45, 95); // play
+        settle(&mut app);
+        assert_eq!(app.main.state, PlayState::Playing);
+        // Play again pauses where it is, not back to the start.
+        let was = app.main.elapsed;
+        click(&mut app, Kind::Main, 45, 95);
+        settle(&mut app);
+        assert_eq!(app.main.state, PlayState::Paused);
+        assert!(app.main.elapsed >= was, "{} < {was}", app.main.elapsed);
+        click(&mut app, Kind::Main, 45, 95);
         settle(&mut app);
         assert_eq!(app.main.state, PlayState::Playing);
         click(&mut app, Kind::Main, 112, 95); // next
