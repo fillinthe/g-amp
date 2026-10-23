@@ -82,8 +82,19 @@ pub fn run() -> anyhow::Result<()> {
         wait(&mut app, 30, "a status while it connects", |a| a.main.message.as_deref() == Some("CONNECTING..."))?;
         let soundcloud = |a: &App| a.playlist.current().is_some_and(|e| e.url.as_deref().is_some_and(|u| u.contains("/soundcloud/")));
         wait(&mut app, 120, "a SoundCloud link plays", |a| soundcloud(a) && a.main.state == PlayState::Playing && a.main.elapsed > 1.0 && a.main.message.is_none())?;
-        app.seek(120.0);
-        wait(&mut app, 30, "seeking in a SoundCloud stream", |a| soundcloud(a) && a.main.elapsed >= 120.0)?;
+        // GAMP_SELFTEST_AT=<seconds>: how far in (a long mix, far).
+        let at: f64 = std::env::var("GAMP_SELFTEST_AT").ok().and_then(|v| v.parse().ok()).unwrap_or(120.0);
+        app.seek(at);
+        wait(&mut app, 90, "seeking in a SoundCloud stream", |a| soundcloud(a) && a.main.elapsed >= at)?;
+        // Closed and opened again: there, paused, and Play goes on.
+        app.save_session();
+        let backend = app.backend.take();
+        drop(app);
+        app = App::new(OutputKind::Null, backend)?;
+        app.load_session();
+        wait(&mut app, 90, "it opens paused where it was", |a| soundcloud(a) && a.main.state == PlayState::Paused && (a.main.elapsed - at).abs() < 3.0)?;
+        app.player.play();
+        wait(&mut app, 60, "Play goes on from there", |a| a.main.state == PlayState::Playing && a.main.elapsed > at + 1.0 && a.main.elapsed < at + 20.0)?;
     }
 
     // Every window draws.

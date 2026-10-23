@@ -174,7 +174,8 @@ impl ApplicationHandler<UserEvent> for Shell {
             app.save_session();
             el.exit();
         }
-        if app.last_save.elapsed() > std::time::Duration::from_secs(30) {
+        // Often enough that a force quit or a crash loses only a moment.
+        if app.last_save.elapsed() > std::time::Duration::from_secs(10) {
             app.last_save = Instant::now();
             app.save_session();
         }
