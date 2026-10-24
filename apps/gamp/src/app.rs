@@ -975,10 +975,7 @@ impl App {
         let s = self.player.status();
         let waited = at.elapsed();
         let landed = (s.position - to).abs() < 2.0 && s.track.is_some();
-        // Stopped: it couldn't open (a track just loading reads Stopped
-        // for a moment too, so not straight away).
-        let failed = s.state == State::Stopped && s.track.is_none() && waited > Duration::from_secs(3);
-        if landed || failed || waited > Duration::from_secs(60) {
+        if landed || waited > Duration::from_secs(60) {
             self.seek_wait = None;
             if self.main.message.as_deref() == Some(SEEKING) {
                 self.main.message = None;
@@ -1056,6 +1053,7 @@ impl App {
                 }
                 AudioEvent::Error { id, message } => {
                     log::warn!("playback: {message}");
+                    self.seek_wait = None;
                     if self.ids.get(&id) == Some(&self.playlist.current) {
                         // Said even when the next track takes over, so a skip isn't a mystery.
                         // The track Gamp reopened on stays (Play tries it again, at its place).
@@ -1072,6 +1070,9 @@ impl App {
         let state = match s.state {
             State::Playing => PlayState::Playing,
             State::Paused => PlayState::Paused,
+            // Reopened where it was, still opening (a stream takes a moment):
+            // it shows paused at that place from the start.
+            State::Stopped if self.reopened && self.resume.is_some() => PlayState::Paused,
             State::Stopped => PlayState::Stopped,
         };
         if state != self.main.state || (s.position as u64) != (self.main.elapsed as u64) {
@@ -1087,8 +1088,9 @@ impl App {
         // While a seek is on its way (slow, far into a long stream), the time
         // and the position bar show where it's going, and that's the place.
         if self.main.pressed != Some(Control::Position) {
-            let to = match (self.seek_wait, self.main.duration) {
-                (Some((to, _)), Some(d)) if d > 0.0 => Some((to / d) as f32),
+            let target = self.seek_wait.map(|w| w.0).or(self.resume.as_ref().map(|r| r.3));
+            let to = match (target, self.main.duration) {
+                (Some(to), Some(d)) if d > 0.0 => Some((to / d) as f32),
                 _ => None,
             };
             if to != self.main.seeking {
@@ -1233,7 +1235,8 @@ impl App {
         }
         if now.duration_since(self.blink_at) >= Duration::from_millis(1000) {
             self.blink_at = now;
-            self.main.blink_on = !self.main.blink_on;
+            // Reopened where it was: the time stays up, plain to see, until it plays.
+            self.main.blink_on = self.reopened || !self.main.blink_on;
             if self.main.state == PlayState::Paused {
                 self.mark(Kind::Main);
             }
@@ -2482,6 +2485,16 @@ mod tests {
         assert_eq!(app.playlist.current, 1);
         assert_eq!(app.main.state, PlayState::Paused);
         assert!((app.main.elapsed - 12.0).abs() < 1.0, "{}", app.main.elapsed);
+        if let Ok(dir) = std::env::var("GAMP_SNAPSHOTS") {
+            app.redraw(Kind::Main);
+            app.win(Kind::Main).unwrap().frame.to_image().save(format!("{dir}/reopened.png")).unwrap();
+        }
+        // The time stays up (no pause blink) until it plays.
+        for _ in 0..3 {
+            app.blink_at = Instant::now() - Duration::from_secs(2);
+            app.tick();
+            assert!(app.main.blink_on);
+        }
         // Closed again without playing: still there.
         app.save_session();
         drop(app);
