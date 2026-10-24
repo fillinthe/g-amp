@@ -278,7 +278,10 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) {
 
     // Running time and mini time in the right corner.
     frame.text(skin, &v.running, w - 150 + 7, h - 38 + 10, 90, 0);
-    frame.text(skin, &v.mini_time, w - 150 + 66, h - 38 + 23, 30, 0);
+    // An hour or more ("1:23:45") starts a little left to fit.
+    let long = v.mini_time.trim().len() > 5;
+    let text = if long { v.mini_time.trim_start() } else { v.mini_time.as_str() };
+    frame.text(skin, text, w - 150 + if long { 61 } else { 66 }, h - 38 + 23, if long { 35 } else { 30 }, 0);
 
     // An open menu: its items above the button, with the bar beside.
     if let Some((menu, hover)) = v.menu {
