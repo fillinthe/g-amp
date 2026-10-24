@@ -181,6 +181,7 @@ fn time_parts(v: &View) -> (bool, Option<u32>, u32, u32) {
         (true, Some(d)) => (d - at).max(0.0),
         _ => at.max(0.0),
     } as u32;
+    // ponytail: one digit of hours fits the display; a 10-hour-plus recording reads 9:MM:SS (the title shows the full time).
     let hours = (secs >= 3600).then(|| (secs / 3600).min(9));
     let m = if hours.is_some() { secs / 60 % 60 } else { secs / 60 };
     (v.show_remaining && v.duration.is_some(), hours, m, secs % 60)
@@ -264,8 +265,10 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) {
             if let Some(c) = digit_color(skin, &digit(8)) {
                 frame.fill(45, 29, 2, 2, c);
                 frame.fill(45, 34, 2, 2, c);
-                // Between minutes and seconds too, unless the skin has one.
-                let lit = (26..39).any(|y| (69..78).any(|x| frame.pixels[(y * WIDTH as i32 + x) as usize] == c));
+                // Between minutes and seconds too, unless the skin has one
+                // (anything bright there, in any shade).
+                let lum = |p: u32| (p >> 16 & 0xFF) * 3 + (p >> 8 & 0xFF) * 6 + (p & 0xFF);
+                let lit = (26..39).any(|y| (69..78).any(|x| lum(frame.pixels[(y * WIDTH as i32 + x) as usize]) * 2 > lum(c)));
                 if !lit {
                     frame.fill(72, 29, 2, 2, c);
                     frame.fill(72, 34, 2, 2, c);

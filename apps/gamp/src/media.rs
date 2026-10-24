@@ -59,7 +59,7 @@ impl App {
                 MediaControlEvent::Toggle => self.media_toggle(),
                 MediaControlEvent::Next => self.menu_action("play:next", None),
                 MediaControlEvent::Previous => self.menu_action("play:prev", None),
-                MediaControlEvent::Stop => self.player.stop(),
+                MediaControlEvent::Stop => self.stop(),
                 MediaControlEvent::Seek(SeekDirection::Forward) => self.menu_action("play:fwd", None),
                 MediaControlEvent::Seek(SeekDirection::Backward) => self.menu_action("play:back", None),
                 MediaControlEvent::SeekBy(dir, d) => {
