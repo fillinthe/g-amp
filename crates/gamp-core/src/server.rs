@@ -356,9 +356,9 @@ async fn media_cloud(UrlPath(sid): UrlPath<String>, Query(q): Query<HashMap<Stri
     send_file(&path, library::mime_for(&path), &headers).await
 }
 
-async fn media_soundcloud(UrlPath(file): UrlPath<String>, headers: HeaderMap) -> Result<Response, ApiError> {
+async fn media_soundcloud(UrlPath(file): UrlPath<String>, Query(q): Query<std::collections::HashMap<String, String>>, headers: HeaderMap) -> Result<Response, ApiError> {
     let urn = file.strip_suffix(".mp3").unwrap_or(&file).to_owned();
-    soundcloud::stream(urn, headers).await
+    soundcloud::stream(urn, headers, q.get("from").and_then(|f| f.parse().ok())).await
 }
 
 async fn media_spotify(UrlPath(file): UrlPath<String>, headers: HeaderMap) -> Result<Response, ApiError> {

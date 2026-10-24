@@ -19,6 +19,8 @@ pub struct HttpSource {
     len: Option<u64>,
     seekable: bool,
     mime: Option<String>,
+    /// Where in the track this file begins (`X-Gamp-Start`; 0 normally).
+    start: f64,
 }
 
 fn client() -> reqwest::blocking::Client {
@@ -45,7 +47,12 @@ impl HttpSource {
             .or_else(|| h.get("content-length").and_then(|v| v.to_str().ok()?.parse().ok()));
         let ranges = status == reqwest::StatusCode::PARTIAL_CONTENT || h.get("accept-ranges").is_some_and(|v| v.as_bytes() == b"bytes");
         let mime = h.get("content-type").and_then(|v| v.to_str().ok()).map(|m| m.split(';').next().unwrap_or("").trim().to_lowercase());
-        Ok(HttpSource { inner: Mutex::new(Inner { client, url: url.to_owned(), pos: 0, resp: Some(resp) }), len: total, seekable: ranges && total.is_some(), mime })
+        let start = h.get("x-gamp-start").and_then(|v| v.to_str().ok()?.parse().ok()).unwrap_or(0.0);
+        Ok(HttpSource { inner: Mutex::new(Inner { client, url: url.to_owned(), pos: 0, resp: Some(resp) }), len: total, seekable: ranges && total.is_some(), mime, start })
+    }
+
+    pub fn start(&self) -> f64 {
+        self.start
     }
 
     /// The format the server says it sent, when that's specific.
