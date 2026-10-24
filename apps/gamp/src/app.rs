@@ -720,6 +720,8 @@ impl App {
 
     pub(crate) fn load_current(&mut self, play: bool) {
         let Some(entry) = self.playlist.current().cloned() else { return };
+        // A seek still on its way was for the track before.
+        self.seek_wait = None;
         match self.input_for(&entry) {
             Ok(input) => {
                 if play && entry.url.is_some() {
@@ -927,6 +929,14 @@ impl App {
         }
     }
 
+    /// Stop, by hand: also lets go of a place Gamp reopened at.
+    pub(crate) fn stop(&mut self) {
+        self.seek_wait = None;
+        self.resume = None;
+        self.reopened = false;
+        self.player.stop();
+    }
+
     fn pause(&mut self) {
         match self.player.status().state {
             State::Playing => self.player.pause(),
@@ -1032,6 +1042,11 @@ impl App {
         while let Ok(e) = self.player.events().try_recv() {
             match e {
                 AudioEvent::Started { id, format } => {
+                    if !format.seekable {
+                        // It can't be taken to a place: it plays from where it is.
+                        self.seek_wait = None;
+                        self.resume = None;
+                    }
                     if let Some(&i) = self.ids.get(&id) {
                         self.playlist.current = i;
                         self.update_title();
@@ -1047,14 +1062,15 @@ impl App {
                     }
                 }
                 AudioEvent::Finished { .. } => {
+                    self.seek_wait = None;
                     if std::mem::take(&mut self.stop_after) {
                         self.say("STOPPED AFTER THE TRACK");
                     }
                 }
                 AudioEvent::Error { id, message } => {
                     log::warn!("playback: {message}");
-                    self.seek_wait = None;
                     if self.ids.get(&id) == Some(&self.playlist.current) {
+                        self.seek_wait = None;
                         // Said even when the next track takes over, so a skip isn't a mystery.
                         // The track Gamp reopened on stays (Play tries it again, at its place).
                         if self.resume.is_none() && self.playlist.next() {
@@ -1081,7 +1097,10 @@ impl App {
             self.mark(Kind::Playlist);
         }
         self.main.state = state;
-        self.main.elapsed = s.position;
+        self.main.elapsed = match &self.resume {
+            Some(r) if s.track.is_none() => r.3,
+            _ => s.position,
+        };
         if state == PlayState::Playing {
             self.reopened = false;
         }
@@ -1432,7 +1451,7 @@ impl App {
             Control::Next => self.step(true),
             Control::Play => self.play(),
             Control::Pause => self.pause(),
-            Control::Stop => self.player.stop(),
+            Control::Stop => self.stop(),
             Control::Eject => self.pick_files(true),
             Control::Shuffle => self.set_shuffle(!self.main.shuffle),
             Control::Repeat => self.set_repeat(!self.main.repeat),
@@ -1668,7 +1687,7 @@ impl App {
                 Mini::Previous => self.step(false),
                 Mini::Play => self.play(),
                 Mini::Pause => self.pause(),
-                Mini::Stop => self.player.stop(),
+                Mini::Stop => self.stop(),
                 Mini::Next => self.step(true),
                 Mini::Eject => self.pick_files(true),
             },
@@ -2172,7 +2191,7 @@ impl App {
             "play:prev" => self.step(false),
             "play:play" => self.play(),
             "play:pause" => self.pause(),
-            "play:stop" => self.player.stop(),
+            "play:stop" => self.stop(),
             "play:next" => self.step(true),
             "play:back" => self.seek_by(-5.0),
             "play:fwd" => self.seek_by(5.0),
@@ -2296,7 +2315,7 @@ impl App {
                 "c" => self.pause(),
                 "v" if ctrl => self.toggle_stop_after(),
                 "v" if self.modifiers.shift_key() => self.fade_stop(),
-                "v" => self.player.stop(),
+                "v" => self.stop(),
                 "b" => self.step(true),
                 "l" if self.modifiers.shift_key() => self.pick_folder(true),
                 "l" => self.pick_files(true),
@@ -2581,6 +2600,18 @@ mod tests {
         app.tick();
         assert_eq!(app.main.seeking, Some(0.75));
         assert_eq!(app.heard.as_ref().unwrap().3, 15.0);
+        // Another track picked meanwhile: the seek doesn't follow it.
+        app.play_index(0);
+        app.tick();
+        assert!(app.seek_wait.is_none());
+        assert_eq!(app.main.seeking, None);
+        // Stop lets go of a place Gamp reopened at.
+        app.resume = Some((0, PathBuf::new(), None, 5.0));
+        app.reopened = true;
+        app.stop();
+        settle(&mut app);
+        assert!(app.resume.is_none() && !app.reopened);
+        assert_eq!(app.main.state, PlayState::Stopped);
         let _ = std::fs::remove_dir_all(&data);
         let _ = std::fs::remove_dir_all(&dir);
     }
