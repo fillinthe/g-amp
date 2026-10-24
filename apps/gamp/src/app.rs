@@ -145,7 +145,9 @@ pub struct App {
     /// When to ask how a folder scan is going.
     pub(crate) pending_scan: Option<Instant>,
     /// Where the track was when Gamp last closed: (playlist index, what it
-    /// plays, seconds). Play picks up there.
+    /// plays, seconds). Kept, and saved as the place, until the track is
+    /// really there: a stream that's slow to seek, or can't open yet (just
+    /// after waking up), doesn't lose it.
     pub(crate) resume: Option<(usize, PathBuf, Option<String>, f64)>,
     /// The last place heard in the current track, kept after Stop, so
     /// Gamp opens again where you were.
@@ -727,14 +729,26 @@ impl App {
                 }
                 let id = self.player.load(input, play);
                 self.ids.insert(id, self.playlist.current);
-                // The engine opens the track before it takes the seek, so it starts there.
-                if let Some((i, path, url, at)) = self.resume.take() {
-                    if i == self.playlist.current && path == entry.path && url == entry.url {
-                        self.seek(at);
+                match self.resume.clone() {
+                    // The engine opens the track before it takes the seek, so it starts there.
+                    Some((i, path, url, at)) if i == self.playlist.current && path == entry.path && url == entry.url => {
+                        log::info!("resume: opening track {i} at {at:.1}s");
+                        self.player.seek(at);
+                        self.seek_wait = Some((at, Instant::now()));
+                        if entry.duration.is_some() {
+                            self.main.duration = entry.duration;
+                        }
+                    }
+                    _ => {
+                        if self.resume.take().is_some() {
+                            log::info!("resume: another track was picked");
+                        }
                     }
                 }
-                // An endless stream has no "next"; anything else lines up the next.
-                if !entry.live {
+                // An endless stream has no "next"; anything else lines up the next
+                // (when it plays: lined up behind a track that can't open, the
+                // next would start by itself; Started lines it up later).
+                if play && !entry.live {
                     self.queue_after(self.playlist.current);
                 }
             }
@@ -946,6 +960,10 @@ impl App {
 
     /// A seek; a slow one (far into a long stream) shows SEEKING... until it lands.
     pub(crate) fn seek(&mut self, secs: f64) {
+        // A place picked by hand replaces the one Gamp reopened at.
+        if self.resume.take().is_some() {
+            log::info!("resume: a new place was picked ({secs:.1}s)");
+        }
         self.player.seek(secs);
         if self.player.status().format.is_some_and(|f| f.seekable) {
             self.seek_wait = Some((secs, Instant::now()));
@@ -956,7 +974,11 @@ impl App {
         let Some((to, at)) = self.seek_wait else { return };
         let s = self.player.status();
         let waited = at.elapsed();
-        if (s.position - to).abs() < 2.0 || s.state == State::Stopped || waited > Duration::from_secs(60) {
+        let landed = (s.position - to).abs() < 2.0 && s.track.is_some();
+        // Stopped: it couldn't open (a track just loading reads Stopped
+        // for a moment too, so not straight away).
+        let failed = s.state == State::Stopped && s.track.is_none() && waited > Duration::from_secs(3);
+        if landed || failed || waited > Duration::from_secs(60) {
             self.seek_wait = None;
             if self.main.message.as_deref() == Some(SEEKING) {
                 self.main.message = None;
@@ -1036,7 +1058,8 @@ impl App {
                     log::warn!("playback: {message}");
                     if self.ids.get(&id) == Some(&self.playlist.current) {
                         // Said even when the next track takes over, so a skip isn't a mystery.
-                        if self.playlist.next() {
+                        // The track Gamp reopened on stays (Play tries it again, at its place).
+                        if self.resume.is_none() && self.playlist.next() {
                             self.load_current(true);
                         }
                         self.say(&format!("CAN'T PLAY: {message}"));
@@ -1061,9 +1084,30 @@ impl App {
         if state == PlayState::Playing {
             self.reopened = false;
         }
-        if state != PlayState::Stopped && s.track.is_some() {
+        // While a seek is on its way (slow, far into a long stream), the time
+        // and the position bar show where it's going, and that's the place.
+        if self.main.pressed != Some(Control::Position) {
+            let to = match (self.seek_wait, self.main.duration) {
+                (Some((to, _)), Some(d)) if d > 0.0 => Some((to / d) as f32),
+                _ => None,
+            };
+            if to != self.main.seeking {
+                self.main.seeking = to;
+                self.mark(Kind::Main);
+            }
+        }
+        // The place Gamp reopened at, reached: from now on, what plays is the place.
+        // Or it never got there (a stream that can't seek) and it plays anyway.
+        if let Some(r) = &self.resume {
+            let there = s.track.is_some() && (s.position - r.3).abs() < 2.0;
+            if there || state == PlayState::Playing && self.seek_wait.is_none() {
+                log::info!("resume: {} ({:.1}s)", if there { "there" } else { "gave up, playing" }, s.position);
+                self.resume = None;
+            }
+        }
+        if state != PlayState::Stopped && s.track.is_some() && self.resume.is_none() {
             if let Some(e) = self.playlist.current() {
-                self.heard = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
+                self.heard = Some((self.playlist.current, e.path.clone(), e.url.clone(), self.seek_wait.map_or(s.position, |w| w.0)));
             }
         }
         if let Some(f) = s.format {
@@ -1374,7 +1418,8 @@ impl App {
         self.mark(Kind::Main);
         match c {
             Control::Position => {
-                if let (Some(p), Some(d)) = (self.main.seeking.take(), self.main.duration) {
+                // The bar stays where it was let go until the seek lands.
+                if let (Some(p), Some(d)) = (self.main.seeking, self.main.duration) {
                     self.seek(d * p as f64);
                 }
             }
@@ -2211,7 +2256,9 @@ impl App {
         if k == Kind::Library && self.lib_key(key, text) {
             return;
         }
-        if k == Kind::Vis && self.drop_key(key) {
+        // G-Drop's letters alone: ⌘H (hide) mustn't also pick a random preset.
+        let plain = !(self.modifiers.control_key() || self.modifiers.super_key() || self.modifiers.alt_key());
+        if k == Kind::Vis && plain && self.drop_key(key) {
             return;
         }
         if k == Kind::Jump {
@@ -2466,6 +2513,81 @@ mod tests {
         assert_eq!(app.main.state, PlayState::Stopped);
         let _ = std::fs::remove_dir_all(&data);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_place_survives_slow_seeks_and_tracks_that_cant_open_yet() {
+        let dir = songs("resume2", 2, 20);
+        let data = std::env::temp_dir().join(format!("gamp-resume2-{}", std::process::id()));
+        std::fs::create_dir_all(&data).unwrap();
+        let fresh = || {
+            let mut app = App::new(OutputKind::Null, None).unwrap();
+            app.data_dir = data.clone();
+            app
+        };
+        let saved = || serde_json::from_slice::<crate::session::Session>(&std::fs::read(data.join("session.json")).unwrap()).unwrap().position;
+        let mut app = fresh();
+        app.open_files(vec![dir.clone()], true);
+        settle(&mut app);
+        app.seek(12.0);
+        settle(&mut app);
+        app.save_session();
+        let place = saved();
+        assert!(place >= 12.0 && place < 13.0, "{place}");
+        drop(app);
+
+        // Saved straight after opening, before the seek has landed: the place stays.
+        let mut app = fresh();
+        app.load_session();
+        app.save_session();
+        assert_eq!(saved(), place);
+        settle(&mut app);
+        drop(app);
+
+        // The track can't open when Gamp starts (a stream just after waking):
+        // nothing skips ahead or plays, and the place is kept...
+        let song = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.path()).min().unwrap();
+        let good = std::fs::read(&song).unwrap();
+        std::fs::write(&song, b"not audio yet").unwrap();
+        let mut app = fresh();
+        app.load_session();
+        settle(&mut app);
+        assert_eq!(app.playlist.current, 0);
+        assert_ne!(app.main.state, PlayState::Playing);
+        app.save_session();
+        assert_eq!(saved(), place);
+        // ...and Play, once it can, goes on from there.
+        std::fs::write(&song, good).unwrap();
+        app.play();
+        settle(&mut app);
+        assert_eq!(app.main.state, PlayState::Playing);
+        assert!(app.main.elapsed >= place && app.main.elapsed < place + 2.0, "{}", app.main.elapsed);
+
+        // A seek on its way: the time and the bar show where it's going, and that's the place.
+        app.seek_wait = Some((15.0, Instant::now()));
+        app.tick();
+        assert_eq!(app.main.seeking, Some(0.75));
+        assert_eq!(app.heard.as_ref().unwrap().3, 15.0);
+        let _ = std::fs::remove_dir_all(&data);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn g_drop_keeps_its_preset_through_command_keys() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.drop_cycle(false);
+        app.drop.engine.select(31, true);
+        app.modifiers = ModifiersState::SUPER;
+        for c in ["h", "r", "f"] {
+            app.key(Kind::Vis, &Key::Character(c.into()), Some(c));
+        }
+        assert_eq!(app.drop.engine.current(), 31);
+        assert!(!app.drop.engine.auto);
+        assert!(!app.drop.fullscreen);
+        // Alone, H still picks one at random.
+        app.modifiers = ModifiersState::empty();
+        app.key(Kind::Vis, &Key::Character("h".into()), Some("h"));
+        assert_ne!(app.drop.engine.current(), 31);
     }
 
     #[test]

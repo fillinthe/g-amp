@@ -92,6 +92,11 @@ pub fn run() -> anyhow::Result<()> {
         drop(app);
         app = App::new(OutputKind::Null, backend)?;
         app.load_session();
+        // Saved (or quit) before the slow seek lands: still the same place.
+        app.save_session();
+        let s: crate::session::Session = serde_json::from_slice(&std::fs::read(app.data_dir.join("session.json"))?)?;
+        anyhow::ensure!((s.position - at).abs() < 3.0, "saved {} while seeking to {at}", s.position);
+        println!("ok: the place is kept while it seeks there");
         wait(&mut app, 90, "it opens paused where it was", |a| soundcloud(a) && a.main.state == PlayState::Paused && (a.main.elapsed - at).abs() < 3.0)?;
         app.player.play();
         wait(&mut app, 60, "Play goes on from there", |a| a.main.state == PlayState::Playing && a.main.elapsed > at + 1.0 && a.main.elapsed < at + 20.0)?;
