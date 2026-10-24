@@ -239,6 +239,9 @@ impl App {
 
     /// Shows a message in the display for a few seconds.
     pub fn say(&mut self, text: &str) {
+        if text.starts_with("CAN'T") {
+            self.last_error = Some(text.to_owned());
+        }
         self.main.message = Some(text.to_uppercase());
         // Long enough to scroll past once (a letter every 220 ms) when it doesn't fit.
         let secs = (text.chars().count() as u64 * 22 / 100 + 3).max(5);

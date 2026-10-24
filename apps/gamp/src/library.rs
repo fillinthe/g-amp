@@ -172,6 +172,7 @@ impl App {
                                 self.lib.hint = Some(e.clone());
                                 self.lib_rows();
                             }
+                            self.last_error = Some(e.clone());
                             self.lib.view.status = e;
                         }
                     }

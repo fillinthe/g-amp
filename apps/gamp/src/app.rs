@@ -162,6 +162,8 @@ pub struct App {
     /// The saved session, waiting for the windows to exist.
     pub(crate) session: Option<crate::session::Session>,
     pub(crate) last_save: Instant,
+    /// The last thing that went wrong, for Report a problem….
+    pub(crate) last_error: Option<String>,
     pub(crate) media: Option<crate::media::Media>,
     pub(crate) media_at: Instant,
     pub(crate) update: Option<crate::update::Release>,
@@ -259,6 +261,7 @@ impl App {
             lib_open_at_start: false,
             session: None,
             last_save: Instant::now(),
+            last_error: None,
             media: None,
             media_at: Instant::now(),
             update: None,
@@ -754,7 +757,7 @@ impl App {
                     self.queue_after(self.playlist.current);
                 }
             }
-            Err(e) => self.main.message = Some(format!("CAN'T OPEN: {e}")),
+            Err(e) => self.say(&format!("CAN'T OPEN: {e}")),
         }
         self.update_title();
     }
@@ -1934,6 +1937,25 @@ impl App {
     }
 
     #[cfg(test)]
+    /// A new GitHub issue, filled in with the last error, the version and
+    /// the system; the browser shows it all before anything is sent.
+    pub fn report_url(&self) -> String {
+        // Percent-encoding, as a URL query wants it.
+        let enc = |t: &str| t.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect::<String>();
+        let version = env!("CARGO_PKG_VERSION");
+        let title = match &self.last_error {
+            Some(e) => e.chars().take(80).collect::<String>(),
+            None => format!("Problem with Gamp {version}"),
+        };
+        let said = self.last_error.as_deref().unwrap_or("(no error message)");
+        let body = format!(
+            "**What happened**\nWhat you did, what you expected, and what Gamp did instead:\n\n\n**Gamp said**\n{said}\n\n**Where**\nGamp {version} on {} ({})",
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        );
+        format!("https://github.com/fillinthe/g-amp/issues/new?labels=bug&title={}&body={}", enc(&title), enc(&body))
+    }
+
     pub fn main_menu_has(&self, label: &str) -> bool {
         fn has(items: &[Item], label: &str) -> bool {
             items.iter().any(|i| match i {
@@ -1960,6 +1982,10 @@ impl App {
         }
         vec![
             Item::action("about", "About Gamp…"),
+            Item::action("report", match &self.last_error {
+                Some(e) => format!("Report a problem… ({})", e.chars().take(28).collect::<String>().trim_end()),
+                None => "Report a problem…".into(),
+            }),
             Item::Separator,
             Item::action("open:file", "Play file…").shortcut("L"),
             Item::action("open:folder", "Play folder…").shortcut("Shift+L"),
@@ -2147,6 +2173,10 @@ impl App {
     pub fn menu_action(&mut self, id: &str, _el: Option<&ActiveEventLoop>) {
         match id {
             "about" => self.main.message = Some(format!("GAMP {} - FILLINTHE/G-AMP", env!("CARGO_PKG_VERSION"))),
+            "report" => {
+                crate::backend::open_in_browser(&self.report_url());
+                self.say("REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER");
+            }
             "open:file" => self.pick_files(true),
             "open:folder" => self.pick_folder(true),
             "win:playlist" => self.toggle_window(Kind::Playlist),
@@ -2614,6 +2644,18 @@ mod tests {
         assert_eq!(app.main.state, PlayState::Stopped);
         let _ = std::fs::remove_dir_all(&data);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_problem_report_carries_the_error_and_version() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        assert!(app.main_menu_has("Report a problem…"));
+        app.say("CAN'T PLAY: no stream for this track & that");
+        assert!(app.main_menu_has("Report a problem… (CAN'T PLAY: no stream for th)"));
+        let url = app.report_url();
+        assert!(url.starts_with("https://github.com/fillinthe/g-amp/issues/new?labels=bug&title=CAN%27T%20PLAY"));
+        assert!(url.contains(&format!("Gamp%20{}%20on%20", env!("CARGO_PKG_VERSION"))));
+        assert!(url.contains("%26%20that") && !url.contains(' '));
     }
 
     #[test]
