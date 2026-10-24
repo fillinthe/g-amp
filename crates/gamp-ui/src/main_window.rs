@@ -170,8 +170,9 @@ pub fn position_at(x: i32, shade: bool) -> f32 {
 }
 
 /// The time shown: where it plays, or where the position bar is being
-/// dragged to. Past 99 minutes (a long mix) it reads hours:minutes.
-fn time_parts(v: &View) -> (bool, u32, u32) {
+/// dragged to. (remaining, hours, minutes, seconds); hours only from an
+/// hour on (a long mix), and then minutes are 0-59.
+fn time_parts(v: &View) -> (bool, Option<u32>, u32, u32) {
     let at = match (v.seeking, v.duration) {
         (Some(p), Some(d)) => d * p as f64,
         _ => v.elapsed,
@@ -179,11 +180,36 @@ fn time_parts(v: &View) -> (bool, u32, u32) {
     let secs = match (v.show_remaining, v.duration) {
         (true, Some(d)) => (d - at).max(0.0),
         _ => at.max(0.0),
-    };
-    let s = secs as u32;
-    let (m, s) = (s / 60, s % 60);
-    let (a, b) = if m >= 100 { (m / 60, m % 60) } else { (m, s) };
-    (v.show_remaining && v.duration.is_some(), a.min(99), b)
+    } as u32;
+    let hours = (secs >= 3600).then(|| (secs / 3600).min(9));
+    let m = if hours.is_some() { secs / 60 % 60 } else { secs / 60 };
+    (v.show_remaining && v.duration.is_some(), hours, m, secs % 60)
+}
+
+/// The time as text: "-1:23:45", " 3:07".
+fn time_text(v: &View) -> String {
+    let (minus, h, m, s) = time_parts(v);
+    let sign = if minus { "-" } else { " " };
+    match h {
+        Some(h) => format!("{sign}{h}:{m:02}:{s:02}"),
+        None => format!("{sign}{m:02}:{s:02}"),
+    }
+}
+
+/// The lit colour of the skin's digits (their brightest pixel).
+fn digit_color(skin: &Skin, name: &str) -> Option<u32> {
+    let (img, r) = skin.sprite(name)?;
+    let mut best = (0u32, 0u32);
+    for y in r.y..r.y + r.height {
+        for x in r.x..r.x + r.width {
+            let p = img.get_pixel(x, y).0;
+            let lum = p[0] as u32 * 3 + p[1] as u32 * 6 + p[2] as u32;
+            if lum > best.0 {
+                best = (lum, 0xFF00_0000 | (p[0] as u32) << 16 | (p[1] as u32) << 8 | p[2] as u32);
+            }
+        }
+    }
+    (best.0 > 0).then_some(best.1)
 }
 
 pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) {
@@ -230,8 +256,25 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) {
     if v.state != PlayState::Stopped && (v.state != PlayState::Paused || v.blink_on) {
         let ex = skin.has("NUMS_EX");
         let digit = |d: u32| if ex { format!("DIGIT_{d}_EX") } else { format!("DIGIT_{d}") };
-        let (minus, m, s) = time_parts(v);
-        if minus {
+        let (minus, hours, m, s) = time_parts(v);
+        if let Some(h) = hours {
+            // An hour or more: the hour goes where the minus sign sits, with
+            // a colon in the digits' colour; a minus, if any, just before.
+            frame.sprite(skin, &digit(h), 35, 26);
+            if let Some(c) = digit_color(skin, &digit(8)) {
+                frame.fill(45, 29, 2, 2, c);
+                frame.fill(45, 34, 2, 2, c);
+                // Between minutes and seconds too, unless the skin has one.
+                let lit = (26..39).any(|y| (69..78).any(|x| frame.pixels[(y * WIDTH as i32 + x) as usize] == c));
+                if !lit {
+                    frame.fill(72, 29, 2, 2, c);
+                    frame.fill(72, 34, 2, 2, c);
+                }
+                if minus {
+                    frame.fill(33, 32, 2, 1, c);
+                }
+            }
+        } else if minus {
             if ex {
                 frame.sprite(skin, "MINUS_SIGN_EX", 39, 26);
             } else {
@@ -332,9 +375,8 @@ fn draw_shade(frame: &mut Frame, skin: &Skin, v: &View) {
         frame.sprite(skin, "MAIN_MINIMIZE_BUTTON_DEPRESSED", 244, 3);
     }
     if v.state != PlayState::Stopped && (v.state != PlayState::Paused || v.blink_on) {
-        let (minus, m, s) = time_parts(v);
-        let t = format!("{}{:02}:{:02}", if minus { "-" } else { " " }, m, s);
-        frame.text(skin, &t, 127, 4, 30, 0);
+        let t = time_text(v);
+        frame.text(skin, &t, 127, 4, t.chars().count() as i32 * 5, 0);
     }
     if let (Some(d), true) = (v.duration, v.state != PlayState::Stopped) {
         let p = v.seeking.unwrap_or(if d > 0.0 { (v.elapsed / d) as f32 } else { 0.0 }).clamp(0.0, 1.0);
@@ -350,18 +392,46 @@ mod tests {
     #[test]
     fn the_time_follows_a_drag_and_reads_long_mixes() {
         let mut v = View { state: PlayState::Playing, elapsed: 83.0, duration: Some(12470.0), ..Default::default() };
-        assert_eq!(time_parts(&v), (false, 1, 23));
-        // Dragged to 40%: 4988 s, 83:08.
+        assert_eq!(time_parts(&v), (false, None, 1, 23));
+        assert_eq!(time_text(&v), " 01:23");
+        // Dragged to 40%: 4988 s, 1:23:08.
         v.seeking = Some(0.4);
-        assert_eq!(time_parts(&v), (false, 83, 8));
-        // 60%: 7482 s, past 99 minutes: 2 h 04 min.
-        v.seeking = Some(0.6);
-        assert_eq!(time_parts(&v), (false, 2, 4));
+        assert_eq!(time_parts(&v), (false, Some(1), 23, 8));
+        assert_eq!(time_text(&v), " 1:23:08");
         v.seeking = Some(0.1);
-        assert_eq!(time_parts(&v), (false, 20, 47));
+        assert_eq!(time_parts(&v), (false, None, 20, 47));
         v.seeking = None;
-        v.elapsed = 99.0 * 60.0 + 30.0;
-        assert_eq!(time_parts(&v), (false, 99, 30));
+        v.elapsed = 59.0 * 60.0 + 59.0;
+        assert_eq!(time_parts(&v), (false, None, 59, 59));
+        v.elapsed = 3600.0;
+        assert_eq!(time_parts(&v), (false, Some(1), 0, 0));
+        // Remaining: 12470 - 3600 s left, 2:27:50.
+        v.show_remaining = true;
+        assert_eq!(time_text(&v), "-2:27:50");
+    }
+
+    #[test]
+    fn an_hour_or_more_draws_a_fifth_digit_and_a_colon() {
+        let skin = Skin::default_skin();
+        let draw_at = |elapsed: f64| {
+            let mut f = Frame::new(1, 1);
+            draw(&mut f, &skin, &View { state: PlayState::Playing, elapsed, duration: Some(12470.0), ..Default::default() });
+            f
+        };
+        let (short, long) = (draw_at(83.0), draw_at(5000.0));
+        let px = |f: &Frame, x: i32, y: i32| f.pixels[(y * WIDTH as i32 + x) as usize];
+        assert_eq!(px(&long, 45, 29), digit_color(&skin, "DIGIT_8").unwrap());
+        assert_ne!(px(&short, 45, 29), px(&long, 45, 29));
+        if let Ok(dir) = std::env::var("GAMP_SNAPSHOTS") {
+            long.to_image().save(format!("{dir}/main-hours.png")).unwrap();
+            // GAMP_SNAPSHOT_SKINS=<folder of .wsz>: the same in each.
+            for e in std::env::var("GAMP_SNAPSHOT_SKINS").into_iter().flat_map(|d| std::fs::read_dir(d).unwrap()).flatten() {
+                let Ok(other) = Skin::from_wsz(&std::fs::read(e.path()).unwrap(), &skin) else { continue };
+                let mut f = Frame::new(1, 1);
+                draw(&mut f, &other, &View { state: PlayState::Playing, elapsed: 5000.0, duration: Some(12470.0), ..Default::default() });
+                f.to_image().save(format!("{dir}/hours-{}.png", e.file_name().to_string_lossy())).unwrap();
+            }
+        }
     }
 
     #[test]
