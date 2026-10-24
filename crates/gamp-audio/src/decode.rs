@@ -12,6 +12,8 @@ use symphonia::core::meta::{MetadataOptions, StandardTagKey, Tag};
 use symphonia::core::probe::Hint;
 use symphonia::core::units::Time;
 
+pub type Reopen = std::sync::Arc<dyn Fn(f64) -> anyhow::Result<Input> + Send + Sync>;
+
 /// Something to play.
 pub enum Input {
     /// A file or stream to decode. `ext` ("mp3", "flac"...) helps detection;
@@ -19,7 +21,11 @@ pub enum Input {
     /// `fragmented`: a fragmented MP4 stream (SoundCloud's AAC). Opened as
     /// if it couldn't seek, or the reader walks every fragment first: over
     /// HTTP, a request each, a minute for a long mix.
-    Media { source: Box<dyn MediaSource>, ext: Option<String>, duration: Option<f64>, fragmented: bool },
+    /// `start`: the time the file begins at, when it's a stream's tail
+    /// opened part way (see `reopen`). `reopen`: opens the same stream as a
+    /// file beginning near a given time; a far seek then needs no walk
+    /// through every fragment in between.
+    Media { source: Box<dyn MediaSource>, ext: Option<String>, duration: Option<f64>, fragmented: bool, start: f64, reopen: Option<Reopen> },
     /// PCM decoded elsewhere: interleaved f32 chunks. `seek` jumps the
     /// producer; chunks after a seek must start at the new position.
     Pcm { rate: u32, channels: u16, duration: Option<f64>, chunks: Receiver<Vec<f32>>, seek: Option<Box<dyn FnMut(f64) + Send>> },
@@ -32,12 +38,12 @@ impl Input {
     pub fn file(path: &std::path::Path) -> std::io::Result<Input> {
         let file = std::fs::File::open(path)?;
         let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase());
-        Ok(Input::Media { source: Box::new(file), ext, duration: None, fragmented: false })
+        Ok(Input::Media { source: Box::new(file), ext, duration: None, fragmented: false, start: 0.0, reopen: None })
     }
 
     /// An endless or unseekable stream (radio).
     pub fn stream(reader: impl std::io::Read + Send + Sync + 'static, ext: Option<String>) -> Input {
-        Input::Media { source: Box::new(ReadOnlySource::new(reader)), ext, duration: None, fragmented: false }
+        Input::Media { source: Box::new(ReadOnlySource::new(reader)), ext, duration: None, fragmented: false, start: 0.0, reopen: None }
     }
 }
 
@@ -66,6 +72,10 @@ pub struct Media {
     skip: u64,
     /// ReplayGain, as a factor (1.0 when the file has none).
     gain: f32,
+    /// The time this file begins at (a stream's tail), and how to open
+    /// another beginning elsewhere.
+    start: f64,
+    reopen: Option<Reopen>,
 }
 
 pub struct Pcm {
@@ -110,7 +120,7 @@ impl Source {
                 info: Format { rate, channels, duration, kbps: Some(rate * channels as u32 * 16 / 1000), seekable: seek.is_some() },
                 seek,
             })),
-            Input::Media { source, ext, duration: told, fragmented } => {
+            Input::Media { source, ext, duration: told, fragmented, start, reopen } => {
                 let seekable = source.is_seekable();
                 let bytes = source.byte_len();
                 let opening = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(fragmented));
@@ -152,7 +162,7 @@ impl Source {
                     kbps,
                     seekable: seekable && duration.is_some(),
                 };
-                Ok(Source::Media(Media { track: track.id, format, decoder, info, buf: None, skip: 0, gain }))
+                Ok(Source::Media(Media { track: track.id, format, decoder, info, buf: None, skip: 0, gain, start, reopen }))
             }
         }
     }
@@ -241,6 +251,28 @@ impl Source {
                     anyhow::bail!("this stream can't seek");
                 }
                 let secs = secs.max(0.0);
+                if let Some(reopen) = m.reopen.clone() {
+                    // A file beginning near there: a short way to walk.
+                    if let Source::Media(mut n) = Source::open(reopen(secs)?)? {
+                        // Its timestamps count from the track's start (fragmented
+                        // MP4) or from this file's: the first packet tells.
+                        let tb = n.format.tracks().iter().find(|t| t.id == n.track).and_then(|t| t.codec_params.time_base);
+                        let first = n.format.next_packet().ok().zip(tb).map(|(p, tb)| {
+                            let t = tb.calc_time(p.ts());
+                            t.seconds as f64 + t.frac
+                        });
+                        let absolute = first.is_some_and(|f| n.start > 0.0 && (f - n.start).abs() < 15.0);
+                        let target = if absolute { secs } else { (secs - n.start).max(0.0) };
+                        let to = n.format.seek(SeekMode::Accurate, SeekTo::Time { time: Time::from(target), track_id: Some(n.track) })?;
+                        log::debug!("reopened at {:.1}s (first packet {:?}s, {}): seek to {target:.1}s landed {} frames short", n.start, first, if absolute { "absolute" } else { "relative" }, to.required_ts.saturating_sub(to.actual_ts));
+                        n.decoder.reset();
+                        n.skip = to.required_ts.saturating_sub(to.actual_ts);
+                        n.info = m.info.clone();
+                        n.reopen = Some(reopen);
+                        *m = n;
+                        return Ok(());
+                    }
+                }
                 let to = m.format.seek(SeekMode::Accurate, SeekTo::Time { time: Time::from(secs), track_id: Some(m.track) })?;
                 m.decoder.reset();
                 m.skip = to.required_ts.saturating_sub(to.actual_ts);

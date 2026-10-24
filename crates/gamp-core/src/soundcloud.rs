@@ -23,6 +23,8 @@ struct Segment {
     skip: u64,
     start: u64,
     len: u64,
+    /// How long it plays (0 for an init piece, or a stream that's one file).
+    secs: f64,
 }
 
 #[derive(Clone)]
@@ -41,23 +43,20 @@ struct Plan {
 /// far seek in a long mix. Capped at about 6 MB.
 const HEAD: u64 = 8192;
 const WINDOW: usize = 192;
-type Heads = Arc<Mutex<HashMap<usize, Vec<u8>>>>;
+type Heads = Arc<Mutex<HashMap<String, Vec<u8>>>>;
 
 async fn head(plan: &Plan, n: usize) -> Option<Vec<u8>> {
-    if let Some(h) = plan.heads.lock().unwrap().get(&n) {
+    if let Some(h) = plan.heads.lock().unwrap().get(&plan.segments[n].url) {
         return Some(h.clone());
     }
-    let want: Vec<usize> = {
+    let want: Vec<String> = {
         let c = plan.heads.lock().unwrap();
-        (n..(n + WINDOW).min(plan.segments.len())).filter(|i| !c.contains_key(i)).collect()
+        plan.segments[n..(n + WINDOW).min(plan.segments.len())].iter().map(|s| s.url.clone()).filter(|u| !c.contains_key(u)).collect()
     };
-    let fetched: Vec<Option<(usize, Vec<u8>)>> = futures_util::stream::iter(want.into_iter().map(|i| {
-        let url = plan.segments[i].url.clone();
-        async move {
-            let r = client().get(url).header(header::RANGE, format!("bytes=0-{}", HEAD - 1)).send().await.ok()?;
-            r.status().is_success().then_some(())?;
-            Some((i, r.bytes().await.ok()?.to_vec()))
-        }
+    let fetched: Vec<Option<(String, Vec<u8>)>> = futures_util::stream::iter(want.into_iter().map(|url| async move {
+        let r = client().get(&url).header(header::RANGE, format!("bytes=0-{}", HEAD - 1)).send().await.ok()?;
+        r.status().is_success().then_some(())?;
+        Some((url, r.bytes().await.ok()?.to_vec()))
     }))
     .buffered(32)
     .collect()
@@ -67,7 +66,30 @@ async fn head(plan: &Plan, n: usize) -> Option<Vec<u8>> {
         c.clear();
     }
     c.extend(fetched.into_iter().flatten());
-    c.get(&n).cloned()
+    c.get(&plan.segments[n].url).cloned()
+}
+
+impl Plan {
+    /// The stream as a file that begins at the piece holding `secs` (after
+    /// the init piece, if there is one), and the time that piece starts at.
+    /// Opening that is how a far-off place is reached without walking
+    /// every piece in between.
+    fn from(&self, secs: f64) -> (Plan, f64) {
+        let init = self.segments.first().filter(|s| s.secs == 0.0 && self.segments.len() > 1).cloned();
+        let body = &self.segments[init.is_some() as usize..];
+        let (mut k, mut t) = (0, 0.0);
+        while k + 1 < body.len() && t + body[k].secs <= secs {
+            t += body[k].secs;
+            k += 1;
+        }
+        let mut segments: Vec<Segment> = init.into_iter().chain(body[k..].iter().cloned()).collect();
+        let mut offset = 0;
+        for s in &mut segments {
+            s.start = offset;
+            offset += s.len;
+        }
+        (Plan { segments, size: offset, mime: self.mime, at: self.at, heads: self.heads.clone() }, t)
+    }
 }
 
 /// Segment URLs are signed and expire.
@@ -114,35 +136,50 @@ async fn measure(url: String) -> Result<(String, u64, u64), ApiError> {
 /// stream's init segment (`#EXT-X-MAP`) comes first, so the pieces join
 /// into one playable file.
 pub fn segment_uris(m3u8_url: &str, body: &str) -> Vec<String> {
+    segment_list(m3u8_url, body).into_iter().map(|(u, _)| u).collect()
+}
+
+/// The segments with how long each plays (`#EXTINF`; 0 for the init piece).
+pub fn segment_list(m3u8_url: &str, body: &str) -> Vec<(String, f64)> {
     let base = url::Url::parse(m3u8_url).ok();
+    let mut secs = 0.0;
     body.lines()
         .map(str::trim)
-        .filter_map(|l| match l.strip_prefix("#EXT-X-MAP:") {
-            Some(attrs) => attrs.split("URI=\"").nth(1).and_then(|r| r.split('"').next()),
-            None => Some(l).filter(|l| !l.is_empty() && !l.starts_with('#')),
-        })
-        .filter_map(|l| match &base {
-            Some(b) => b.join(l).ok().map(String::from),
-            None => Some(l.to_owned()),
+        .filter_map(|l| {
+            if let Some(d) = l.strip_prefix("#EXTINF:") {
+                secs = d.split(',').next().and_then(|d| d.trim().parse().ok()).unwrap_or(0.0);
+                return None;
+            }
+            let uri = match l.strip_prefix("#EXT-X-MAP:") {
+                Some(attrs) => attrs.split("URI=\"").nth(1).and_then(|r| r.split('"').next()).map(|u| (u, 0.0)),
+                None => Some(l).filter(|l| !l.is_empty() && !l.starts_with('#')).map(|u| (u, std::mem::take(&mut secs))),
+            }?;
+            let full = match &base {
+                Some(b) => b.join(uri.0).ok().map(String::from)?,
+                None => uri.0.to_owned(),
+            };
+            Some((full, uri.1))
         })
         .collect()
 }
 
 /// The pieces a track's stream comes in (HLS segments, or one file), and
 /// their format.
-async fn pieces(urn: &str) -> Result<(Vec<String>, &'static str), ApiError> {
+async fn pieces(urn: &str) -> Result<(Vec<(String, f64)>, &'static str), ApiError> {
     let id = urn.strip_prefix("web:").ok_or_else(|| err(StatusCode::NOT_FOUND, "Not a SoundCloud track"))?;
     let (url, hls, mime) = crate::soundcloud_web::stream_url(id).await?;
     if !hls {
-        return Ok((vec![url], mime));
+        return Ok((vec![(url, 0.0)], mime));
     }
     let list = client().get(&url).send().await?.text().await?;
-    Ok((segment_uris(&url, &list), mime))
+    Ok((segment_list(&url, &list), mime))
 }
 
 async fn build_plan(urn: &str) -> Result<Plan, ApiError> {
     let (uris, mime) = pieces(urn).await?;
     let mut sizes: Sizes = crate::store::read_json(SIZES).await.unwrap_or_default();
+    let secs: Vec<f64> = uris.iter().map(|u| u.1).collect();
+    let uris: Vec<String> = uris.into_iter().map(|u| u.0).collect();
     let measured: Vec<(String, u64, u64)> = match sizes.get(urn).filter(|s| s.len() == uris.len()) {
         Some(known) => uris.into_iter().zip(known).map(|(url, &(skip, total))| (url, skip, total)).collect(),
         None => {
@@ -162,9 +199,9 @@ async fn build_plan(urn: &str) -> Result<Plan, ApiError> {
     };
     let mut segments = Vec::with_capacity(measured.len());
     let mut offset = 0;
-    for (url, skip, total) in measured {
+    for ((url, skip, total), secs) in measured.into_iter().zip(secs) {
         let len = total.saturating_sub(skip);
-        segments.push(Segment { url, skip, start: offset, len });
+        segments.push(Segment { url, skip, start: offset, len, secs });
         offset += len;
     }
     Ok(Plan { segments, size: offset, mime, at: Instant::now(), heads: Default::default() })
@@ -181,8 +218,14 @@ async fn plan(urn: &str, fresh: bool) -> Result<Plan, ApiError> {
     Ok(p)
 }
 
-pub async fn stream(urn: String, headers: HeaderMap) -> Result<Response, ApiError> {
+/// The track as one seekable file; with `from`, as a file that begins at
+/// the piece holding that time (its start time comes back as `X-Gamp-Start`).
+pub async fn stream(urn: String, headers: HeaderMap, from: Option<f64>) -> Result<Response, ApiError> {
     let p = plan(&urn, false).await?;
+    let (p, begins) = match from.filter(|f| *f > 0.0) {
+        Some(f) => p.from(f),
+        None => (p, 0.0),
+    };
     let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
     let (start, end, partial) = match parse_range(range, p.size) {
         Ok(Some((s, e))) => (s, e, true),
@@ -209,6 +252,7 @@ pub async fn stream(urn: String, headers: HeaderMap) -> Result<Response, ApiErro
         .status(if partial { StatusCode::PARTIAL_CONTENT } else { StatusCode::OK })
         .header(header::CONTENT_TYPE, mime)
         .header(header::ACCEPT_RANGES, "bytes")
+        .header("X-Gamp-Start", format!("{begins:.3}"))
         .header(header::CONTENT_LENGTH, end - start + 1)
         .header(header::CACHE_CONTROL, "no-store");
     if partial {
@@ -307,11 +351,18 @@ mod tests {
         for seg in second.segments.iter().skip(1).take(100) {
             let mut h = HeaderMap::new();
             h.insert(header::RANGE, HeaderValue::from_str(&format!("bytes={}-", seg.start)).unwrap());
-            let res = stream(urn.clone(), h).await.unwrap();
+            let res = stream(urn.clone(), h, None).await.unwrap();
             let first = axum::body::to_bytes(Body::from_stream(res.into_body().into_data_stream().take(1)), usize::MAX).await.unwrap();
             assert!(first.len() >= 1900 && &first[4..8] == b"styp", "{} bytes", first.len());
         }
         println!("walking 100 pieces: {:.1?}", t.elapsed());
+        // A file from 1:30:00 on: it begins at the piece holding that time.
+        let (sub, begins) = second.from(5400.0);
+        assert!(begins > 5380.0 && begins <= 5400.0, "{begins}");
+        assert_eq!(sub.segments[0].url, second.segments[0].url);
+        // 1:30:00 of 3:27:50: the rest is 57% of the mix.
+        assert!(sub.size > second.size / 2 && sub.size < second.size * 2 / 3, "{} of {}", sub.size, second.size);
+        println!("from 1:30:00: {} pieces, begins at {begins}s", sub.segments.len());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -319,6 +370,21 @@ mod tests {
     fn fmp4_playlists_start_with_the_init_segment() {
         let list = "#EXTM3U\n#EXT-X-MAP:URI=\"https://cdn/x/init.mp4?s=1\"\n#EXTINF:10,\ndata000.m4s\n#EXTINF:10,\ndata001.m4s\n#EXT-X-ENDLIST\n";
         assert_eq!(segment_uris("https://cdn/x/playlist.m3u8", list), ["https://cdn/x/init.mp4?s=1", "https://cdn/x/data000.m4s", "https://cdn/x/data001.m4s"]);
+    }
+
+    #[test]
+    fn playlists_carry_durations_and_a_file_can_begin_part_way() {
+        let list = "#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n#EXTINF:10.0,\na.m4s\n#EXTINF:10.0,\nb.m4s\n#EXTINF:5.5,\nc.m4s\n";
+        let segs = segment_list("https://cdn/x/p.m3u8", list);
+        assert_eq!(segs.iter().map(|s| s.1).collect::<Vec<_>>(), [0.0, 10.0, 10.0, 5.5]);
+        let seg = |i: usize, (url, secs): (&str, f64)| Segment { url: url.into(), skip: 0, start: i as u64 * 100, len: 100, secs };
+        let plan = Plan { segments: segs.iter().enumerate().map(|(i, s)| seg(i, (&s.0, s.1))).collect(), size: 400, mime: "audio/mp4", at: Instant::now(), heads: Default::default() };
+        let (sub, begins) = plan.from(12.0);
+        assert_eq!(begins, 10.0);
+        assert_eq!(sub.segments.iter().map(|s| s.url.rsplit('/').next().unwrap()).collect::<Vec<_>>(), ["init.mp4", "b.m4s", "c.m4s"]);
+        assert_eq!((sub.segments[1].start, sub.size), (100, 300));
+        assert_eq!(plan.from(0.0).1, 0.0);
+        assert_eq!(plan.from(999.0).0.segments.len(), 2);
     }
 
     #[test]

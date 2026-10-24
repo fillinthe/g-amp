@@ -710,11 +710,25 @@ impl App {
                 let Some(url) = self.backend.as_ref().map(|b| b.url(path)) else { return Err("no network".into()) };
                 let duration = entry.duration.filter(|_| !entry.live);
                 Ok(Input::Later(Box::new(move || {
-                    let src = crate::stream::HttpSource::open(&url)?;
-                    let ext = src.ext().or_else(|| crate::stream::ext_of(&url));
-                    // SoundCloud's AAC is HLS fragments joined into one file.
-                    let fragmented = ext.as_deref() == Some("m4a") && url.contains("/media/soundcloud/");
-                    Ok(Input::Media { source: Box::new(src), ext, duration, fragmented })
+                    let open = move |at: Option<f64>| -> anyhow::Result<Input> {
+                        let url = match at {
+                            Some(secs) => format!("{url}{}from={secs:.3}", if url.contains('?') { '&' } else { '?' }),
+                            None => url.clone(),
+                        };
+                        let src = crate::stream::HttpSource::open(&url)?;
+                        let ext = src.ext().or_else(|| crate::stream::ext_of(&url));
+                        // SoundCloud's AAC is HLS fragments joined into one file.
+                        let fragmented = ext.as_deref() == Some("m4a") && url.contains("/media/soundcloud/");
+                        let start = src.start();
+                        Ok(Input::Media { source: Box::new(src), ext, duration, fragmented, start, reopen: None })
+                    };
+                    let mut input = open(None)?;
+                    // Its pieces can be opened from part way: a far seek jumps there.
+                    if let Input::Media { fragmented: true, reopen, .. } = &mut input {
+                        let open = std::sync::Arc::new(open);
+                        *reopen = Some(std::sync::Arc::new(move |secs: f64| open(Some(secs))));
+                    }
+                    Ok(input)
                 })))
             }
             None => Input::file(&entry.path).map_err(|e| e.to_string()),
