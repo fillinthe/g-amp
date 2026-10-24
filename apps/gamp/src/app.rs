@@ -1936,7 +1936,6 @@ impl App {
         ]
     }
 
-    #[cfg(test)]
     /// A new GitHub issue, filled in with the last error, the version and
     /// the system; the browser shows it all before anything is sent.
     pub fn report_url(&self) -> String {
@@ -1956,6 +1955,7 @@ impl App {
         format!("https://github.com/fillinthe/g-amp/issues/new?labels=bug&title={}&body={}", enc(&title), enc(&body))
     }
 
+    #[cfg(test)]
     pub fn main_menu_has(&self, label: &str) -> bool {
         fn has(items: &[Item], label: &str) -> bool {
             items.iter().any(|i| match i {
