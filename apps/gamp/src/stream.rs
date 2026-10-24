@@ -117,6 +117,7 @@ impl Seek for HttpSource {
             return Err(std::io::Error::other("seek before start"));
         }
         let target = target as u64;
+        log::debug!("at {} seek to {target} ({:+})", inner.pos, target as i64 - inner.pos as i64);
         if target != inner.pos {
             // Short hops forward: read through instead of a new request.
             if target > inner.pos && target - inner.pos <= 32 * 1024 && inner.resp.is_some() {
