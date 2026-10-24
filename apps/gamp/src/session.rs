@@ -188,6 +188,7 @@ impl App {
             self.update_title();
             // Back where you were: the track loaded, paused at its place
             // (the display shows it), and Play goes on from there.
+            log::info!("resume: saved place {:.1}s in track {}", s.position, self.playlist.current);
             if let Some(e) = self.playlist.current().filter(|_| s.position >= 1.0) {
                 self.resume = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
                 self.load_current(false);
@@ -199,13 +200,13 @@ impl App {
         Some(s)
     }
 
-    /// Where to pick up next time: the last place heard in the current
-    /// track (even after Stop), or where it was to resume; its start if it's
-    /// live or was heard to the end.
+    /// Where to pick up next time: where it was to resume, while it isn't
+    /// there yet; else the last place heard in the current track (even after
+    /// Stop); its start if it's live or was heard to the end.
     fn resume_point(&self) -> f64 {
         let Some(e) = self.playlist.current().filter(|e| !e.live) else { return 0.0 };
         let this = |r: &&(usize, PathBuf, Option<String>, f64)| r.0 == self.playlist.current && r.1 == e.path && r.2 == e.url;
-        let at = self.heard.as_ref().filter(this).or(self.resume.as_ref().filter(this)).map_or(0.0, |r| r.3);
+        let at = self.resume.as_ref().filter(this).or(self.heard.as_ref().filter(this)).map_or(0.0, |r| r.3);
         if e.duration.is_some_and(|d| at > d - 5.0) { 0.0 } else { at }
     }
 
