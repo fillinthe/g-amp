@@ -208,6 +208,8 @@ impl App {
         if !self.info.view.fields.is_empty() {
             self.info_focus(Some(0));
         }
+        // Tall enough for everything, wrapped.
+        self.resize_window(Kind::Info);
         if let Some(w) = self.wins.get_mut(&Kind::Info) {
             w.show(true);
             if let Some(window) = &w.window {
@@ -254,8 +256,18 @@ impl App {
         self.mark(Kind::Info);
     }
 
+    /// Everything in the box, to the clipboard.
+    pub(crate) fn info_copy(&mut self) {
+        crate::clipboard::set(&self.info.view.text());
+        self.info.view.status = "Copied".into();
+        self.mark(Kind::Info);
+    }
+
     pub(crate) fn info_key(&mut self, key: &Key, text: Option<&str>) {
         let cmd = self.modifiers.control_key() || self.modifiers.super_key();
+        if cmd && matches!(key, Key::Character(c) if c.as_str() == "c") {
+            return self.info_copy();
+        }
         let n = self.info.view.fields.len();
         match key {
             Key::Named(NamedKey::Escape) => return self.info_hide(),
@@ -330,6 +342,7 @@ impl App {
         }
         match pressed {
             Hot::Button(id) if id == "save" => self.info_save(),
+            Hot::Button(id) if id == "copy" => self.info_copy(),
             _ => self.info_hide(),
         }
     }

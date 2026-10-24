@@ -300,17 +300,31 @@ pub(crate) fn mix(a: [u8; 3], b: [u8; 3], t: f32) -> [u8; 3] {
 
 /// Words wrapped to `width`.
 pub fn wrap(text: &str, width: i32) -> Vec<String> {
+    let fits = |t: &str| font::measure(t, PX, false) <= width;
     let mut lines = Vec::new();
     for para in text.split('\n') {
         let mut line = String::new();
         for word in para.split(' ') {
             let candidate = if line.is_empty() { word.to_owned() } else { format!("{line} {word}") };
-            if font::measure(&candidate, PX, false) > width && !line.is_empty() {
-                lines.push(std::mem::take(&mut line));
-                line = word.to_owned();
-            } else {
+            if fits(&candidate) {
                 line = candidate;
+                continue;
             }
+            if !line.is_empty() {
+                lines.push(std::mem::take(&mut line));
+            }
+            // A word wider than the line (a web address, a long path): it
+            // breaks where it must, after a / ? & = or - when one is near.
+            let mut rest = word;
+            while !fits(rest) {
+                let mut cut = rest.char_indices().map(|(i, c)| i + c.len_utf8()).take_while(|&i| fits(&rest[..i])).last().unwrap_or(rest.len().min(rest.chars().next().map_or(1, char::len_utf8)));
+                if let Some(i) = rest[..cut].rfind(['/', '?', '&', '=', '-', '_', '.']).filter(|&i| i + 1 >= cut / 2) {
+                    cut = i + 1;
+                }
+                lines.push(rest[..cut].to_owned());
+                rest = &rest[cut..];
+            }
+            line = rest.to_owned();
         }
         lines.push(line);
     }
