@@ -10,6 +10,7 @@
 mod app;
 mod backend;
 mod clipboard;
+mod dialog;
 mod drop;
 mod eqf;
 mod info;
@@ -61,6 +62,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             UserEvent::Wake => {}
             UserEvent::Open(files) => self.app.open_files(files, true),
+            UserEvent::Dialog(answer) => self.app.answered(answer),
             // A window off every screen comes back with the rest; otherwise
             // the windows just come forward.
             UserEvent::Reopen if self.app.window_lost() => self.app.gather(),
@@ -184,6 +186,23 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
+/// A crash leaves its message and place in `crash.log` (the app is
+/// stripped, but the message and source line survive); the next launch
+/// returns it, once, as the error to report.
+fn crash_log(data: &std::path::Path) -> Option<String> {
+    let path = data.join("crash.log");
+    let last = std::fs::read_to_string(&path).ok().filter(|s| !s.trim().is_empty());
+    let _ = std::fs::remove_file(&path);
+    let write = path.clone();
+    let prev = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let text = format!("Gamp {} crashed: {info}\n", env!("CARGO_PKG_VERSION"));
+        let _ = std::fs::write(&write, text.replace('\n', " ").trim().to_owned() + "\n");
+        prev(info);
+    }));
+    last.map(|t| format!("CAN'T GO ON (CRASHED LAST TIME): {}", t.trim().trim_start_matches(&format!("Gamp {} crashed: ", env!("CARGO_PKG_VERSION")))))
+}
+
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info,librespot=warn")).init();
     if std::env::args().any(|a| a == "--selftest") {
@@ -197,6 +216,7 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "macos")]
     finder::listen(el.create_proxy());
     let data = app::data_dir();
+    let crashed = crash_log(&data);
     // The sources, sign-ins and streaming; Gamp still plays files without it.
     let backend = match Backend::start(data, Some(el.create_proxy())) {
         Ok(b) => Some(b),
@@ -206,6 +226,9 @@ fn main() -> anyhow::Result<()> {
         }
     };
     let mut app = App::new(OutputKind::Device, backend)?;
+    app.proxy = Some(el.create_proxy());
+    // Crashed last time: that's the error Report a problem… sends.
+    app.last_error = crashed;
     app.session = app.load_session();
     let files: Vec<PathBuf> = std::env::args().skip(1).filter(|a| !a.starts_with("--") && !a.starts_with("-psn_")).map(PathBuf::from).collect();
     if !files.is_empty() {

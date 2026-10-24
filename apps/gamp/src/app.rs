@@ -2,6 +2,7 @@
 //! what clicks and keys do, and keeping the audio engine and the windows
 //! in step.
 
+use crate::dialog::Ask;
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -164,6 +165,8 @@ pub struct App {
     pub(crate) last_save: Instant,
     /// The last thing that went wrong, for Report a problem….
     pub(crate) last_error: Option<String>,
+    /// For dialogs to answer through (macOS opens them after the event).
+    pub(crate) proxy: Option<winit::event_loop::EventLoopProxy<crate::backend::UserEvent>>,
     pub(crate) media: Option<crate::media::Media>,
     pub(crate) media_at: Instant,
     pub(crate) update: Option<crate::update::Release>,
@@ -262,6 +265,7 @@ impl App {
             session: None,
             last_save: Instant::now(),
             last_error: None,
+            proxy: None,
             media: None,
             media_at: Instant::now(),
             update: None,
@@ -289,7 +293,7 @@ impl App {
             Kind::Library => self.lib.view.size(),
             Kind::Vis => (self.drop.width, self.drop.height),
             Kind::Jump => (gamp_ui::jump_window::WIDTH, gamp_ui::jump_window::HEIGHT),
-            Kind::Info => (gamp_ui::info_window::WIDTH, gamp_ui::info_window::HEIGHT),
+            Kind::Info => (gamp_ui::info_window::WIDTH, gamp_ui::info_window::height(&self.info.view)),
             Kind::Menu(i) => self.menus.get(i).map(|m| menu::size(&m.items)).unwrap_or((1, 1)),
         };
         LogicalSize::new((w as f64 * z).round() as u32, (h as f64 * z).round() as u32)
@@ -428,7 +432,7 @@ impl App {
         out
     }
 
-    fn resize_window(&mut self, k: Kind) {
+    pub(crate) fn resize_window(&mut self, k: Kind) {
         let size = self.logical_size(k);
         if let Some(w) = self.win_mut(k) {
             w.set_size(size);
@@ -913,20 +917,65 @@ impl App {
     }
 
     fn pick_files(&mut self, replace: bool) {
-        let files = rfd::FileDialog::new()
-            .set_title("Open files")
-            .add_filter("Audio and playlists", &[playlist::AUDIO, &["m3u", "m3u8", "pls"]].concat())
-            .add_filter("Winamp skins", &["wsz", "zip"])
-            .pick_files();
-        if let Some(files) = files {
-            self.open_files(files, replace);
-        }
+        self.ask(Ask::OpenFiles { replace });
     }
 
     fn pick_folder(&mut self, replace: bool) {
-        if let Some(dir) = rfd::FileDialog::new().set_title("Open a folder").pick_folder() {
-            self.open_files(vec![dir], replace);
+        self.ask(Ask::OpenFolder { replace });
+    }
+
+    /// Opens a dialog; its answer arrives in `answered`.
+    pub(crate) fn ask(&mut self, ask: Ask) {
+        let data = self.data_dir.clone();
+        #[cfg(target_os = "macos")]
+        if let Some(proxy) = self.proxy.clone() {
+            dispatch2::DispatchQueue::main().exec_async(move || {
+                let _ = proxy.send_event(crate::backend::UserEvent::Dialog(crate::dialog::run(ask, &data)));
+            });
+            return;
         }
+        let answer = crate::dialog::run(ask, &data);
+        self.answered(answer);
+    }
+
+    pub(crate) fn answered(&mut self, a: crate::dialog::Answer) {
+        let first = a.paths.first().cloned();
+        match a.ask {
+            Ask::OpenFiles { replace } | Ask::OpenFolder { replace } if !a.paths.is_empty() => self.open_files(a.paths, replace),
+            Ask::PlaylistFile if first.is_some() => self.open_files(a.paths, true),
+            Ask::SkinFile => {
+                if let Some(f) = first {
+                    self.load_skin(Some(f));
+                }
+            }
+            Ask::PresetFile => {
+                if let Some(f) = first {
+                    self.import_presets(&f);
+                }
+            }
+            Ask::MusicFolder => {
+                if let (Some(dir), Some(b)) = (first, &self.backend) {
+                    let mut f: Vec<String> = self.lib.config["folders"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+                    f.push(dir.to_string_lossy().into_owned());
+                    b.post("/api/config", serde_json::json!({ "folders": f }), true);
+                    b.post("/api/library/rescan", serde_json::json!({}), false);
+                    b.scan_status();
+                }
+            }
+            Ask::SavePlaylist => {
+                if let Some(path) = first {
+                    self.playlist_saved(path);
+                }
+            }
+            Ask::SavePreset => {
+                if let Some(path) = first {
+                    self.preset_saved(path);
+                }
+            }
+            Ask::Update(_) if a.yes => self.update_install(),
+            _ => {}
+        }
+        self.mark_all();
     }
 
     fn play(&mut self) {
@@ -1853,9 +1902,10 @@ impl App {
     }
 
     fn save_playlist(&mut self) {
-        let dir = self.data_dir.join("playlists");
-        let _ = std::fs::create_dir_all(&dir);
-        let Some(path) = rfd::FileDialog::new().set_title("Save playlist").set_directory(&dir).add_filter("M3U playlist", &["m3u8"]).set_file_name("My playlist.m3u8").save_file() else { return };
+        self.ask(Ask::SavePlaylist);
+    }
+
+    fn playlist_saved(&mut self, path: PathBuf) {
         let path = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("m3u8")) { path } else { path.with_extension("m3u8") };
         match std::fs::write(&path, self.m3u()) {
             Ok(()) => self.say(&format!("SAVED PLAYLIST: {}", path.file_stem().unwrap_or_default().to_string_lossy())),
@@ -2105,9 +2155,10 @@ impl App {
     }
 
     fn save_preset(&mut self) {
-        let dir = self.data_dir.join("presets");
-        let _ = std::fs::create_dir_all(&dir);
-        let Some(path) = rfd::FileDialog::new().set_title("Save equalizer preset").set_directory(&dir).add_filter("Winamp EQ preset", &["eqf"]).set_file_name("My preset.eqf").save_file() else { return };
+        self.ask(Ask::SavePreset);
+    }
+
+    fn preset_saved(&mut self, path: PathBuf) {
         let path = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("eqf")) { path } else { path.with_extension("eqf") };
         let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         match std::fs::write(&path, eqf::write(&eqf::Preset { name: name.clone(), preamp: self.eq.preamp, bands: self.eq.bands })) {
@@ -2200,11 +2251,7 @@ impl App {
             "win:main" | "win:gather" => self.gather(),
             "jump" => self.jump_toggle(),
             "info" => self.info_show_selected(),
-            "skin:load" => {
-                if let Some(f) = rfd::FileDialog::new().add_filter("Winamp skins", &["wsz", "zip"]).pick_file() {
-                    self.load_skin(Some(f));
-                }
-            }
+            "skin:load" => self.ask(Ask::SkinFile),
             "skin:default" => {
                 self.load_skin(None);
                 self.say("SKIN: ORIGINAL");
@@ -2246,11 +2293,7 @@ impl App {
             "vis:off" => self.main.vis_mode = VisMode::Off,
             "exit" => self.quit = true,
             "misc:html" => self.html_playlist(),
-            "list:file" => {
-                if let Some(f) = rfd::FileDialog::new().add_filter("Playlists", &["m3u", "m3u8", "pls"]).pick_file() {
-                    self.open_files(vec![f], true);
-                }
-            }
+            "list:file" => self.ask(Ask::PlaylistFile),
             "drop:full" => self.drop_fullscreen(!self.drop.fullscreen),
             "drop:next" => self.drop_step(|e| e.next(false)),
             "drop:back" => self.drop_step(|e| e.back()),
@@ -2268,11 +2311,7 @@ impl App {
             "update:check" => self.update_check(true),
             "update:install" => self.update_install(),
             "preset:save" => self.save_preset(),
-            "preset:file" => {
-                if let Some(f) = rfd::FileDialog::new().add_filter("Winamp EQ presets", &["eqf", "q1"]).pick_file() {
-                    self.import_presets(&f);
-                }
-            }
+            "preset:file" => self.ask(Ask::PresetFile),
             "preset:flat" => {
                 self.eq.preamp = 0.0;
                 self.eq.bands = [0.0; 10];
@@ -2656,6 +2695,28 @@ mod tests {
         settle(&mut app);
         assert!(app.resume.is_none() && !app.reopened);
         assert_eq!(app.main.state, PlayState::Stopped);
+        let _ = std::fs::remove_dir_all(&data);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn dialog_answers_do_their_job() {
+        let dir = songs("dialogs", 2, 2);
+        let data = std::env::temp_dir().join(format!("gamp-dialogs-{}", std::process::id()));
+        std::fs::create_dir_all(&data).unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.data_dir = data.clone();
+        let answer = |ask, paths: Vec<PathBuf>| crate::dialog::Answer { ask, paths, yes: false };
+        // Open files: they're in the playlist.
+        app.answered(answer(Ask::OpenFolder { replace: true }, vec![dir.clone()]));
+        assert_eq!(app.playlist.entries.len(), 2);
+        // Save playlist: the file is written, with .m3u8 added.
+        app.answered(answer(Ask::SavePlaylist, vec![data.join("Mine")]));
+        let saved = std::fs::read_to_string(data.join("Mine.m3u8")).unwrap();
+        assert!(saved.starts_with("#EXTM3U") && saved.contains("Song 1"));
+        // Cancelled: nothing happens.
+        app.answered(answer(Ask::OpenFiles { replace: true }, vec![]));
+        assert_eq!(app.playlist.entries.len(), 2);
         let _ = std::fs::remove_dir_all(&data);
         let _ = std::fs::remove_dir_all(&dir);
     }

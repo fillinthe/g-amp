@@ -1060,15 +1060,7 @@ impl App {
         let Some(b) = &self.backend else { return };
         let folders: Vec<String> = self.lib.config["folders"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
         match id {
-            "folder:add" => {
-                if let Some(dir) = rfd::FileDialog::new().set_title("Add a music folder").pick_folder() {
-                    let mut f = folders.clone();
-                    f.push(dir.to_string_lossy().into_owned());
-                    b.post("/api/config", json!({ "folders": f }), true);
-                    b.post("/api/library/rescan", json!({}), false);
-                    b.scan_status();
-                }
-            }
+            "folder:add" => self.ask(crate::dialog::Ask::MusicFolder),
             "folder:path" => {
                 let p = self.value("folder_path");
                 if !p.is_empty() {

@@ -98,16 +98,9 @@ fn check() -> Result<Option<Release>, String> {
 }
 
 /// "Gamp 0.4.0 is out: update now?", with what's new. Later: it stays in the menu.
-fn ask(r: &Release) -> bool {
+fn question(r: &Release) -> String {
     let notes = if r.notes.is_empty() { String::new() } else { format!("\n\nWhat's new:\n{}", r.notes) };
-    let text = format!("Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.{notes}", r.version, env!("CARGO_PKG_VERSION"));
-    let answer = rfd::MessageDialog::new()
-        .set_level(rfd::MessageLevel::Info)
-        .set_title("A new Gamp is out")
-        .set_description(text)
-        .set_buttons(rfd::MessageButtons::OkCancelCustom("Update now".into(), "Later".into()))
-        .show();
-    matches!(answer, rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes) || answer == rfd::MessageDialogResult::Custom("Update now".into())
+    format!("Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.{notes}", r.version, env!("CARGO_PKG_VERSION"))
 }
 
 fn download(url: &str, to: &Path, tx: &mpsc::Sender<Msg>) -> Result<(), String> {
@@ -180,8 +173,10 @@ impl App {
                     self.main.message = Some(format!("GAMP {} IS OUT - RIGHT-CLICK › UPDATE", r.version));
                     self.message_until = Some(std::time::Instant::now() + Duration::from_secs(8));
                     self.update = Some(r.clone());
-                    if self.update_now || ask(&r) {
+                    if self.update_now {
                         self.update_install();
+                    } else {
+                        self.ask(crate::dialog::Ask::Update(question(&r)));
                     }
                 }
                 Msg::Checked(Ok(None), said) => {

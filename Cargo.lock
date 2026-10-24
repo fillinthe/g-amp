@@ -1535,6 +1535,7 @@ dependencies = [
  "anyhow",
  "arboard",
  "axum",
+ "dispatch2",
  "env_logger",
  "gamp-audio",
  "gamp-core",

@@ -24,6 +24,8 @@ pub enum UserEvent {
     Open(Vec<std::path::PathBuf>),
     /// The Dock icon was clicked.
     Reopen,
+    /// A dialog was answered (macOS: dialogs open after the event that asked).
+    Dialog(crate::dialog::Answer),
 }
 
 pub enum Reply {
