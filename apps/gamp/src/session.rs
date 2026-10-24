@@ -193,6 +193,7 @@ impl App {
                 self.resume = Some((self.playlist.current, e.path.clone(), e.url.clone(), s.position));
                 self.load_current(false);
                 self.reopened = true;
+                self.main.blink_on = true;
             }
         }
         self.main.eq_open = s.windows.get("equalizer").is_none_or(|w| w.2);
