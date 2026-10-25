@@ -2,7 +2,7 @@
 
 # Gamp
 
-The classic Winamp 2 player, rebuilt from scratch in Rust as a native app for
+The classic Winamp 2 player, rebuilt from scratch as a native app for
 macOS and Windows (Linux builds too). It plays everything you have: music
 folders and network drives, your NAS and media servers, Dropbox, Google Drive and OneDrive, internet
 radio, podcasts, the Internet Archive, SoundCloud and Spotify. The
@@ -117,7 +117,7 @@ is from before 22 October 2026: delete it and download it again.
 
 ## How it works
 
-Everything is our own Rust: the skin engine, the pixel renderer, the audio
+Everything is our own code: the skin engine, the pixel renderer, the audio
 engine (decode, resample, 10-band EQ, gapless) and the visualizers. Inside,
 a small server on `127.0.0.1:8742` turns every source into one plain,
 seekable audio stream:
