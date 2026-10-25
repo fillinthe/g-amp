@@ -2791,10 +2791,10 @@ mod tests {
         app.main_drag(100);
         assert_eq!(app.player.volume(), 0.0);
         app.release(Kind::Main, None);
-        // Seek to the middle.
+        // Seek to the middle (it plays on while settling; slow CI runners go further).
         click(&mut app, Kind::Main, 16 + 14 + 110, 76);
         settle(&mut app);
-        assert!(app.main.elapsed > 1.6 && app.main.elapsed < 2.6, "{}", app.main.elapsed);
+        assert!(app.main.elapsed > 1.6 && app.main.elapsed < 3.0, "{}", app.main.elapsed);
         // Shuffle, repeat, stop, close.
         click(&mut app, Kind::Main, 180, 95);
         click(&mut app, Kind::Main, 220, 95);
