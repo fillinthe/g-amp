@@ -17,12 +17,17 @@ use crate::playlist::Entry;
 /// Where museum skins wait in the data folder (Keep this skin copies one to skins/).
 pub const MUSEUM_DIR: &str = "museum";
 
+/// Recent searches kept for each source, shown under its Search.
+const RECENT: usize = 5;
+
 /// What a tree row opens.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Target {
     Toggle(String),
     Open { sid: String, node: String, title: String },
     Search { sid: String, title: String },
+    /// A recent search, run again.
+    Recent { sid: String, title: String, query: String },
     /// Settings, scrolled to the section whose heading starts so.
     Settings(Option<&'static str>),
 }
@@ -76,6 +81,8 @@ pub struct LibState {
     pub insecure: bool,
     pub scan: Option<gamp_core::library::Status>,
     pub anchor: Option<usize>,
+    /// Each source's recent searches, newest first (kept in the session).
+    pub recent: HashMap<String, Vec<String>>,
 }
 
 impl Default for LibState {
@@ -116,6 +123,7 @@ impl Default for LibState {
             insecure: false,
             scan: None,
             anchor: None,
+            recent: HashMap::new(),
         }
     }
 }
@@ -250,6 +258,10 @@ impl App {
         let mut targets = Vec::new();
         let here = self.lib.trail.first().cloned().unwrap_or_else(|| self.lib.page.clone());
         let collapsed = self.lib.collapsed.clone();
+        // The search being shown, if it's one of the recent ones: that row lights up, not Search.
+        let query = self.lib.view.search.value.trim().to_owned();
+        let recent = self.lib.recent.clone();
+        let on_recent = |sid: &str| recent.get(sid).is_some_and(|r| r.contains(&query));
         let group = |rows: &mut Vec<TreeRow>, targets: &mut Vec<Target>, key: &str, label: &str, depth: u8| -> bool {
             let open = !collapsed.contains(key);
             rows.push(TreeRow { label: label.into(), depth, group: true, open, selected: false });
@@ -259,7 +271,8 @@ impl App {
         let leaf = |rows: &mut Vec<TreeRow>, targets: &mut Vec<Target>, t: Target, label: &str, depth: u8| {
             let selected = match (&t, &here) {
                 (Target::Open { sid, node, .. }, Page::List { sid: s2, node: n2, .. }) => sid == s2 && node == n2,
-                (Target::Search { sid, .. }, Page::Search { sid: s2, .. }) => sid == s2,
+                (Target::Search { sid, .. }, Page::Search { sid: s2, .. }) => sid == s2 && !on_recent(sid),
+                (Target::Recent { sid, query: q, .. }, Page::Search { sid: s2, .. }) => sid == s2 && *q == query,
                 (Target::Settings(None), Page::Settings) => true,
                 _ => false,
             };
@@ -272,7 +285,11 @@ impl App {
                 leaf(rows, targets, Target::Open { sid: s.id.clone(), node: node.clone(), title: format!("{} › {title}", s.name) }, title, depth);
             }
             if s.search {
-                leaf(rows, targets, Target::Search { sid: s.id.clone(), title: format!("{} › Search", s.name) }, "Search", depth);
+                let title = format!("{} › Search", s.name);
+                leaf(rows, targets, Target::Search { sid: s.id.clone(), title: title.clone() }, "Search", depth);
+                for q in recent.get(&s.id).into_iter().flatten() {
+                    leaf(rows, targets, Target::Recent { sid: s.id.clone(), title: title.clone(), query: q.clone() }, q, depth + 1);
+                }
             }
             if s.needs_setup {
                 let section = if s.id == "spotify" { "Spotify" } else { "SoundCloud" };
@@ -518,6 +535,7 @@ impl App {
                     }
                     Some(Target::Open { sid, node, title }) => self.lib_open(Page::List { sid, node, title }, true),
                     Some(Target::Search { sid, title }) => self.lib_open(Page::Search { sid, title }, true),
+                    Some(Target::Recent { sid, title, query }) => self.lib_search_again(sid, title, query),
                     Some(Target::Settings(section)) => {
                         self.lib_open(Page::Settings, true);
                         self.lib.view.form_scroll = section.and_then(|p| lw::heading_scroll(&self.skin, &self.lib.view, p)).unwrap_or(0);
@@ -922,6 +940,14 @@ impl App {
         true
     }
 
+    /// A recent search, clicked: shown and run again.
+    fn lib_search_again(&mut self, sid: String, title: String, query: String) {
+        self.lib_open(Page::Search { sid, title }, true);
+        self.lib.view.search.value = query;
+        self.lib.view.search.end();
+        self.lib_submit("search");
+    }
+
     pub(crate) fn lib_submit(&mut self, focus: &str) {
         match focus {
             "search" => {
@@ -941,6 +967,11 @@ impl App {
                     // A pasted stream address or SoundCloud link plays straight away.
                     let link = q.starts_with("http://") || q.starts_with("https://");
                     self.pending_stream = link && (sid == "radio" || gamp_core::soundcloud_web::is_link(&q));
+                    let recent = self.lib.recent.entry(sid).or_default();
+                    recent.retain(|r| !r.eq_ignore_ascii_case(&q));
+                    recent.insert(0, q);
+                    recent.truncate(RECENT);
+                    self.lib_tree();
                 }
             }
             id if id.starts_with("srv_") => self.lib_form_action("srv:add"),
@@ -1129,6 +1160,31 @@ impl App {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn recent_searches_sit_under_search_and_run_again() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.lib.sources = vec![Source { id: "soundcloud".into(), name: "SoundCloud".into(), group: String::new(), roots: Vec::new(), search: true, needs_setup: false }];
+        app.lib_open(Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() }, true);
+        for q in ["deep house", "bluebird", "Deep House", "a", "b", "c", "d"] {
+            app.lib.view.search.value = q.into();
+            app.lib_submit("search");
+        }
+        // Newest first, no repeats (whatever the case), five at most.
+        assert_eq!(app.lib.recent["soundcloud"], ["d", "c", "b", "a", "Deep House"]);
+        let labels: Vec<&str> = app.lib.view.tree.iter().map(|r| r.label.as_str()).collect();
+        let at = labels.iter().position(|l| *l == "SoundCloud").unwrap();
+        assert_eq!(labels[at..at + 4], ["SoundCloud", "Search", "d", "c"]);
+        let tree = &app.lib.view.tree;
+        assert!(tree[at + 2].selected && !tree[at + 1].selected, "the search shown is the one lit");
+        // Clicking one runs it again, and it comes back to the top.
+        let row = labels.iter().position(|l| *l == "Deep House").unwrap();
+        app.lib_open(Page::Settings, true);
+        let Some(Target::Recent { sid, title, query }) = app.lib.targets.get(row).cloned() else { panic!("{:?}", app.lib.targets.get(row)) };
+        app.lib_search_again(sid, title, query);
+        assert_eq!(app.lib.recent["soundcloud"][0], "Deep House");
+        assert_eq!(app.lib.view.search.value, "Deep House");
+    }
+
     #[test]
     fn counts_read_at_a_glance() {
         let c: Vec<String> = [7, 950, 4321, 9_999, 45_600, 120_000, 1_234_567, 3_000_000, 12_345_678].into_iter().map(super::count).collect();
