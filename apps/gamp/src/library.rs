@@ -948,6 +948,26 @@ impl App {
         self.lib_submit("search");
     }
 
+    /// While it's busy (Loading…, Searching…, Connecting…, Scanning…), the
+    /// dots count up, as the main window's CONNECTING does.
+    pub(crate) fn lib_dots(&mut self) {
+        let step = |t: &mut String| {
+            let base = t.trim_end_matches(['.', '…']);
+            let dots = t.len() - base.len();
+            if !["Loading", "Searching", "Connecting", "Scanning"].contains(&base) {
+                return false;
+            }
+            let n = if t.ends_with('…') { 0 } else { (dots + 1) % 4 };
+            *t = format!("{base}{}", ".".repeat(n));
+            true
+        };
+        let a = step(&mut self.lib.view.status);
+        let b = step(&mut self.lib.view.table.empty);
+        if a || b {
+            self.mark(Kind::Library);
+        }
+    }
+
     pub(crate) fn lib_submit(&mut self, focus: &str) {
         match focus {
             "search" => {
@@ -1183,6 +1203,20 @@ mod tests {
         app.lib_search_again(sid, title, query);
         assert_eq!(app.lib.recent["soundcloud"][0], "Deep House");
         assert_eq!(app.lib.view.search.value, "Deep House");
+    }
+
+    #[test]
+    fn busy_words_count_their_dots() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.lib.view.status = "Searching…".into();
+        app.lib.view.table.empty = "3 items".into();
+        let mut seen = Vec::new();
+        for _ in 0..5 {
+            app.lib_dots();
+            seen.push(app.lib.view.status.clone());
+        }
+        assert_eq!(seen, ["Searching", "Searching.", "Searching..", "Searching...", "Searching"]);
+        assert_eq!(app.lib.view.table.empty, "3 items", "other words stay as they are");
     }
 
     #[test]

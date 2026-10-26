@@ -1318,6 +1318,9 @@ impl App {
                 self.main.scroll += 5;
                 self.mark(Kind::Main);
             }
+            if self.wins.get(&Kind::Library).is_some_and(|w| w.visible) {
+                self.lib_dots();
+            }
             // Still connecting: the dots go round, so it's plainly working.
             if let Some(m) = self.main.message.as_mut().filter(|m| m.starts_with(CONNECTING)) {
                 let dots = (m.len() - CONNECTING.len() + 1) % 4;
