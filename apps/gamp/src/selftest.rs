@@ -79,7 +79,7 @@ pub fn run() -> anyhow::Result<()> {
         app.lib_open(crate::library::Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() }, true);
         app.lib.view.search.value = link;
         app.lib_submit("search");
-        wait(&mut app, 30, "a status while it connects", |a| a.main.message.as_deref() == Some("CONNECTING..."))?;
+        wait(&mut app, 30, "a status while it connects", |a| a.main.message.as_ref().is_some_and(|m| m.starts_with("CONNECTING")))?;
         let soundcloud = |a: &App| a.playlist.current().is_some_and(|e| e.url.as_deref().is_some_and(|u| u.contains("/soundcloud/")));
         wait(&mut app, 120, "a SoundCloud link plays", |a| soundcloud(a) && a.main.state == PlayState::Playing && a.main.elapsed > 1.0 && a.main.message.is_none())?;
         // GAMP_SELFTEST_AT=<seconds>: how far in (a long mix, far).

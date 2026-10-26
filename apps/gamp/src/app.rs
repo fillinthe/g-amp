@@ -62,7 +62,8 @@ pub(crate) struct Drag {
 }
 
 /// The sleep timer fades out over its last this many seconds.
-const CONNECTING: &str = "CONNECTING...";
+/// Shown while a stream opens, its dots counting up (… then . .. ... again).
+const CONNECTING: &str = "CONNECTING";
 const SEEKING: &str = "SEEKING...";
 const SLEEP_FADE: f32 = 30.0;
 
@@ -1122,7 +1123,7 @@ impl App {
                     self.main.khz = Some((format.rate as f32 / 1000.0).round() as u32);
                     self.main.stereo = Some(format.channels >= 2);
                     self.main.duration = format.duration;
-                    if self.main.message.as_deref() == Some(CONNECTING) {
+                    if self.main.message.as_ref().is_some_and(|m| m.starts_with(CONNECTING)) {
                         self.main.message = None;
                         self.message_until = None;
                     }
@@ -1316,6 +1317,11 @@ impl App {
             if self.shown.chars().count() * 5 > 154 {
                 self.main.scroll += 5;
                 self.mark(Kind::Main);
+            }
+            // Still connecting: the dots go round, so it's plainly working.
+            if let Some(m) = self.main.message.as_mut().filter(|m| m.starts_with(CONNECTING)) {
+                let dots = (m.len() - CONNECTING.len() + 1) % 4;
+                *m = format!("{CONNECTING}{}", ".".repeat(dots));
             }
         }
         if now.duration_since(self.blink_at) >= Duration::from_millis(1000) {
@@ -2719,6 +2725,19 @@ mod tests {
         assert_eq!(app.playlist.entries.len(), 2);
         let _ = std::fs::remove_dir_all(&data);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn connecting_counts_its_dots() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.main.message = Some(CONNECTING.into());
+        let mut seen = Vec::new();
+        for _ in 0..5 {
+            app.marquee_at = Instant::now() - MARQUEE_STEP;
+            app.tick();
+            seen.push(app.main.message.clone().unwrap());
+        }
+        assert_eq!(seen, ["CONNECTING.", "CONNECTING..", "CONNECTING...", "CONNECTING", "CONNECTING."]);
     }
 
     #[test]
