@@ -46,26 +46,15 @@ Drive and OneDrive without their desktop apps.
 ## Download
 
 Builds for macOS (Apple silicon and Intel), Windows and Linux are on the
-[Releases](https://github.com/fillinthe/g-amp/releases) page. They aren't
-signed yet, so the first time you open Gamp your computer asks you to confirm
-(see below; on Windows, choose More info › Run anyway). Gamp checks for new versions when it opens and every few hours,
+[Releases](https://github.com/fillinthe/g-amp/releases) page. The Mac app is
+signed and notarized by Apple: open the `.dmg`, drag **Gamp** into
+**Applications**, and it opens with a double-click. On Windows, if SmartScreen
+appears, choose More info › Run anyway. Gamp checks for new versions when it opens and every few hours,
 asks whether to update (with what's new), then updates itself and opens again.
 Right-click › Check for updates… asks now; `gamp --update` updates from a terminal.
 
-### Installing on a Mac
-
-1. Open the `.dmg` and drag **Gamp** into **Applications**.
-2. Open Gamp. macOS says it can't check Gamp for malicious software (or
-   "Apple could not verify…"). Click **Done**, not Move to Trash.
-3. Open **System Settings › Privacy & Security** and scroll down to
-   **Security**. Next to "Gamp was blocked to protect your Mac", click
-   **Open Anyway**.
-4. Click **Open Anyway** again and enter your password (or use Touch ID).
-
-You only do this once; after that Gamp opens normally, and its updates don't
-ask again. Prefer the terminal? `xattr -dr com.apple.quarantine /Applications/Gamp.app`
-does the same. If macOS says Gamp "is damaged and can't be opened", your copy
-is from before 22 October 2026: delete it and download it again.
+Mac copies older than 0.3.16 aren't signed: if macOS won't open one, download
+Gamp again, or click **Open Anyway** in System Settings › Privacy & Security.
 
 ## Using it
 

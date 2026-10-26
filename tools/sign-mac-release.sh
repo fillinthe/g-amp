@@ -7,8 +7,9 @@
 #   tools/sign-mac-release.sh v0.3.17
 #
 # Needs: the signing keychain (GAMP_KEYCHAIN, its password in the file next
-# to it named keychain-password), and notarytool credentials saved once with
-#   xcrun notarytool store-credentials gamp --apple-id <id> --team-id <team>
+# to it named keychain-password), holding the certificate and the notarytool
+# credentials, saved there once with
+#   xcrun notarytool store-credentials gamp --apple-id <id> --team-id <team> --keychain <GAMP_KEYCHAIN>
 # NOTARIZE=0 signs only (for a try-out).
 set -e
 OUT=$PWD
@@ -39,7 +40,7 @@ for dmg in "$WORK"/*.dmg; do
     rm "$WORK/rw.dmg"
     codesign --force --timestamp --keychain "$KC" --sign "$ID" "$dmg"
     if [ "${NOTARIZE:-1}" = 1 ]; then
-        xcrun notarytool submit "$dmg" --keychain-profile "$PROFILE" --wait
+        xcrun notarytool submit "$dmg" --keychain-profile "$PROFILE" --keychain "$KC" --wait
         xcrun stapler staple "$dmg"
         spctl -a -t open --context context:primary-signature -v "$dmg"
     fi
