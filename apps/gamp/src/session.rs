@@ -45,6 +45,8 @@ pub struct Session {
     pub position: f64,
     /// The library's recent searches, by source.
     pub searches: HashMap<String, Vec<String>>,
+    /// The language picked in Options › Language (none: the system's).
+    pub lang: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -126,6 +128,7 @@ impl App {
             shade: (self.main.shade, self.eq.shade, self.pl.shade),
             position: self.resume_point(),
             searches: self.lib.recent.clone(),
+            lang: self.lang.clone(),
         };
         if let Ok(json) = serde_json::to_vec_pretty(&s) {
             let path = self.data_dir.join(FILE);
@@ -159,6 +162,7 @@ impl App {
         self.player.set_eq(gamp_audio::EqSettings { on: s.eq_on, preamp: s.preamp, bands: s.bands });
         self.main.show_remaining = s.time_remaining;
         self.lib.recent = s.searches.clone();
+        self.set_lang(s.lang.clone());
         self.main.vis_mode = match s.vis_mode {
             1 => gamp_ui::vis::VisMode::Oscilloscope,
             2 => gamp_ui::vis::VisMode::Off,

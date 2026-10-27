@@ -8,6 +8,7 @@ pub mod library_window;
 pub mod frame;
 pub mod info_window;
 pub mod jump_window;
+pub mod lang;
 pub mod main_window;
 pub mod menu;
 pub mod playlist_window;

@@ -1,0 +1,345 @@
+# Gamp in de: English<TAB>translation, one per line. \n is a line break;
+# {} are filled in, in order ({0}, {1}… to change the order).
+VOLUME: {}%	LAUTSTÄRKE: {}%
+BALANCE: CENTER	BALANCE: MITTE
+BALANCE: {}% LEFT	BALANCE: {}% LINKS
+BALANCE: {}% RIGHT	BALANCE: {}% RECHTS
+STOPPED AFTER THE TRACK	NACH DEM TITEL GESTOPPT
+CAN'T PLAY: {}	WIEDERGABE NICHT MÖGLICH: {}
+STOP AFTER THIS TRACK: ON	NACH DIESEM TITEL STOPPEN: AN
+STOP AFTER THIS TRACK: OFF	NACH DIESEM TITEL STOPPEN: AUS
+SLEEP TIMER: {} MINUTES	SCHLAFTIMER: {} MINUTEN
+SLEEP TIMER: OFF	SCHLAFTIMER: AUS
+SLEEP TIMER: GOOD NIGHT	SCHLAFTIMER: GUTE NACHT
+SEEK TO: {}/{} ({}%)	SPRINGEN: {}/{} ({}%)
+Internet Radio › Search	Internetradio › Suche
+Generate HTML playlist	HTML-Playlist erstellen
+Read extended info on selected files	Erweiterte Infos der gewählten Dateien lesen
+From file…	Aus Datei…
+HTML PLAYLIST: {} TRACKS	HTML-PLAYLIST: {} TITEL
+COULDN'T WRITE {}: {}	SCHREIBEN FEHLGESCHLAGEN {}: {}
+READ INFO ON {} FILE	INFOS ZU {} DATEI GELESEN
+READ INFO ON {} FILES	INFOS ZU {} DATEIEN GELESEN
+SAVED PLAYLIST: {}	PLAYLIST GESPEICHERT: {}
+CAN'T SAVE: {}	SPEICHERN FEHLGESCHLAGEN: {}
+Spectrum analyzer	Spektrumanalyse
+Oscilloscope	Oszilloskop
+Off	Aus
+Load skin…	Skin laden…
+Skin Museum…	Skin Museum…
+Keep this skin	Diesen Skin behalten
+Original skin (GAMP Classic)	Originalskin (GAMP Classic)
+About Gamp…	Über Gamp…
+Report a problem… ({})	Problem melden… ({})
+Report a problem…	Problem melden…
+Play file…	Datei abspielen…
+Play folder…	Ordner abspielen…
+Jump to file…	Zu Datei springen…
+File info…	Dateiinfo…
+Main window	Hauptfenster
+Playlist editor	Playlist-Editor
+Equalizer	Equalizer
+G-Drop visualizer	G-Drop-Visualisierung
+Media Library	Medienbibliothek
+Gather windows	Fenster sammeln
+Options	Optionen
+Always on top	Immer im Vordergrund
+Double size	Doppelte Größe
+Stop after current track	Nach aktuellem Titel stoppen
+{} minutes	{} Minuten
+Time elapsed	Verstrichene Zeit
+Time remaining	Verbleibende Zeit
+Language	Sprache (Language)
+Same as the system	Wie das System
+Playback	Wiedergabe
+Previous	Zurück
+Pause	Pause
+Stop	Stopp
+Next	Weiter
+Back 5 seconds	5 Sekunden zurück
+Left	Links
+Forward 5 seconds	5 Sekunden vor
+Right	Rechts
+Repeat	Wiederholen
+Shuffle	Zufallswiedergabe
+Visualization	Visualisierung
+Update to Gamp {}…	Auf Gamp {} aktualisieren…
+Check for updates…	Nach Updates suchen…
+Exit	Beenden
+Sleep timer ({} min left)	Schlaftimer (noch {} Min.)
+Sleep timer	Schlaftimer
+Flat (reset)	Linear (zurücksetzen)
+Load	Laden
+Save…	Speichern…
+Reset	Zurücksetzen
+NOT AN EQUALIZER PRESET FILE	KEINE EQUALIZER-PRESET-DATEI
+PRESET: {}	PRESET: {}
+ADDED {} PRESETS	{} PRESETS HINZUGEFÜGT
+SAVED PRESET: {}	PRESET GESPEICHERT: {}
+COULDN'T SAVE THE PRESET: {}	PRESET NICHT GESPEICHERT: {}
+REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER	MELDUNG: BITTE IM BROWSER AUSFÜLLEN
+SKIN: ORIGINAL	SKIN: ORIGINAL
+SKIN KEPT IN THE SKINS MENU	SKIN IM SKINS-MENÜ BEHALTEN
+Gamp Equalizer	Gamp Equalizer
+Gamp Playlist	Gamp Playlist
+Gamp Media Library	Gamp Medienbibliothek
+Gamp Jump to File	Gamp Zu Datei springen
+Gamp File Info	Gamp Dateiinfo
+SEEKING...	SPRINGE...
+SIZE: {}%	GRÖSSE: {}%
+Normal (100%)	Normal (100 %)
+CAN'T OPEN: {}	ÖFFNEN NICHT MÖGLICH: {}
+Double (200%)	Doppelt (200 %)
+EMPTY PLAYLIST	LEERE PLAYLIST
+NOT A SKIN: {}	KEIN SKIN: {}
+Open files	Dateien öffnen
+Audio and playlists	Audio und Playlists
+Winamp skins	Winamp-Skins
+Save playlist	Playlist speichern
+M3U playlist	M3U-Playlist
+My playlist	Meine Playlist
+Save equalizer preset	Equalizer-Preset speichern
+Winamp EQ preset	Winamp-EQ-Preset
+My preset	Mein Preset
+A new Gamp is out	Ein neues Gamp ist da
+Update now	Jetzt aktualisieren
+Later	Später
+G-DROP: CYCLES PRESETS	G-DROP: PRESETS WECHSELN
+G-DROP: STAYS ON THIS PRESET	G-DROP: BLEIBT BEI DIESEM PRESET
+Leave full screen (Esc)	Vollbild beenden (Esc)
+Full screen (F)	Vollbild (F)
+Next preset (Space)	Nächstes Preset (Space)
+Previous preset (←)	Vorheriges Preset (←)
+Random preset (H)	Zufälliges Preset (H)
+Presets	Presets
+Cycle presets (R)	Presets durchwechseln (R)
+Year	Jahr
+Track	Track
+Comment	Kommentar
+NOTHING TO SHOW	NICHTS ANZUZEIGEN
+Source	Quelle
+Internet stream	Internetstream
+Network track	Netzwerktitel
+Can't save: {}	Speichern nicht möglich: {}
+{} channels	{} Kanäle
+Size	Größe
+Type part of a title	Teil eines Titels eingeben
+{} of {}	{} von {}
+Music folders and network drives	Musikordner und Netzlaufwerke
+No folders yet.	Noch keine Ordner.
+Search	Suche
+Remove	Entfernen
+Scanning… {} files, {} tracks	Durchsuche… {} Dateien, {} Titel
+{} tracks	{} Titel
+Add folder…	Ordner hinzufügen…
+Rescan	Neu einlesen
+Add path	Pfad hinzufügen
+Connect to share	Mit Freigabe verbinden
+Media servers (at home or over the internet)	Medienserver (zu Hause oder über das Internet)
+Plex, Jellyfin, Navidrome and other Subsonic servers, Synology Audio Station, WebDAV and Nextcloud. DLNA servers on your network appear by themselves.	Plex, Jellyfin, Navidrome und andere Subsonic-Server, Synology Audio Station, WebDAV und Nextcloud. DLNA-Server in deinem Netzwerk erscheinen von selbst.
+Sign in with Plex	Mit Plex anmelden
+Adds every Plex server on your account.	Fügt alle Plex-Server deines Kontos hinzu.
+Type: {} ›	Typ: {} ›
+Accept a self-signed certificate	Selbstsigniertes Zertifikat akzeptieren
+Add server	Server hinzufügen
+Search the network again	Netzwerk erneut durchsuchen
+Dropbox, Google Drive and OneDrive	Dropbox, Google Drive und OneDrive
+Disconnect	Trennen
+Install the Dropbox, Google Drive or OneDrive app and sign in: its folder shows up under Network & Cloud by itself. Songs download as you play them.	Installiere die App von Dropbox, Google Drive oder OneDrive und melde dich an: Ihr Ordner erscheint dann von selbst unter Netzwerk & Cloud. Songs werden beim Abspielen geladen.
+Get Dropbox	Dropbox holen
+Look again	Erneut suchen
+None on this computer yet	Noch keiner auf diesem Computer
+Found: {}	Gefunden: {}
+Spotify (Premium)	Spotify (Premium)
+Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.	Melde dich einmal in deinem Webbrowser an. Deine Lieblingssongs, Playlists und die Suche erscheinen dann hier, und Songs laufen über Gamps Equalizer und Visualisierungen.
+Disconnect Spotify	Spotify trennen
+Connect Spotify	Spotify verbinden
+Connected	Verbunden
+Not connected	Nicht verbunden
+No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).	Kein Konto nötig: Durchsuche SoundCloud oder füge einen Link zu Titel, Playlist oder Künstler in die Suche ein. Für deine Likes und Playlists gib die Adresse deines Profils an (sie müssen öffentlich sein).
+Save	Speichern
+Internet radio, podcasts and the Internet Archive	Internetradio, Podcasts und das Internet Archive
+Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.	Nichts einzurichten: Sie stehen unter Internet. Füge eine Streamadresse in Internetradio › Suche ein, um sie abzuspielen.
+Skins	Skins
+Local Media › Audio	Lokale Medien › Audio
+Scanning…	Durchsuche…
+Connecting. Then add the share's folder.	Verbinde. Danach den Ordner der Freigabe hinzufügen.
+Connecting…	Verbinde…
+Looking for DLNA servers…	Suche DLNA-Server…
+SKIN: {}	SKIN: {}
+Connect…	Verbinden…
+Local Media	Lokale Medien
+Network & Cloud	Netzwerk & Cloud
+Media servers	Medienserver
+Add a server…	Server hinzufügen…
+Internet	Internet
+Settings	Einstellungen
+Type a station or genre, or paste a stream address	Sender oder Genre eingeben, oder eine Streamadresse einfügen
+Type a podcast name, or paste a feed address	Podcastnamen eingeben, oder eine Feedadresse einfügen
+Paste a SoundCloud link (track, playlist or artist), or search	SoundCloud-Link einfügen (Titel, Playlist oder Künstler) oder suchen
+Search Spotify: songs, artists, your playlists	Spotify durchsuchen: Songs, Künstler, deine Playlists
+Search the Skin Museum: a band, a game, a colour, a name	Skin Museum durchsuchen: Band, Spiel, Farbe, Name
+Type and press Enter to search	Eingeben und Enter drücken zum Suchen
+Loading…	Lädt…
+Artist	Künstler
+Genre	Genre
+Album	Album
+Format	Format
+Length	Länge
+Items	Einträge
+Posted	Gepostet
+Plays	Plays
+Likes	Likes
+Skin	Skin
+File	Datei
+Name	Name
+Station	Sender
+Title	Titel
+Use skin	Skin verwenden
+Surprise me	Überrasch mich
+Original skin	Originalskin
+Play	Abspielen
+Enqueue	Einreihen
+Play all	Alle abspielen
+scanning… {} files	durchsuche… {} Dateien
+{} items	{} Einträge
+Jellyfin or Emby	Jellyfin oder Emby
+Synology Audio Station	Synology Audio Station
+Plex (address and token)	Plex (Adresse und Token)
+{} (preview)	{} (Vorschau)
+Open it to play what's inside.	Öffne es, um den Inhalt abzuspielen.
+Add to playlist (Shift+Enter)	Zur Playlist hinzufügen (Shift+Enter)
+Latest from {}	Neueste von {}
+FETCHING SKIN…	LADE SKIN…
+Skin Museum › Most popular	Skin Museum › Beliebteste
+SoundCloud › Search	SoundCloud › Suche
+Select some tracks first.	Wähle zuerst Titel aus.
+Select a skin first.	Wähle zuerst einen Skin aus.
+Select something first.	Wähle zuerst etwas aus.
+Name (optional)	Name (optional)
+User name	Benutzername
+Loading	Lädt
+Searching	Sucht
+Connecting	Verbinde
+Scanning	Durchsuche
+Password	Passwort
+Two-step code (if you use one)	Zwei-Faktor-Code (falls genutzt)
+Or type a path	Oder Pfad eingeben
+Searching…	Sucht…
+Sort list by title	Nach Titel sortieren
+Sort list by filename	Nach Dateiname sortieren
+Sort list by path and filename	Nach Pfad und Dateiname sortieren
+Reverse list	Liste umkehren
+Randomize list	Liste mischen
+What's new:	Neu:
+Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.	Gamp {} ist da (du hast {}). Jetzt aktualisieren? Gamp schließt sich, aktualisiert und startet neu.
+GAMP {} IS OUT - RIGHT-CLICK › UPDATE	GAMP {} IST DA - RECHTSKLICK › UPDATE
+GAMP {} IS UP TO DATE	GAMP {} IST AKTUELL
+CAN'T CHECK FOR UPDATES: {}	UPDATE-PRÜFUNG FEHLGESCHLAGEN: {}
+DOWNLOADING UPDATE {}%	LADE UPDATE {}%
+Add folders in Settings › Music folders.	Ordner hinzufügen unter Einstellungen › Musikordner.
+Files	Dateien
+Playlists	Playlists
+Liked Songs	Lieblingssongs
+Skin Museum	Skin Museum
+Most popular	Beliebteste
+No folders or music here.	Keine Ordner oder Musik hier.
+That cloud folder isn't on this computer any more	Dieser Cloud-Ordner ist nicht mehr auf diesem Computer
+From the Winamp Skin Museum, skins.webamp.org	Aus dem Winamp Skin Museum, skins.webamp.org
+SoundCloud only allows a 30-second preview of this track	SoundCloud erlaubt bei diesem Titel nur eine 30-Sekunden-Vorschau
+That link isn't a SoundCloud track, playlist or artist	Dieser Link ist kein SoundCloud-Titel, keine Playlist und kein Künstler
+No such SoundCloud profile	Dieses SoundCloud-Profil gibt es nicht
+SoundCloud only plays this on soundcloud.com	SoundCloud spielt das nur auf soundcloud.com
+SoundCloud has no stream for this track	SoundCloud hat keinen Stream für diesen Titel
+SoundCloud changed its web player; Gamp needs an update to play links	SoundCloud hat seinen Webplayer geändert; Gamp braucht ein Update, um Links abzuspielen
+SoundCloud doesn't have that (or it's private)	SoundCloud hat das nicht (oder es ist privat)
+SoundCloud refused	SoundCloud hat abgelehnt
+No playable audio in this item.	Kein abspielbares Audio in diesem Eintrag.
+Nothing here.	Hier ist nichts.
+Your Dropbox app needs the files.metadata.read and files.content.read permissions (Permissions tab), then connect again	Deine Dropbox-App braucht die Berechtigungen files.metadata.read und files.content.read (Tab Permissions), dann erneut verbinden
+Paste your Dropbox app key in Settings first	Füge zuerst deinen Dropbox-App-Key in den Einstellungen ein
+This Dropbox sign-in expired. Try again.	Diese Dropbox-Anmeldung ist abgelaufen. Versuche es erneut.
+Mark songs or albums as favourites on your server to see them here.	Markiere Songs oder Alben auf deinem Server als Favoriten, um sie hier zu sehen.
+Wrong user name or password	Falscher Benutzername oder falsches Passwort
+The server didn't sign you in	Der Server hat dich nicht angemeldet
+Type the server's address	Gib die Adresse des Servers ein
+That kind of source is added another way	Diese Art Quelle wird anders hinzugefügt
+Starred	Markiert
+Recently Added	Neu hinzugefügt
+Artists	Künstler
+Favorites	Favoriten
+All Songs	Alle Songs
+Albums	Alben
+Folders	Ordner
+Browse	Durchsuchen
+Top Stations	Top-Sender
+Genres	Genres
+Countries	Länder
+Subscriptions	Abos
+Top Podcasts	Top-Podcasts
+Live Music Archive	Live Music Archive
+78 RPM Records	78er-Schallplatten
+Netlabels	Netlabels
+Old Time Radio	Old Time Radio
+Select something first	Wähle zuerst etwas aus
+Nothing to do here	Hier gibt es nichts zu tun
+it refused (sign in again in Settings)	abgelehnt (in den Einstellungen neu anmelden)
+Internet Radio	Internetradio
+Podcasts	Podcasts
+Internet Archive	Internet Archive
+No host in the stream address	Kein Host in der Streamadresse
+The station took too long to answer	Der Sender hat zu lange nicht geantwortet
+The station sent no audio	Der Sender hat kein Audio gesendet
+Signed in, but this Plex account has no servers	Angemeldet, aber dieses Plex-Konto hat keine Server
+Use Sign in with Plex, or put your X-Plex-Token in the password box	Nutze „Mit Plex anmelden“ oder gib dein X-Plex-Token ins Passwortfeld ein
+plex.tv didn't start a sign-in	plex.tv hat keine Anmeldung gestartet
+This Plex sign-in expired. Try again.	Diese Plex-Anmeldung ist abgelaufen. Versuche es erneut.
+Plex didn't finish the sign-in	Plex hat die Anmeldung nicht abgeschlossen
+Unsubscribe	Abbestellen
+Search for a podcast (or paste its feed address), select it and press Subscribe.	Suche einen Podcast (oder füge seine Feedadresse ein), wähle ihn aus und klicke auf Abonnieren.
+Subscribe	Abonnieren
+This podcast has no episodes to play.	Dieser Podcast hat keine abspielbaren Folgen.
+That playlist lists no streams	Diese Playlist enthält keine Streams
+No radio directory	Kein Radioverzeichnis
+Select stations anywhere in Internet Radio and press Add to Favorites. You can also paste a stream address into Search.	Wähle irgendwo in Internetradio Sender aus und klicke auf Zu Favoriten. Du kannst auch eine Streamadresse in die Suche einfügen.
+Add to Favorites	Zu Favoriten
+Type your user name	Gib deinen Benutzernamen ein
+Star songs or albums on your server to see them here.	Markiere Songs oder Alben auf deinem Server mit Stern, um sie hier zu sehen.
+Type your DSM user name	Gib deinen DSM-Benutzernamen ein
+wrong user name or password	falscher Benutzername oder falsches Passwort
+this account is disabled	dieses Konto ist deaktiviert
+this account can't use Audio Station	dieses Konto darf Audio Station nicht nutzen
+type your two-step code too (it's asked for once)	gib auch deinen Zwei-Faktor-Code ein (wird einmal abgefragt)
+that two-step code didn't work	dieser Zwei-Faktor-Code hat nicht funktioniert
+this address is blocked by the NAS after too many tries	diese Adresse wurde nach zu vielen Versuchen vom NAS gesperrt
+Audio Station isn't installed on this NAS	Audio Station ist auf diesem NAS nicht installiert
+Audio Station isn't installed on this NAS (Package Center › Audio Station)	Audio Station ist auf diesem NAS nicht installiert (Paket-Zentrum › Audio Station)
+No folders or music files here.	Keine Ordner oder Musikdateien hier.
+This Spotify sign-in expired. Try again.	Diese Spotify-Anmeldung ist abgelaufen. Versuche es erneut.
+Connect Spotify in Settings.	Verbinde Spotify in den Einstellungen.
+Copy	Kopieren
+Cancel	Abbrechen
+File Info	Dateiinfo
+Close	Schließen
+Jump to File	Zu Datei springen
+‹ Back	‹ Zurück
+Copied	Kopiert
+Saved	Gespeichert
+mono	mono
+stereo	stereo
+Audio	Audio
+Add a music folder	Musikordner hinzufügen
+DOWNLOADING UPDATE…	LADE UPDATE…
+GAMP {} DIDN'T INSTALL	GAMP {} WURDE NICHT INSTALLIERT
+OPENED GAMP {} IN YOUR SOFTWARE INSTALLER	GAMP {} IM INSTALLATIONSPROGRAMM GEÖFFNET
+OPENED THE DOWNLOAD PAGE	DOWNLOADSEITE GEÖFFNET
+Open a folder	Ordner öffnen
+UPDATE FAILED ({})	UPDATE FEHLGESCHLAGEN ({})
+Winamp EQ presets	Winamp-EQ-Presets
+{} - OPENED THE DOWNLOAD PAGE	{} - DOWNLOADSEITE GEÖFFNET
+Your profile: soundcloud.com/you	Dein Profil: soundcloud.com/du
+Add any folder. Network drives work once mounted in Finder (Go › Connect to Server, or use Connect below); they appear under /Volumes.	Füge einen beliebigen Ordner hinzu. Netzlaufwerke funktionieren, sobald sie im Finder verbunden sind (Gehe zu › Mit Server verbinden oder unten „Verbinden“); sie erscheinen unter /Volumes.
+Add any folder, a mapped drive, or a \\server\share path.	Füge einen beliebigen Ordner, ein verbundenes Netzlaufwerk oder einen Pfad wie \\server\freigabe hinzu.
+Add any folder, including network shares mounted under /mnt or /media.	Füge einen beliebigen Ordner hinzu, auch Netzfreigaben unter /mnt oder /media.
+Finder is connecting. Then Add folder… › /Volumes.	Der Finder verbindet. Dann Ordner hinzufügen… › /Volumes.
+QuickConnect ID, or http://diskstation:5000	QuickConnect-ID oder http://diskstation:5000

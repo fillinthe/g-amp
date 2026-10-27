@@ -31,6 +31,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
 raw-window-handle = "0.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
+sys-locale = "0.3"
 
 [build-dependencies]
 winresource = "0.1.34"

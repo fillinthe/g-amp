@@ -1,0 +1,345 @@
+# Gamp in zh-CN: English<TAB>translation, one per line. \n is a line break;
+# {} are filled in, in order ({0}, {1}… to change the order).
+VOLUME: {}%	VOLUME: {}%
+BALANCE: CENTER	BALANCE: CENTER
+BALANCE: {}% LEFT	BALANCE: {}% LEFT
+BALANCE: {}% RIGHT	BALANCE: {}% RIGHT
+STOPPED AFTER THE TRACK	STOPPED AFTER THE TRACK
+CAN'T PLAY: {}	CAN'T PLAY: {}
+STOP AFTER THIS TRACK: ON	STOP AFTER THIS TRACK: ON
+STOP AFTER THIS TRACK: OFF	STOP AFTER THIS TRACK: OFF
+SLEEP TIMER: {} MINUTES	SLEEP TIMER: {} MINUTES
+SLEEP TIMER: OFF	SLEEP TIMER: OFF
+SLEEP TIMER: GOOD NIGHT	SLEEP TIMER: GOOD NIGHT
+SEEK TO: {}/{} ({}%)	SEEK TO: {}/{} ({}%)
+Internet Radio › Search	网络电台 › 搜索
+Generate HTML playlist	生成 HTML 播放列表
+Read extended info on selected files	读取所选文件的扩展信息
+From file…	从文件…
+HTML PLAYLIST: {} TRACKS	HTML PLAYLIST: {} TRACKS
+COULDN'T WRITE {}: {}	COULDN'T WRITE {}: {}
+READ INFO ON {} FILE	READ INFO ON {} FILE
+READ INFO ON {} FILES	READ INFO ON {} FILES
+SAVED PLAYLIST: {}	SAVED PLAYLIST: {}
+CAN'T SAVE: {}	CAN'T SAVE: {}
+Spectrum analyzer	频谱分析器
+Oscilloscope	示波器
+Off	关闭
+Load skin…	载入皮肤…
+Skin Museum…	Skin Museum…
+Keep this skin	保留此皮肤
+Original skin (GAMP Classic)	原始皮肤 (GAMP Classic)
+About Gamp…	关于 Gamp…
+Report a problem… ({})	报告问题… ({})
+Report a problem…	报告问题…
+Play file…	播放文件…
+Play folder…	播放文件夹…
+Jump to file…	跳转到文件…
+File info…	文件信息…
+Main window	主窗口
+Playlist editor	播放列表编辑器
+Equalizer	均衡器
+G-Drop visualizer	G-Drop 可视化
+Media Library	媒体库
+Gather windows	收拢窗口
+Options	选项
+Always on top	总在最前
+Double size	双倍大小
+Stop after current track	播完当前曲目后停止
+{} minutes	{} 分钟
+Time elapsed	已播放时间
+Time remaining	剩余时间
+Language	语言 (Language)
+Same as the system	跟随系统
+Playback	播放
+Previous	上一首
+Pause	暂停
+Stop	停止
+Next	下一首
+Back 5 seconds	后退 5 秒
+Left	左
+Forward 5 seconds	前进 5 秒
+Right	右
+Repeat	重复
+Shuffle	随机
+Visualization	可视化
+Update to Gamp {}…	更新到 Gamp {}…
+Check for updates…	检查更新…
+Exit	退出
+Sleep timer ({} min left)	睡眠定时器（剩余 {} 分钟）
+Sleep timer	睡眠定时器
+Flat (reset)	平直（重置）
+Load	载入
+Save…	保存…
+Reset	重置
+NOT AN EQUALIZER PRESET FILE	NOT AN EQUALIZER PRESET FILE
+PRESET: {}	PRESET: {}
+ADDED {} PRESETS	ADDED {} PRESETS
+SAVED PRESET: {}	SAVED PRESET: {}
+COULDN'T SAVE THE PRESET: {}	COULDN'T SAVE THE PRESET: {}
+REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER	REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER
+SKIN: ORIGINAL	SKIN: ORIGINAL
+SKIN KEPT IN THE SKINS MENU	SKIN KEPT IN THE SKINS MENU
+Gamp Equalizer	Gamp 均衡器
+Gamp Playlist	Gamp 播放列表
+Gamp Media Library	Gamp 媒体库
+Gamp Jump to File	Gamp 跳转到文件
+Gamp File Info	Gamp 文件信息
+SEEKING...	SEEKING...
+SIZE: {}%	SIZE: {}%
+Normal (100%)	正常 (100%)
+CAN'T OPEN: {}	CAN'T OPEN: {}
+Double (200%)	双倍 (200%)
+EMPTY PLAYLIST	EMPTY PLAYLIST
+NOT A SKIN: {}	NOT A SKIN: {}
+Open files	打开文件
+Audio and playlists	音频和播放列表
+Winamp skins	Winamp 皮肤
+Save playlist	保存播放列表
+M3U playlist	M3U 播放列表
+My playlist	我的播放列表
+Save equalizer preset	保存均衡器预设
+Winamp EQ preset	Winamp 均衡器预设
+My preset	我的预设
+A new Gamp is out	Gamp 有新版本了
+Update now	立即更新
+Later	以后再说
+G-DROP: CYCLES PRESETS	G-DROP: CYCLES PRESETS
+G-DROP: STAYS ON THIS PRESET	G-DROP: STAYS ON THIS PRESET
+Leave full screen (Esc)	退出全屏 (Esc)
+Full screen (F)	全屏 (F)
+Next preset (Space)	下一个预设 (Space)
+Previous preset (←)	上一个预设 (←)
+Random preset (H)	随机预设 (H)
+Presets	预设
+Cycle presets (R)	轮换预设 (R)
+Year	年份
+Track	音轨
+Comment	注释
+NOTHING TO SHOW	NOTHING TO SHOW
+Source	来源
+Internet stream	网络流
+Network track	网络曲目
+Can't save: {}	无法保存：{}
+{} channels	{} 声道
+Size	大小
+Type part of a title	输入标题的一部分
+{} of {}	{} / {}
+Music folders and network drives	音乐文件夹和网络驱动器
+No folders yet.	还没有文件夹。
+Search	搜索
+Remove	移除
+Scanning… {} files, {} tracks	正在扫描… {} 个文件，{} 首曲目
+{} tracks	{} 首曲目
+Add folder…	添加文件夹…
+Rescan	重新扫描
+Add path	添加路径
+Connect to share	连接共享
+Media servers (at home or over the internet)	媒体服务器（家中或通过互联网）
+Plex, Jellyfin, Navidrome and other Subsonic servers, Synology Audio Station, WebDAV and Nextcloud. DLNA servers on your network appear by themselves.	Plex、Jellyfin、Navidrome 及其他 Subsonic 服务器、Synology Audio Station、WebDAV 和 Nextcloud。网络中的 DLNA 服务器会自动出现。
+Sign in with Plex	用 Plex 登录
+Adds every Plex server on your account.	添加你账户中的所有 Plex 服务器。
+Type: {} ›	类型：{} ›
+Accept a self-signed certificate	接受自签名证书
+Add server	添加服务器
+Search the network again	重新搜索网络
+Dropbox, Google Drive and OneDrive	Dropbox、Google Drive 和 OneDrive
+Disconnect	断开连接
+Install the Dropbox, Google Drive or OneDrive app and sign in: its folder shows up under Network & Cloud by itself. Songs download as you play them.	安装 Dropbox、Google Drive 或 OneDrive 应用并登录：它的文件夹会自动出现在“网络和云”下。歌曲在播放时下载。
+Get Dropbox	获取 Dropbox
+Look again	重新查找
+None on this computer yet	此电脑上还没有
+Found: {}	已找到：{}
+Spotify (Premium)	Spotify (Premium)
+Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.	在网页浏览器中登录一次。之后你喜欢的歌曲、播放列表和搜索都会显示在这里，歌曲会经过 Gamp 的均衡器和可视化效果播放。
+Disconnect Spotify	断开 Spotify
+Connect Spotify	连接 Spotify
+Connected	已连接
+Not connected	未连接
+No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).	无需账户：搜索 SoundCloud，或把任意曲目、播放列表或艺人链接粘贴到“搜索”。要查看你的喜欢和播放列表，请添加你的个人主页地址（它们需要设为公开）。
+Save	保存
+Internet radio, podcasts and the Internet Archive	网络电台、播客和 Internet Archive
+Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.	无需设置：它们都在“互联网”下。把任意流地址粘贴到 网络电台 › 搜索 即可播放。
+Skins	皮肤
+Local Media › Audio	本地媒体 › 音频
+Scanning…	正在扫描…
+Connecting. Then add the share's folder.	正在连接。然后添加共享的文件夹。
+Connecting…	正在连接…
+Looking for DLNA servers…	正在查找 DLNA 服务器…
+SKIN: {}	SKIN: {}
+Connect…	连接…
+Local Media	本地媒体
+Network & Cloud	网络和云
+Media servers	媒体服务器
+Add a server…	添加服务器…
+Internet	互联网
+Settings	设置
+Type a station or genre, or paste a stream address	输入电台或流派，或粘贴流地址
+Type a podcast name, or paste a feed address	输入播客名称，或粘贴订阅地址
+Paste a SoundCloud link (track, playlist or artist), or search	粘贴 SoundCloud 链接（曲目、播放列表或艺人），或搜索
+Search Spotify: songs, artists, your playlists	搜索 Spotify：歌曲、艺人、你的播放列表
+Search the Skin Museum: a band, a game, a colour, a name	搜索 Skin Museum：乐队、游戏、颜色、名称
+Type and press Enter to search	输入后按 Enter 搜索
+Loading…	正在载入…
+Artist	艺人
+Genre	流派
+Album	专辑
+Format	格式
+Length	时长
+Items	项目
+Posted	发布
+Plays	播放
+Likes	喜欢
+Skin	皮肤
+File	文件
+Name	名称
+Station	电台
+Title	标题
+Use skin	使用皮肤
+Surprise me	随便来一个
+Original skin	原始皮肤
+Play	播放
+Enqueue	加入队列
+Play all	全部播放
+scanning… {} files	正在扫描… {} 个文件
+{} items	{} 项
+Jellyfin or Emby	Jellyfin 或 Emby
+Synology Audio Station	Synology Audio Station
+Plex (address and token)	Plex（地址和令牌）
+{} (preview)	{}（试听）
+Open it to play what's inside.	打开它以播放其中的内容。
+Add to playlist (Shift+Enter)	添加到播放列表 (Shift+Enter)
+Latest from {}	{} 的最新作品
+FETCHING SKIN…	FETCHING SKIN…
+Skin Museum › Most popular	Skin Museum › 最受欢迎
+SoundCloud › Search	SoundCloud › 搜索
+Select some tracks first.	请先选择曲目。
+Select a skin first.	请先选择皮肤。
+Select something first.	请先选择内容。
+Name (optional)	名称（可选）
+User name	用户名
+Loading	正在载入
+Searching	正在搜索
+Connecting	正在连接
+Scanning	正在扫描
+Password	密码
+Two-step code (if you use one)	两步验证码（如有）
+Or type a path	或输入路径
+Searching…	正在搜索…
+Sort list by title	按标题排序
+Sort list by filename	按文件名排序
+Sort list by path and filename	按路径和文件名排序
+Reverse list	反转列表
+Randomize list	随机排列列表
+What's new:	新功能：
+Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.	Gamp {} 已发布（你的版本是 {}）。现在更新吗？Gamp 会关闭、更新并重新打开。
+GAMP {} IS OUT - RIGHT-CLICK › UPDATE	GAMP {} IS OUT - RIGHT-CLICK › UPDATE
+GAMP {} IS UP TO DATE	GAMP {} IS UP TO DATE
+CAN'T CHECK FOR UPDATES: {}	CAN'T CHECK FOR UPDATES: {}
+DOWNLOADING UPDATE {}%	DOWNLOADING UPDATE {}%
+Add folders in Settings › Music folders.	在 设置 › 音乐文件夹 中添加文件夹。
+Files	文件
+Playlists	播放列表
+Liked Songs	喜欢的歌曲
+Skin Museum	Skin Museum
+Most popular	最受欢迎
+No folders or music here.	这里没有文件夹或音乐。
+That cloud folder isn't on this computer any more	那个云文件夹已不在这台电脑上
+From the Winamp Skin Museum, skins.webamp.org	来自 Winamp Skin Museum，skins.webamp.org
+SoundCloud only allows a 30-second preview of this track	SoundCloud 只允许试听此曲目 30 秒
+That link isn't a SoundCloud track, playlist or artist	该链接不是 SoundCloud 曲目、播放列表或艺人
+No such SoundCloud profile	没有这个 SoundCloud 主页
+SoundCloud only plays this on soundcloud.com	SoundCloud 只允许在 soundcloud.com 上播放此内容
+SoundCloud has no stream for this track	SoundCloud 没有此曲目的音频流
+SoundCloud changed its web player; Gamp needs an update to play links	SoundCloud 更改了网页播放器；Gamp 需要更新才能播放链接
+SoundCloud doesn't have that (or it's private)	SoundCloud 上没有这个（或它是私密的）
+SoundCloud refused	SoundCloud 拒绝了请求
+No playable audio in this item.	此项目中没有可播放的音频。
+Nothing here.	这里什么都没有。
+Your Dropbox app needs the files.metadata.read and files.content.read permissions (Permissions tab), then connect again	你的 Dropbox 应用需要 files.metadata.read 和 files.content.read 权限（Permissions 标签页），然后重新连接
+Paste your Dropbox app key in Settings first	请先在“设置”中粘贴你的 Dropbox 应用密钥
+This Dropbox sign-in expired. Try again.	Dropbox 登录已过期。请重试。
+Mark songs or albums as favourites on your server to see them here.	在服务器上把歌曲或专辑标为收藏，就能在这里看到它们。
+Wrong user name or password	用户名或密码错误
+The server didn't sign you in	服务器没有让你登录
+Type the server's address	输入服务器地址
+That kind of source is added another way	这种来源需要用其他方式添加
+Starred	已加星标
+Recently Added	最近添加
+Artists	艺人
+Favorites	收藏
+All Songs	所有歌曲
+Albums	专辑
+Folders	文件夹
+Browse	浏览
+Top Stations	热门电台
+Genres	流派
+Countries	国家/地区
+Subscriptions	订阅
+Top Podcasts	热门播客
+Live Music Archive	现场音乐档案
+78 RPM Records	78 转唱片
+Netlabels	网络厂牌
+Old Time Radio	老式广播剧
+Select something first	请先选择内容
+Nothing to do here	这里没有可执行的操作
+it refused (sign in again in Settings)	被拒绝了（请在“设置”中重新登录）
+Internet Radio	网络电台
+Podcasts	播客
+Internet Archive	Internet Archive
+No host in the stream address	流地址中没有主机
+The station took too long to answer	电台响应时间过长
+The station sent no audio	电台没有发送音频
+Signed in, but this Plex account has no servers	已登录，但此 Plex 账户没有服务器
+Use Sign in with Plex, or put your X-Plex-Token in the password box	请使用“用 Plex 登录”，或在密码框中填入你的 X-Plex-Token
+plex.tv didn't start a sign-in	plex.tv 没有开始登录
+This Plex sign-in expired. Try again.	Plex 登录已过期。请重试。
+Plex didn't finish the sign-in	Plex 没有完成登录
+Unsubscribe	取消订阅
+Search for a podcast (or paste its feed address), select it and press Subscribe.	搜索播客（或粘贴其订阅地址），选中后按“订阅”。
+Subscribe	订阅
+This podcast has no episodes to play.	此播客没有可播放的节目。
+That playlist lists no streams	该播放列表中没有任何流
+No radio directory	没有电台目录
+Select stations anywhere in Internet Radio and press Add to Favorites. You can also paste a stream address into Search.	在“网络电台”中任意位置选择电台，然后按“添加到收藏”。也可以把流地址粘贴到“搜索”。
+Add to Favorites	添加到收藏
+Type your user name	输入你的用户名
+Star songs or albums on your server to see them here.	在服务器上给歌曲或专辑加星标，就能在这里看到它们。
+Type your DSM user name	输入你的 DSM 用户名
+wrong user name or password	用户名或密码错误
+this account is disabled	此账户已被停用
+this account can't use Audio Station	此账户无法使用 Audio Station
+type your two-step code too (it's asked for once)	还需输入两步验证码（只需输入一次）
+that two-step code didn't work	该两步验证码无效
+this address is blocked by the NAS after too many tries	尝试次数过多，此地址已被 NAS 封锁
+Audio Station isn't installed on this NAS	此 NAS 上未安装 Audio Station
+Audio Station isn't installed on this NAS (Package Center › Audio Station)	此 NAS 上未安装 Audio Station（套件中心 › Audio Station）
+No folders or music files here.	这里没有文件夹或音乐文件。
+This Spotify sign-in expired. Try again.	Spotify 登录已过期。请重试。
+Connect Spotify in Settings.	请在“设置”中连接 Spotify。
+Copy	复制
+Cancel	取消
+File Info	文件信息
+Close	关闭
+Jump to File	跳转到文件
+‹ Back	‹ 返回
+Copied	已复制
+Saved	已保存
+mono	单声道
+stereo	立体声
+Audio	音频
+Add a music folder	添加音乐文件夹
+DOWNLOADING UPDATE…	DOWNLOADING UPDATE…
+GAMP {} DIDN'T INSTALL	GAMP {} DIDN'T INSTALL
+OPENED GAMP {} IN YOUR SOFTWARE INSTALLER	OPENED GAMP {} IN YOUR SOFTWARE INSTALLER
+OPENED THE DOWNLOAD PAGE	OPENED THE DOWNLOAD PAGE
+Open a folder	打开文件夹
+UPDATE FAILED ({})	UPDATE FAILED ({})
+Winamp EQ presets	Winamp 均衡器预设
+{} - OPENED THE DOWNLOAD PAGE	{} - OPENED THE DOWNLOAD PAGE
+Your profile: soundcloud.com/you	你的主页：soundcloud.com/you
+Add any folder. Network drives work once mounted in Finder (Go › Connect to Server, or use Connect below); they appear under /Volumes.	可添加任意文件夹。网络驱动器在“访达”中连接后即可使用（前往 › 连接服务器，或使用下方的“连接”）；它们显示在 /Volumes 下。
+Add any folder, a mapped drive, or a \\server\share path.	可添加任意文件夹、映射的驱动器，或 \\server\share 路径。
+Add any folder, including network shares mounted under /mnt or /media.	可添加任意文件夹，包括挂载在 /mnt 或 /media 下的网络共享。
+Finder is connecting. Then Add folder… › /Volumes.	“访达”正在连接。然后选择 添加文件夹… › /Volumes。
+QuickConnect ID, or http://diskstation:5000	QuickConnect ID，或 http://diskstation:5000

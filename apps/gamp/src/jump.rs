@@ -52,7 +52,7 @@ impl App {
             })
             .collect();
         self.jump.view.rows = self.jump.matches.iter().map(|i| Row { text: format!("{}. {}", i + 1, self.playlist.entries[*i].display()), current: current == Some(*i) }).collect();
-        self.jump.view.status = format!("{} of {}", self.jump.matches.len(), self.playlist.entries.len());
+        self.jump.view.status = gamp_ui::lang::tf("{} of {}", &[&self.jump.matches.len(), &self.playlist.entries.len()]);
         // Keep the pick if it's still listed; otherwise the first match
         // (the playing track when nothing is typed yet).
         self.jump.view.selected = match keep.and_then(|k| self.jump.matches.iter().position(|m| *m == k)) {

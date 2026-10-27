@@ -7,6 +7,8 @@
 
 use std::path::{Path, PathBuf};
 
+use gamp_ui::lang::t;
+
 use crate::playlist;
 
 #[derive(Clone, Debug)]
@@ -45,26 +47,26 @@ pub fn run(ask: Ask, data: &Path) -> Answer {
     let mut yes = false;
     let paths = match &ask {
         Ask::OpenFiles { .. } => FileDialog::new()
-            .set_title("Open files")
-            .add_filter("Audio and playlists", &[playlist::AUDIO, &["m3u", "m3u8", "pls"]].concat())
-            .add_filter("Winamp skins", &["wsz", "zip"])
+            .set_title(t("Open files"))
+            .add_filter(t("Audio and playlists"), &[playlist::AUDIO, &["m3u", "m3u8", "pls"]].concat())
+            .add_filter(t("Winamp skins"), &["wsz", "zip"])
             .pick_files()
             .unwrap_or_default(),
-        Ask::OpenFolder { .. } => one(FileDialog::new().set_title("Open a folder").pick_folder()),
-        Ask::PlaylistFile => one(FileDialog::new().add_filter("Playlists", &["m3u", "m3u8", "pls"]).pick_file()),
-        Ask::SkinFile => one(FileDialog::new().add_filter("Winamp skins", &["wsz", "zip"]).pick_file()),
-        Ask::PresetFile => one(FileDialog::new().add_filter("Winamp EQ presets", &["eqf", "q1"]).pick_file()),
-        Ask::MusicFolder => one(FileDialog::new().set_title("Add a music folder").pick_folder()),
-        Ask::SavePlaylist => save("Save playlist", "playlists", "M3U playlist", "m3u8", "My playlist.m3u8"),
-        Ask::SavePreset => save("Save equalizer preset", "presets", "Winamp EQ preset", "eqf", "My preset.eqf"),
+        Ask::OpenFolder { .. } => one(FileDialog::new().set_title(t("Open a folder")).pick_folder()),
+        Ask::PlaylistFile => one(FileDialog::new().add_filter(t("Playlists"), &["m3u", "m3u8", "pls"]).pick_file()),
+        Ask::SkinFile => one(FileDialog::new().add_filter(t("Winamp skins"), &["wsz", "zip"]).pick_file()),
+        Ask::PresetFile => one(FileDialog::new().add_filter(t("Winamp EQ presets"), &["eqf", "q1"]).pick_file()),
+        Ask::MusicFolder => one(FileDialog::new().set_title(t("Add a music folder")).pick_folder()),
+        Ask::SavePlaylist => save(t("Save playlist"), "playlists", t("M3U playlist"), "m3u8", &format!("{}.m3u8", t("My playlist"))),
+        Ask::SavePreset => save(t("Save equalizer preset"), "presets", t("Winamp EQ preset"), "eqf", &format!("{}.eqf", t("My preset"))),
         Ask::Update(text) => {
             let answer = rfd::MessageDialog::new()
                 .set_level(rfd::MessageLevel::Info)
-                .set_title("A new Gamp is out")
+                .set_title(t("A new Gamp is out"))
                 .set_description(text)
-                .set_buttons(rfd::MessageButtons::OkCancelCustom("Update now".into(), "Later".into()))
+                .set_buttons(rfd::MessageButtons::OkCancelCustom(t("Update now").into(), t("Later").into()))
                 .show();
-            yes = matches!(answer, rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes) || answer == rfd::MessageDialogResult::Custom("Update now".into());
+            yes = matches!(answer, rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes) || answer == rfd::MessageDialogResult::Custom(t("Update now").into());
             Vec::new()
         }
     };

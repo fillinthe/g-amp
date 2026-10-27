@@ -229,6 +229,7 @@ fn main() -> anyhow::Result<()> {
     app.proxy = Some(el.create_proxy());
     // Crashed last time: that's the error Report a problem… sends.
     app.last_error = crashed;
+    app.set_lang(None);
     app.session = app.load_session();
     let files: Vec<PathBuf> = std::env::args().skip(1).filter(|a| !a.starts_with("--") && !a.starts_with("-psn_")).map(PathBuf::from).collect();
     if !files.is_empty() {

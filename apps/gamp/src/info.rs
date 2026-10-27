@@ -69,9 +69,9 @@ fn file_info(e: &Entry) -> (Vec<String>, Vec<(String, String)>, Option<f64>) {
     }
     if let Some(c) = p.channels() {
         format.push(match c {
-            1 => "mono".into(),
-            2 => "stereo".into(),
-            n => format!("{n} channels"),
+            1 => gamp_ui::lang::t("mono").into(),
+            2 => gamp_ui::lang::t("stereo").into(),
+            n => gamp_ui::lang::tf("{} channels", &[&n]),
         });
     }
     if let Some(b) = p.bit_depth() {
@@ -149,7 +149,7 @@ impl App {
 
     pub(crate) fn info_show(&mut self, index: Option<usize>) {
         let Some(e) = index.and_then(|i| self.playlist.entries.get(i)).cloned() else {
-            self.main.message = Some("NOTHING TO SHOW".into());
+            self.say("NOTHING TO SHOW");
             self.message_until = Some(std::time::Instant::now() + std::time::Duration::from_secs(2));
             return;
         };
@@ -172,7 +172,7 @@ impl App {
                 if !e.artist.is_empty() {
                     rows.push(("Artist".to_owned(), e.artist.clone()));
                 }
-                rows.push(("Source".to_owned(), if e.live { "Internet stream".to_owned() } else { "Network track".to_owned() }));
+                rows.push(("Source".to_owned(), gamp_ui::lang::t(if e.live { "Internet stream" } else { "Network track" }).to_owned()));
                 // What's playing right now tells us its format.
                 if index == Some(self.playlist.current) && self.main.state != gamp_ui::main_window::PlayState::Stopped {
                     let mut f = Vec::new();
@@ -251,7 +251,7 @@ impl App {
                 self.info.view.status = "Saved".into();
                 self.update_title();
             }
-            Err(e) => self.info.view.status = format!("Can't save: {e}"),
+            Err(e) => self.info.view.status = gamp_ui::lang::tf("Can't save: {}", &[&e]),
         }
         self.mark(Kind::Info);
     }
