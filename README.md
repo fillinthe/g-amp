@@ -101,6 +101,13 @@ Gamp again, or click **Open Anyway** in System Settings › Privacy & Security.
   full screen, and Cycle presets (on: it changes by itself; off: it stays on
   one; R toggles). The □ button or F goes full screen, Esc leaves. Drag the
   picture to move it, any edge to resize.
+- Gamp speaks English, Deutsch, Español, Français, Italiano, Português
+  (Brasil), 日本語 and 简体中文: it follows the system's language, and
+  right-click › Options › Language picks another. Song titles in Japanese,
+  Chinese and Korean show in the playlist and library with a font the
+  system already has. The player's little display keeps the skin's own
+  letters (A to Z), so there accents are left off, and in Japanese and
+  Chinese its short messages stay in English.
 - Songs play at an even volume: files with ReplayGain tags (MP3, FLAC, M4A,
   Ogg...) are leveled by them, and Spotify uses its own leveling.
 

@@ -95,9 +95,10 @@ impl Frame {
             let ci = (p / 5) as usize;
             let cx = p % 5;
             let ch = chars[ci];
-            let name = format!("CHARACTER_{}", ch as u32);
             let w = (5 - cx).min(max_w - x);
-            if !self.sprite_part(skin, &name, cx as u32, 0, w as u32, 6, dx + x, dy) {
+            // A letter the skin lacks shows without its accent (É as E).
+            let drawn = [ch, plain(ch)].iter().any(|c| self.sprite_part(skin, &format!("CHARACTER_{}", *c as u32), cx as u32, 0, w as u32, 6, dx + x, dy));
+            if !drawn {
                 self.sprite_part(skin, "CHARACTER_32", cx as u32, 0, w as u32, 6, dx + x, dy);
             }
             x += w;
@@ -114,4 +115,11 @@ impl Frame {
             image::Rgba([(p >> 16) as u8, (p >> 8) as u8, p as u8, (p >> 24) as u8])
         })
     }
+}
+
+/// `c` without its accent, for the skin's A-to-Z font.
+pub(crate) fn plain(c: char) -> char {
+    const FROM: &str = "ÀÁÂÃÄÅàáâãäåÇçÈÉÊËèéêëÌÍÎÏìíîïÑñÒÓÔÕÖòóôõöÙÚÛÜùúûüÝýÿß";
+    const TO: &str = "AAAAAAaaaaaaCcEEEEeeeeIIIIiiiiNnOOOOOoooooUUUUuuuuYyys";
+    FROM.chars().position(|f| f == c).and_then(|i| TO.chars().nth(i)).unwrap_or(c)
 }

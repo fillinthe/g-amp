@@ -99,8 +99,9 @@ fn check() -> Result<Option<Release>, String> {
 
 /// "Gamp 0.4.0 is out: update now?", with what's new. Later: it stays in the menu.
 fn question(r: &Release) -> String {
-    let notes = if r.notes.is_empty() { String::new() } else { format!("\n\nWhat's new:\n{}", r.notes) };
-    format!("Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.{notes}", r.version, env!("CARGO_PKG_VERSION"))
+    use gamp_ui::lang::{t, tf};
+    let notes = if r.notes.is_empty() { String::new() } else { format!("\n\n{}\n{}", t("What's new:"), r.notes) };
+    tf("Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.", &[&r.version, &env!("CARGO_PKG_VERSION")]) + &notes
 }
 
 fn download(url: &str, to: &Path, tx: &mpsc::Sender<Msg>) -> Result<(), String> {
@@ -170,7 +171,7 @@ impl App {
         for m in msgs {
             match m {
                 Msg::Checked(Ok(Some(r)), _) => {
-                    self.main.message = Some(format!("GAMP {} IS OUT - RIGHT-CLICK › UPDATE", r.version));
+                    self.main.message = Some(gamp_ui::lang::tmf("GAMP {} IS OUT - RIGHT-CLICK › UPDATE", &[&r.version]));
                     self.message_until = Some(std::time::Instant::now() + Duration::from_secs(8));
                     self.update = Some(r.clone());
                     if self.update_now {
@@ -185,20 +186,20 @@ impl App {
                         self.quit = true;
                     }
                     if said {
-                        self.say(&format!("GAMP {} IS UP TO DATE", env!("CARGO_PKG_VERSION")));
+                        self.say_f("GAMP {} IS UP TO DATE", &[&env!("CARGO_PKG_VERSION")]);
                     }
                 }
                 Msg::Checked(Err(e), said) => {
                     if said {
-                        self.say(&format!("CAN'T CHECK FOR UPDATES: {e}"));
+                        self.say_f("CAN'T CHECK FOR UPDATES: {}", &[&e]);
                     }
                 }
                 Msg::Progress(p) => {
-                    self.main.message = Some(format!("DOWNLOADING UPDATE {p}%"));
+                    self.main.message = Some(gamp_ui::lang::tmf("DOWNLOADING UPDATE {}%", &[&p]));
                     self.message_until = Some(std::time::Instant::now() + Duration::from_secs(3));
                 }
                 Msg::Ready(file, r) => self.update_apply(&file, &r),
-                Msg::Failed(e) => self.update_by_hand(&format!("UPDATE FAILED ({e})")),
+                Msg::Failed(e) => self.update_by_hand(&gamp_ui::lang::tmf("UPDATE FAILED ({})", &[&e])),
             }
             self.mark(crate::app::Kind::Main);
         }
@@ -208,7 +209,7 @@ impl App {
     fn update_by_hand(&mut self, why: &str) {
         let page = self.update.as_ref().map(|r| r.page.clone()).filter(|p| !p.is_empty()).unwrap_or_else(|| RELEASES.into());
         crate::backend::open_in_browser(&page);
-        self.say(&format!("{why} - OPENED THE DOWNLOAD PAGE"));
+        self.say_f("{} - OPENED THE DOWNLOAD PAGE", &[&why]);
     }
 
     /// At start: did the update we quit for install? If not, say so, open
@@ -221,7 +222,7 @@ impl App {
             return false;
         }
         self.update = Some(attempt.clone());
-        self.update_by_hand(&format!("GAMP {} DIDN'T INSTALL", attempt.version));
+        self.update_by_hand(&gamp_ui::lang::tmf("GAMP {} DIDN'T INSTALL", &[&attempt.version]));
         true
     }
 
@@ -234,9 +235,17 @@ impl App {
 
     /// Shows a message in the display for a few seconds.
     pub fn say(&mut self, text: &str) {
-        if text.starts_with("CAN'T") {
-            self.last_error = Some(text.to_owned());
+        self.say_f(text, &[]);
+    }
+
+    /// `say` with `{}`s filled in. The display shows it in the language in
+    /// use; a problem is kept in English for the report.
+    pub fn say_f(&mut self, text: &str, args: &[&dyn std::fmt::Display]) {
+        let english = gamp_ui::lang::fill(text, args);
+        if english.starts_with("CAN'T") {
+            self.last_error = Some(english);
         }
+        let text = gamp_ui::lang::tmf(text, args);
         self.main.message = Some(text.to_uppercase());
         // Long enough to scroll past once (a letter every 220 ms) when it doesn't fit.
         let secs = (text.chars().count() as u64 * 22 / 100 + 3).max(5);
@@ -322,7 +331,7 @@ chmod +x "{f}" && mv -f "{f}" "{i}"; "{i}" &"#,
         } else {
             // A .deb needs the system's installer (and your password).
             crate::backend::open_in_browser(&file.display().to_string());
-            self.say(&format!("OPENED GAMP {} IN YOUR SOFTWARE INSTALLER", r.version));
+            self.say_f("OPENED GAMP {} IN YOUR SOFTWARE INSTALLER", &[&r.version]);
             return;
         };
         match result {
@@ -334,7 +343,7 @@ chmod +x "{f}" && mv -f "{f}" "{i}"; "{i}" &"#,
                 self.save_session();
                 self.quit = true;
             }
-            Err(e) => self.update_by_hand(&format!("UPDATE FAILED ({e})")),
+            Err(e) => self.update_by_hand(&gamp_ui::lang::tmf("UPDATE FAILED ({})", &[&e])),
         }
     }
 }

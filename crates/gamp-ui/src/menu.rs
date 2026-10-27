@@ -58,9 +58,10 @@ impl Item {
         if matches!(self, Item::Separator) { SEP } else { ROW }
     }
 
+    /// The label as shown, in the language in use.
     fn label(&self) -> &str {
         match self {
-            Item::Action { label, .. } | Item::Submenu { label, .. } => label,
+            Item::Action { label, .. } | Item::Submenu { label, .. } => crate::lang::t(label),
             Item::Separator => "",
         }
     }
@@ -136,7 +137,7 @@ pub fn draw(frame: &mut Frame, items: &[Item], hover: Option<usize>) {
                         frame.fill(8 + dx, top + 6 + dy, 1, 2, argb(col));
                     }
                 }
-                font::draw(frame, 22, top + 13, label, PX, col, w - 30, false);
+                font::draw(frame, 22, top + 13, crate::lang::t(label), PX, col, w - 30, false);
                 if !shortcut.is_empty() {
                     let sw = font::measure(shortcut, PX, false);
                     font::draw(frame, w - 12 - sw, top + 13, shortcut, PX, col, sw + 2, false);
@@ -148,7 +149,7 @@ pub fn draw(frame: &mut Frame, items: &[Item], hover: Option<usize>) {
                     frame.fill(3, top, w - 6, ROW, argb(SEL));
                 }
                 let col = if on { SEL_TEXT } else { TEXT };
-                font::draw(frame, 22, top + 13, label, PX, col, w - 40, false);
+                font::draw(frame, 22, top + 13, crate::lang::t(label), PX, col, w - 40, false);
                 for d in 0..4 {
                     frame.fill(w - 12 + d, top + 5 + d, 1, 8 - 2 * d, argb(col));
                 }

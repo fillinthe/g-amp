@@ -104,7 +104,7 @@ impl Win {
         w.pos = pos;
         let Some(el) = el else { return w };
         let mut attrs = Window::default_attributes()
-            .with_title(title)
+            .with_title(gamp_ui::lang::t(title))
             .with_decorations(false)
             .with_resizable(false)
             .with_inner_size(size)

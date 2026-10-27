@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use gamp_audio::analysis::{self, Spectrum};
 use gamp_audio::{EqSettings, Event as AudioEvent, Input, OutputKind, Player, State};
 use gamp_skin::Skin;
+use gamp_ui::lang::{tf, tm, tmf};
 use gamp_ui::main_window::{self, Control, PlayState};
 use gamp_ui::menu::{self, Item};
 use gamp_ui::playlist_window::{self as plw, Menu as PlMenu, Mini};
@@ -111,6 +112,8 @@ pub struct App {
     /// A seek still on its way: (target, when).
     seek_wait: Option<(f64, Instant)>,
     pub on_top: bool,
+    /// The language picked in Options › Language (none: the system's).
+    pub lang: Option<String>,
     pub modifiers: ModifiersState,
     pub(crate) drag: Option<Drag>,
     pub(crate) resize: Option<Resize>,
@@ -229,6 +232,7 @@ impl App {
             menus: Vec::new(),
             size: 1.0,
             stop_after: false,
+            lang: None,
             sleep_at: None,
             seek_wait: None,
             on_top: false,
@@ -380,6 +384,15 @@ impl App {
             w.occluded = o;
             w.dirty |= !o;
         }
+    }
+
+    /// Uses language `code`, or the system's for none.
+    pub fn set_lang(&mut self, code: Option<String>) {
+        // Tests read English, whatever the computer's language.
+        let system = || if cfg!(test) { "en" } else { sys_locale::get_locale().map_or("en", |l| gamp_ui::lang::matching(&l)) };
+        gamp_ui::lang::set(code.as_deref().unwrap_or_else(system));
+        self.lang = code;
+        self.mark_all();
     }
 
     fn mark_all(&mut self) {
@@ -664,7 +677,7 @@ impl App {
     fn zoom_step(&mut self, steps: i32) {
         let tenths = ((self.size * 10.0).round() as i32 + steps).clamp(10, 30);
         self.set_size(tenths as f64 / 10.0);
-        self.say(&format!("SIZE: {}%", (self.size * 100.0).round()));
+        self.say_f("SIZE: {}%", &[&(self.size * 100.0).round()]);
     }
 
     pub(crate) fn set_size(&mut self, size: f64) {
@@ -748,7 +761,7 @@ impl App {
             Ok(input) => {
                 if play && entry.url.is_some() {
                     // Until the first sound (cleared on Started); a long mix can take a few seconds.
-                    self.main.message = Some(CONNECTING.into());
+                    self.main.message = Some(tm(CONNECTING).into());
                     self.message_until = Some(Instant::now() + Duration::from_secs(90));
                 }
                 let id = self.player.load(input, play);
@@ -776,7 +789,7 @@ impl App {
                     self.queue_after(self.playlist.current);
                 }
             }
-            Err(e) => self.say(&format!("CAN'T OPEN: {e}")),
+            Err(e) => self.say_f("CAN'T OPEN: {}", &[&e]),
         }
         self.update_title();
     }
@@ -837,7 +850,7 @@ impl App {
         if let Some(list) = paths.iter().find(|p| p.extension().is_some_and(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "m3u" | "m3u8" | "pls"))) {
             let entries: Vec<Entry> = playlist::read_list(list).into_iter().map(|l| self.listed_entry(l)).collect();
             if entries.is_empty() {
-                self.main.message = Some("EMPTY PLAYLIST".into());
+                self.main.message = Some(tm("EMPTY PLAYLIST").into());
                 return;
             }
             if replace || self.playlist.entries.is_empty() {
@@ -913,7 +926,7 @@ impl App {
                 }
                 self.mark_all();
             }
-            Err(e) => self.main.message = Some(format!("NOT A SKIN: {e}")),
+            Err(e) => self.main.message = Some(tmf("NOT A SKIN: {}", &[&e])),
         }
     }
 
@@ -1054,12 +1067,12 @@ impl App {
         let landed = (s.position - to).abs() < 2.0 && s.track.is_some();
         if landed || waited > Duration::from_secs(60) {
             self.seek_wait = None;
-            if self.main.message.as_deref() == Some(SEEKING) {
+            if self.main.message.as_deref() == Some(tm(SEEKING)) {
                 self.main.message = None;
                 self.mark(Kind::Main);
             }
         } else if waited > Duration::from_millis(600) && self.main.message.is_none() {
-            self.main.message = Some(SEEKING.into());
+            self.main.message = Some(tm(SEEKING).into());
             self.mark(Kind::Main);
         }
     }
@@ -1069,7 +1082,7 @@ impl App {
         self.eq.volume = self.main.volume;
         self.player.set_volume(self.main.volume);
         if say {
-            self.main.message = Some(format!("VOLUME: {}%", (self.main.volume * 100.0).round()));
+            self.main.message = Some(tmf("VOLUME: {}%", &[&(self.main.volume * 100.0).round()]));
         }
         self.mark(Kind::Main);
         self.mark(Kind::Eq);
@@ -1081,7 +1094,7 @@ impl App {
         self.player.set_balance(self.main.balance);
         if say {
             let pct = (b.abs() * 100.0).round();
-            self.main.message = Some(if pct == 0.0 { "BALANCE: CENTER".into() } else { format!("BALANCE: {pct}% {}", if b < 0.0 { "LEFT" } else { "RIGHT" }) });
+            self.main.message = Some(if pct == 0.0 { tm("BALANCE: CENTER").into() } else { tmf(if b < 0.0 { "BALANCE: {}% LEFT" } else { "BALANCE: {}% RIGHT" }, &[&pct]) });
         }
         self.mark(Kind::Main);
         self.mark(Kind::Eq);
@@ -1123,7 +1136,7 @@ impl App {
                     self.main.khz = Some((format.rate as f32 / 1000.0).round() as u32);
                     self.main.stereo = Some(format.channels >= 2);
                     self.main.duration = format.duration;
-                    if self.main.message.as_ref().is_some_and(|m| m.starts_with(CONNECTING)) {
+                    if self.main.message.as_ref().is_some_and(|m| m.starts_with(tm(CONNECTING))) {
                         self.main.message = None;
                         self.message_until = None;
                     }
@@ -1143,7 +1156,7 @@ impl App {
                         if self.resume.is_none() && self.playlist.next() {
                             self.load_current(true);
                         }
-                        self.say(&format!("CAN'T PLAY: {message}"));
+                        self.say_f("CAN'T PLAY: {}", &[&message]);
                     }
                 }
             }
@@ -1218,7 +1231,7 @@ impl App {
     pub(crate) fn set_sleep(&mut self, minutes: u64) {
         self.player.set_volume(self.main.volume);
         self.sleep_at = (minutes > 0).then(|| (Instant::now() + Duration::from_secs(minutes * 60), SLEEP_FADE));
-        self.say(&if minutes > 0 { format!("SLEEP TIMER: {minutes} MINUTES") } else { "SLEEP TIMER: OFF".into() });
+        if minutes > 0 { self.say_f("SLEEP TIMER: {} MINUTES", &[&minutes]) } else { self.say("SLEEP TIMER: OFF") }
     }
 
     /// Shift+V, as in Winamp: fade out over a few seconds, then stop.
@@ -1322,9 +1335,10 @@ impl App {
                 self.lib_dots();
             }
             // Still connecting: the dots go round, so it's plainly working.
-            if let Some(m) = self.main.message.as_mut().filter(|m| m.starts_with(CONNECTING)) {
-                let dots = (m.len() - CONNECTING.len() + 1) % 4;
-                *m = format!("{CONNECTING}{}", ".".repeat(dots));
+            let connecting = tm(CONNECTING);
+            if let Some(m) = self.main.message.as_mut().filter(|m| m.starts_with(connecting)) {
+                let dots = (m.len() - connecting.len() + 1) % 4;
+                *m = format!("{connecting}{}", ".".repeat(dots));
             }
         }
         if now.duration_since(self.blink_at) >= Duration::from_millis(1000) {
@@ -1500,7 +1514,7 @@ impl App {
                 let p = main_window::position_at(x, self.main.shade);
                 self.main.seeking = Some(p);
                 let d = self.main.duration.unwrap_or(0.0);
-                self.main.message = Some(format!("SEEK TO: {}/{} ({}%)", clock(d * p as f64), clock(d), (p * 100.0).round()));
+                self.main.message = Some(tmf("SEEK TO: {}/{} ({}%)", &[&clock(d * p as f64), &clock(d), &(p * 100.0).round()]));
                 self.mark(Kind::Main);
             }
             _ => {}
@@ -1857,12 +1871,12 @@ impl App {
         let path = gamp_core::store::data_dir().join("playlist.html");
         match std::fs::write(&path, page) {
             Ok(()) => {
-                self.main.message = Some(format!("HTML PLAYLIST: {} TRACKS", self.playlist.entries.len()));
+                self.main.message = Some(tmf("HTML PLAYLIST: {} TRACKS", &[&self.playlist.entries.len()]));
                 if !cfg!(test) {
                     crate::backend::open_in_browser(&format!("file://{}", path.display()));
                 }
             }
-            Err(e) => self.main.message = Some(format!("COULDN'T WRITE {}: {e}", path.display()).to_uppercase()),
+            Err(e) => self.main.message = Some(tmf("COULDN'T WRITE {}: {}", &[&path.display(), &e]).to_uppercase()),
         }
     }
 
@@ -1880,7 +1894,7 @@ impl App {
             self.playlist.entries[i] = fresh;
             n += 1;
         }
-        self.main.message = Some(format!("READ INFO ON {n} FILE{}", if n == 1 { "" } else { "S" }));
+        self.main.message = Some(tmf(if n == 1 { "READ INFO ON {} FILE" } else { "READ INFO ON {} FILES" }, &[&n]));
         self.update_title();
         self.sync_playlist();
     }
@@ -1917,8 +1931,8 @@ impl App {
     fn playlist_saved(&mut self, path: PathBuf) {
         let path = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("m3u8")) { path } else { path.with_extension("m3u8") };
         match std::fs::write(&path, self.m3u()) {
-            Ok(()) => self.say(&format!("SAVED PLAYLIST: {}", path.file_stem().unwrap_or_default().to_string_lossy())),
-            Err(e) => self.say(&format!("CAN'T SAVE: {e}")),
+            Ok(()) => self.say_f("SAVED PLAYLIST: {}", &[&path.file_stem().unwrap_or_default().to_string_lossy()]),
+            Err(e) => self.say_f("CAN'T SAVE: {}", &[&e]),
         }
     }
 
@@ -2056,7 +2070,7 @@ impl App {
         vec![
             Item::action("about", "About Gamp…"),
             Item::action("report", match &self.last_error {
-                Some(e) => format!("Report a problem… ({})", e.chars().take(28).collect::<String>().trim_end()),
+                Some(e) => tf("Report a problem… ({})", &[&e.chars().take(28).collect::<String>().trim_end()]),
                 None => "Report a problem…".into(),
             }),
             Item::Separator,
@@ -2081,10 +2095,16 @@ impl App {
                     Item::submenu("Size", SIZES.iter().map(|&(z, label)| Item::action(format!("size:{z}"), label).checked(self.size == z)).collect()),
                     Item::Separator,
                     Item::action("opt:stopafter", "Stop after current track").checked(self.stop_after).shortcut("Ctrl+V"),
-                    Item::submenu(self.sleep_label(), [0, 15, 30, 45, 60, 90].iter().map(|&m| Item::action(format!("sleep:{m}"), if m == 0 { "Off".to_owned() } else { format!("{m} minutes") }).checked(m == 0 && self.sleep_at.is_none())).collect()),
+                    Item::submenu(self.sleep_label(), [0, 15, 30, 45, 60, 90].iter().map(|&m| Item::action(format!("sleep:{m}"), if m == 0 { "Off".to_owned() } else { tf("{} minutes", &[&m]) }).checked(m == 0 && self.sleep_at.is_none())).collect()),
                     Item::Separator,
                     Item::action("opt:elapsed", "Time elapsed").checked(!self.main.show_remaining),
                     Item::action("opt:remaining", "Time remaining").checked(self.main.show_remaining),
+                    Item::Separator,
+                    Item::submenu("Language", {
+                        let mut langs = vec![Item::action("lang:auto", "Same as the system").checked(self.lang.is_none()), Item::Separator];
+                        langs.extend(gamp_ui::lang::LANGS.iter().map(|&(code, name)| Item::action(format!("lang:{code}"), name).checked(self.lang.as_deref() == Some(code))));
+                        langs
+                    }),
                 ],
             ),
             Item::submenu(
@@ -2106,7 +2126,7 @@ impl App {
             Item::submenu("Visualization", self.vis_menu()),
             Item::Separator,
             match &self.update {
-                Some(r) => Item::action("update:install", format!("Update to Gamp {}…", r.version)),
+                Some(r) => Item::action("update:install", tf("Update to Gamp {}…", &[&r.version])),
                 None => Item::action("update:check", "Check for updates…"),
             },
             Item::action("exit", "Exit"),
@@ -2116,7 +2136,7 @@ impl App {
     /// "Sleep timer", with the time left while it runs.
     fn sleep_label(&self) -> String {
         match self.sleep_at {
-            Some((at, _)) => format!("Sleep timer ({} min left)", (at.saturating_duration_since(Instant::now()).as_secs() + 59) / 60),
+            Some((at, _)) => tf("Sleep timer ({} min left)", &[&((at.saturating_duration_since(Instant::now()).as_secs() + 59) / 60)]),
             None => "Sleep timer".into(),
         }
     }
@@ -2160,7 +2180,7 @@ impl App {
             let _ = std::fs::write(dir.join(format!("{}.eqf", name.trim())), eqf::write(p));
         }
         self.use_preset(&first);
-        self.say(&if presets.len() == 1 { format!("PRESET: {}", first.name) } else { format!("ADDED {} PRESETS", presets.len()) });
+        if presets.len() == 1 { self.say_f("PRESET: {}", &[&first.name]) } else { self.say_f("ADDED {} PRESETS", &[&presets.len()]) }
     }
 
     fn save_preset(&mut self) {
@@ -2171,8 +2191,8 @@ impl App {
         let path = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("eqf")) { path } else { path.with_extension("eqf") };
         let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         match std::fs::write(&path, eqf::write(&eqf::Preset { name: name.clone(), preamp: self.eq.preamp, bands: self.eq.bands })) {
-            Ok(()) => self.say(&format!("SAVED PRESET: {name}")),
-            Err(e) => self.say(&format!("COULDN'T SAVE THE PRESET: {e}")),
+            Ok(()) => self.say_f("SAVED PRESET: {}", &[&name]),
+            Err(e) => self.say_f("COULDN'T SAVE THE PRESET: {}", &[&e]),
         }
     }
 
@@ -2284,6 +2304,8 @@ impl App {
                 }
             }
             "opt:top" => self.toggle_on_top(),
+            "lang:auto" => self.set_lang(None),
+            other if other.starts_with("lang:") => self.set_lang(Some(other["lang:".len()..].to_owned())),
             "opt:double" => self.toggle_double(),
             "opt:stopafter" => self.toggle_stop_after(),
             "opt:elapsed" => self.main.show_remaining = false,

@@ -7,6 +7,7 @@ use std::collections::{BTreeSet, HashMap};
 use gamp_core::catalog::Source;
 use gamp_core::skin_museum as museum;
 use gamp_core::sources::{Action, Item, Listing};
+use gamp_ui::lang::{t, tf};
 use gamp_ui::library_window::{self as lw, Field, Hot, Row, TreeRow, W};
 use serde_json::{Value, json};
 
@@ -218,7 +219,7 @@ impl App {
                 Reply::Skin(Ok(path)) => {
                     let name = gamp_core::skin_museum::name(&path.file_name().unwrap_or_default().to_string_lossy());
                     self.load_skin(Some(path));
-                    self.say(&format!("SKIN: {}", name.to_uppercase()));
+                    self.say_f("SKIN: {}", &[&name.to_uppercase()]);
                 }
                 Reply::Skin(Err(e)) => self.say(&e.to_uppercase()),
                 Reply::Scan(s) => {
@@ -497,10 +498,10 @@ impl App {
         let total: f64 = self.lib.items.iter().filter_map(|i| i.duration).sum();
         let hours = if total > 3600.0 { format!(" · {:.1} h", total / 3600.0) } else { String::new() };
         let scanning = match (&self.lib.page, &self.lib.scan) {
-            (Page::List { sid, .. }, Some(s)) if sid == "local" && s.scanning => format!(" · scanning… {} files", s.scanned),
+            (Page::List { sid, .. }, Some(s)) if sid == "local" && s.scanning => format!(" · {}", tf("scanning… {} files", &[&s.scanned])),
             _ => String::new(),
         };
-        self.lib.view.status = format!("{} items{hours}{scanning}", self.lib.items.len());
+        self.lib.view.status = format!("{}{hours}{scanning}", tf("{} items", &[&self.lib.items.len()]));
         self.mark(Kind::Library);
     }
 
@@ -670,7 +671,7 @@ impl App {
                 // A station shows by its name alone, as SHOUTcast did.
                 let artist = if i.live { String::new() } else { i.artist.clone() };
                 // A SoundCloud preview stops after 30 seconds: say so where it plays.
-                let (title, secs) = if is_preview(&i) { (format!("{} (preview)", i.title), Some(30.0)) } else { (i.title.clone(), i.duration) };
+                let (title, secs) = if is_preview(&i) { (tf("{} (preview)", &[&i.title]), Some(30.0)) } else { (i.title.clone(), i.duration) };
                 Some(Entry::remote(url, title, artist, secs, i.live))
             })
             .take(5000)
@@ -715,7 +716,7 @@ impl App {
         let mut menu = vec![M::action("lib:play", "Play"), M::action("lib:enqueue", "Add to playlist (Shift+Enter)")];
         if let Some(t) = self.lib.items.get(i).filter(|t| !t.artist_link.is_empty()) {
             let who = t.artist_link.rsplit('/').next().unwrap_or_default();
-            menu.push(M::action("lib:artist", &format!("Latest from {who}")));
+            menu.push(M::action("lib:artist", &tf("Latest from {}", &[&who])));
         }
         Some(menu)
     }
@@ -1039,8 +1040,8 @@ impl App {
             f.push(W::Item { id: format!("folder:rm:{i}"), label: p.clone(), button: "Remove".into() });
         }
         let scan = match &self.lib.scan {
-            Some(s) if s.scanning => format!("Scanning… {} files, {} tracks", s.scanned, s.found),
-            Some(s) => format!("{} tracks", s.found),
+            Some(s) if s.scanning => tf("Scanning… {} files, {} tracks", &[&s.scanned, &s.found]),
+            Some(s) => tf("{} tracks", &[&s.found]),
             None => String::new(),
         };
         f.push(W::Row(vec![W::button("folder:add", "Add folder…"), W::button("folder:rescan", "Rescan"), W::Text(scan)]));
@@ -1062,7 +1063,7 @@ impl App {
         if let Some(fl) = self.lib.fields.get_mut("srv_pass") {
             fl.placeholder = if kid == "plex" { "X-Plex-Token".into() } else { "Password".into() };
         }
-        f.push(W::Row(vec![W::button("srv:kind", &format!("Type: {klabel} ›")), self.field("srv_name")]));
+        f.push(W::Row(vec![W::button("srv:kind", &tf("Type: {} ›", &[&t(klabel)])), self.field("srv_name")]));
         f.push(W::Row(vec![self.field("srv_url")]));
         if kid == "synology" {
             f.push(W::Row(vec![self.field("srv_user"), self.field("srv_pass"), self.field("srv_otp")]));
@@ -1084,7 +1085,7 @@ impl App {
         f.push(W::Row(vec![
             W::button("cloud:get", "Get Dropbox"),
             W::button("cloud:look", "Look again"),
-            W::Text(if cloud.is_empty() { "None on this computer yet".into() } else { format!("Found: {}", cloud.join(", ")) }),
+            W::Text(if cloud.is_empty() { "None on this computer yet".into() } else { tf("Found: {}", &[&cloud.join(", ")]) }),
         ]));
 
         f.push(W::Heading("Spotify (Premium)".into()));

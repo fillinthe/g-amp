@@ -96,7 +96,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         if y + FIELD_H > bottom {
             break;
         }
-        font::draw(frame, p.0 + 4, y + 12, label, PX, dim, LABEL_W - 4, false);
+        font::draw(frame, p.0 + 4, y + 12, crate::lang::t(label), PX, dim, LABEL_W - 4, false);
         let r = (p.0 + LABEL_W, y, p.2 - LABEL_W - 4, FIELD_H - 1);
         field(frame, skin, r, f);
         hots.push((Hot::Form(label.clone()), r));
@@ -109,7 +109,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         if y + LINE > bottom {
             break;
         }
-        font::draw(frame, p.0 + 4, y + 11, label, PX, dim, LABEL_W - 4, false);
+        font::draw(frame, p.0 + 4, y + 11, crate::lang::t(label), PX, dim, LABEL_W - 4, false);
         for line in lw::wrap(value, p.2 - LABEL_W - 8) {
             if y + LINE > bottom {
                 break;
@@ -129,7 +129,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
 
     // Status and buttons.
     let by = p.1 + p.3 + 4;
-    font::draw(frame, ix + 4, by + 12, &v.status, PX, st.normal, iw / 3, false);
+    font::draw(frame, ix + 4, by + 12, crate::lang::t(&v.status), PX, st.normal, iw / 3, false);
     let mut x = ix + iw - 2;
     let buttons: &[(&str, &str)] = if v.fields.is_empty() { &[("close", "Close"), ("copy", "Copy")] } else { &[("close", "Cancel"), ("save", "Save"), ("copy", "Copy")] };
     for (id, label) in buttons {

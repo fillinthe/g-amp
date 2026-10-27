@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 use gamp_skin::Skin;
 
 use crate::font;
+use crate::lang::t as tr;
 use crate::frame::{Frame, argb};
 
 pub const MIN_WIDTH: u32 = 400;
@@ -199,7 +200,9 @@ impl View {
 /// GEN.BMP's frame around a `w`×`h` window, with `title` in its letters.
 pub fn gen_frame(frame: &mut Frame, skin: &Skin, w: i32, h: i32, title: &str, focused: bool) {
     let s = if focused { "_SELECTED" } else { "" };
-    let letters: Vec<_> = title.chars().map(|c| if c == ' ' { None } else { skin.gen_letter(c, focused) }).collect();
+    // The skin's title letters are A to Z: other languages' titles show without accents, or in English.
+    let title = crate::lang::tm(title);
+    let letters: Vec<_> = title.chars().map(|c| if c == ' ' { None } else { skin.gen_letter(crate::frame::plain(c), focused) }).collect();
     let title_w = 7 + letters.iter().map(|l| l.map(|(_, r)| r.width as i32).unwrap_or(5)).sum::<i32>();
     // Top: corner, fill, end, title, end, fill, corner.
     let tx = (w - title_w) / 2;
@@ -252,14 +255,23 @@ fn bevel(frame: &mut Frame, r: R, down: bool) {
 }
 
 pub(crate) fn button(frame: &mut Frame, r: R, label: &str, down: bool, enabled: bool) {
+    let label = tr(label);
     bevel(frame, r, down);
     let tw = font::measure(label, PX, false);
     let o = down as i32;
     font::draw(frame, r.0 + (r.2 - tw) / 2 + o, r.1 + r.3 - 4 + o, label, PX, if enabled { INK } else { INK_OFF }, r.2, false);
 }
 
+/// `s` in the language in use, a part at a time ("Internet Radio › Search"),
+/// keeping trailing dots ("Loading..").
+fn shown(s: &str) -> String {
+    let base = s.trim_end_matches(['.', '…']);
+    let parts: Vec<&str> = base.split(" › ").map(tr).collect();
+    format!("{}{}", parts.join(" › "), &s[base.len()..])
+}
+
 pub(crate) fn button_w(label: &str) -> i32 {
-    font::measure(label, PX, false) + 16
+    font::measure(tr(label), PX, false) + 16
 }
 
 pub(crate) fn field(frame: &mut Frame, skin: &Skin, r: R, f: &Field) {
@@ -272,7 +284,7 @@ pub(crate) fn field(frame: &mut Frame, skin: &Skin, r: R, f: &Field) {
     frame.fill(r.0 + r.2 - 1, r.1, 1, r.3, edge);
     let base = r.1 + r.3 - 4;
     if f.value.is_empty() && !f.focused {
-        font::draw(frame, r.0 + 4, base, &f.placeholder, PX, mix(st.normal, st.normal_bg, 0.45), r.2 - 8, false);
+        font::draw(frame, r.0 + 4, base, tr(&f.placeholder), PX, mix(st.normal, st.normal_bg, 0.45), r.2 - 8, false);
         return;
     }
     let shown = f.shown();
@@ -349,12 +361,12 @@ fn form_marked(frame: &mut Frame, skin: &Skin, area: R, items: &[W], scroll: i32
                 marks.push((t.clone(), y + scroll - ay));
                 y += 4;
                 if clip(y, 16) {
-                    font::draw(frame, ax + 6, y + 12, t, 12.0, st.current, aw - 12, true);
+                    font::draw(frame, ax + 6, y + 12, tr(t), 12.0, st.current, aw - 12, true);
                 }
                 y += 18;
             }
             W::Text(t) => {
-                for line in wrap(t, aw - 12) {
+                for line in wrap(tr(t), aw - 12) {
                     if clip(y, ROW) {
                         font::draw(frame, ax + 6, y + 11, &line, PX, mix(st.normal, st.normal_bg, 0.15), aw - 12, false);
                     }
@@ -383,7 +395,7 @@ fn row(frame: &mut Frame, skin: &Skin, at: (i32, i32, i32), items: &[W], pressed
         .iter()
         .map(|w| match w {
             W::Button { label, .. } => button_w(label),
-            W::Check { label, .. } => font::measure(label, PX, false) + 20,
+            W::Check { label, .. } => font::measure(tr(label), PX, false) + 20,
             W::Item { button, .. } => button_w(button),
             _ => 0,
         })
@@ -414,7 +426,7 @@ fn row(frame: &mut Frame, skin: &Skin, at: (i32, i32, i32), items: &[W], pressed
                 x += r.2 + 6;
             }
             W::Check { id, label, checked } => {
-                let r = (x, y, font::measure(label, PX, false) + 20, h);
+                let r = (x, y, font::measure(tr(label), PX, false) + 20, h);
                 if visible(y, h) {
                     let b = (x, y + 4, 11, 11);
                     frame.fill(b.0, b.1, b.2, b.3, argb(st.normal_bg));
@@ -426,7 +438,7 @@ fn row(frame: &mut Frame, skin: &Skin, at: (i32, i32, i32), items: &[W], pressed
                     if *checked {
                         frame.fill(b.0 + 3, b.1 + 3, 5, 5, argb(st.current));
                     }
-                    font::draw(frame, x + 16, y + 14, label, PX, st.normal, r.2, false);
+                    font::draw(frame, x + 16, y + 14, tr(label), PX, st.normal, r.2, false);
                     hots.push((Hot::Form(id.clone()), r));
                 }
                 x += r.2 + 6;
@@ -445,9 +457,9 @@ fn row(frame: &mut Frame, skin: &Skin, at: (i32, i32, i32), items: &[W], pressed
             }
             W::Text(t) => {
                 if visible(y, h) {
-                    font::draw(frame, x, y + 14, t, PX, mix(st.normal, st.normal_bg, 0.15), x0 + width - x, false);
+                    font::draw(frame, x, y + 14, tr(t), PX, mix(st.normal, st.normal_bg, 0.15), x0 + width - x, false);
                 }
-                x += font::measure(t, PX, false) + 6;
+                x += font::measure(tr(t), PX, false) + 6;
             }
             _ => {}
         }
@@ -491,7 +503,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         }
         let indent = 4 + t.depth as i32 * 10;
         let col = if t.group || t.selected { st.current } else { st.normal };
-        let label = if t.group { format!("{} {}", if t.open { "−" } else { "+" }, t.label) } else { format!("› {}", t.label) };
+        let label = if t.group { format!("{} {}", if t.open { "−" } else { "+" }, shown(&t.label)) } else { format!("› {}", shown(&t.label)) };
         let label = font::ellipsize(&label, PX, tree.2 - indent - 2, t.group);
         font::draw(frame, r.0 + indent, y + 11, &label, PX, col, tree.2 - indent - 2, t.group && t.depth == 0);
         hots.push((Hot::Tree(i), r));
@@ -508,7 +520,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         x += r.2 + 6;
     }
     if !v.crumb.is_empty() {
-        let crumb = font::ellipsize(&v.crumb, PX, tb_w / 2, true);
+        let crumb = font::ellipsize(&shown(&v.crumb), PX, tb_w / 2, true);
         x += font::draw(frame, x, iy + 14, &crumb, PX, st.current, tb_w / 2, true) + 8;
     }
     if v.search_shown {
@@ -555,7 +567,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         let cw = if i + 1 == v.table.columns.len() { t.0 + usable - cx } else { (usable as f32 * share / total) as i32 };
         let r = (cx, t.1, cw, ROW);
         bevel(frame, r, v.pressed == Some(Hot::Header(i)));
-        font::draw(frame, cx + 4, t.1 + 11, label, PX, INK, cw - 6, false);
+        font::draw(frame, cx + 4, t.1 + 11, tr(label), PX, INK, cw - 6, false);
         hots.push((Hot::Header(i), r));
         col_x.push((cx, cw));
         cx += cw;
@@ -581,7 +593,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         hots.push((Hot::Row(i), r));
     }
     if v.table.rows.is_empty() && !v.table.empty.is_empty() {
-        for (n, line) in wrap(&v.table.empty, t.2 - 20).iter().enumerate() {
+        for (n, line) in wrap(&shown(&v.table.empty), t.2 - 20).iter().enumerate() {
             font::draw(frame, t.0 + 8, t.1 + ROW + 16 + n as i32 * 14, line, PX, mix(st.normal, st.normal_bg, 0.35), t.2 - 16, false);
         }
     }
@@ -604,7 +616,7 @@ pub fn draw(frame: &mut Frame, skin: &Skin, v: &View) -> Vec<(Hot, R)> {
         hots.push((Hot::Button(id.clone()), r));
         bx += r.2 + 4;
     }
-    let status = font::ellipsize(&v.status, PX, (t.0 + t.2 - bx - 4).max(0), false);
+    let status = font::ellipsize(&shown(&v.status), PX, (t.0 + t.2 - bx - 4).max(0), false);
     let sw = font::measure(&status, PX, false);
     font::draw(frame, t.0 + t.2 - sw - 2, by + 13, &status, PX, st.normal, sw + 4, false);
     hots

@@ -1,5 +1,7 @@
 //! TrueType text for the playlist and library (Liberation Sans: Arial's
-//! metrics, open licence), with a glyph cache.
+//! metrics, open licence), with a glyph cache. Letters it lacks (Japanese,
+//! Chinese, Korean…) come from a font the system already has, read glyph by
+//! glyph (ab_glyph), so the 20+ MB font costs no more memory than its file.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -21,6 +23,55 @@ fn fonts() -> &'static [Font; 2] {
     })
 }
 
+/// The system's font for the letters Liberation Sans lacks, if it has one.
+fn fallback() -> Option<&'static ab_glyph::FontVec> {
+    static F: OnceLock<Option<ab_glyph::FontVec>> = OnceLock::new();
+    F.get_or_init(|| {
+        const PATHS: &[&str] = &[
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "C:\\Windows\\Fonts\\msyh.ttc",
+            "C:\\Windows\\Fonts\\YuGothM.ttc",
+            "C:\\Windows\\Fonts\\msgothic.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+            "/usr/share/fonts/wenquanyi/wqy-microhei/wqy-microhei.ttc",
+        ];
+        PATHS.iter().find_map(|p| ab_glyph::FontVec::try_from_vec_and_index(std::fs::read(p).ok()?, 0).ok())
+    })
+    .as_ref()
+}
+
+/// Whether Liberation Sans lacks `c` and the system font has it.
+fn borrowed(c: char) -> Option<&'static ab_glyph::FontVec> {
+    use ab_glyph::Font as _;
+    if c.is_ascii() || fonts()[0].lookup_glyph_index(c) != 0 {
+        return None;
+    }
+    fallback().filter(|f| f.glyph_id(c).0 != 0)
+}
+
+/// `c` from the system font, as fontdue would give it: `px` is the em size.
+fn borrowed_glyph(f: &ab_glyph::FontVec, c: char, px: f32) -> Glyph {
+    use ab_glyph::{Font as _, ScaleFont as _};
+    let scale = px * f.height_unscaled() / f.units_per_em().unwrap_or(1000.0);
+    let id = f.glyph_id(c);
+    let advance = f.as_scaled(scale).h_advance(id);
+    let mut m = fontdue::Metrics { advance_width: advance, ..Default::default() };
+    let Some(o) = f.outline_glyph(id.with_scale_and_position(scale, ab_glyph::point(0.0, 0.0))) else { return (m, Vec::new()) };
+    let b = o.px_bounds();
+    (m.width, m.height, m.xmin, m.ymin) = (b.width() as usize, b.height() as usize, b.min.x as i32, -(b.max.y as i32));
+    let mut bitmap = vec![0u8; m.width * m.height];
+    o.draw(|x, y, cov| {
+        if let Some(p) = bitmap.get_mut(y as usize * m.width + x as usize) {
+            *p = (cov.clamp(0.0, 1.0) * 255.0) as u8;
+        }
+    });
+    (m, bitmap)
+}
+
 type Glyph = (fontdue::Metrics, Vec<u8>);
 
 fn cache() -> &'static Mutex<HashMap<(char, u32, bool), Glyph>> {
@@ -31,12 +82,24 @@ fn cache() -> &'static Mutex<HashMap<(char, u32, bool), Glyph>> {
 fn glyph(c: char, px: f32, bold: bool) -> Glyph {
     let key = (c, (px * 4.0) as u32, bold);
     let mut cache = cache().lock().unwrap();
-    cache.entry(key).or_insert_with(|| fonts()[bold as usize].rasterize(c, px)).clone()
+    cache
+        .entry(key)
+        .or_insert_with(|| match borrowed(c) {
+            Some(f) => borrowed_glyph(f, c, px),
+            None => fonts()[bold as usize].rasterize(c, px),
+        })
+        .clone()
 }
 
 /// Width of `text` at `px` pixels.
 pub fn measure(text: &str, px: f32, bold: bool) -> i32 {
-    text.chars().map(|c| fonts()[bold as usize].metrics(c, px).advance_width).sum::<f32>().round() as i32
+    text.chars()
+        .map(|c| match borrowed(c) {
+            Some(_) => glyph(c, px, bold).0.advance_width,
+            None => fonts()[bold as usize].metrics(c, px).advance_width,
+        })
+        .sum::<f32>()
+        .round() as i32
 }
 
 #[inline]

@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+ab_glyph = "0.2.32"
 fontdue = "0.9.4"
 gamp-skin = { path = "../gamp-skin" }
 image = { version = "0.25", default-features = false, features = ["png"] }

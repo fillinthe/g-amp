@@ -1,0 +1,345 @@
+# Gamp in ja: English<TAB>translation, one per line. \n is a line break;
+# {} are filled in, in order ({0}, {1}… to change the order).
+VOLUME: {}%	VOLUME: {}%
+BALANCE: CENTER	BALANCE: CENTER
+BALANCE: {}% LEFT	BALANCE: {}% LEFT
+BALANCE: {}% RIGHT	BALANCE: {}% RIGHT
+STOPPED AFTER THE TRACK	STOPPED AFTER THE TRACK
+CAN'T PLAY: {}	CAN'T PLAY: {}
+STOP AFTER THIS TRACK: ON	STOP AFTER THIS TRACK: ON
+STOP AFTER THIS TRACK: OFF	STOP AFTER THIS TRACK: OFF
+SLEEP TIMER: {} MINUTES	SLEEP TIMER: {} MINUTES
+SLEEP TIMER: OFF	SLEEP TIMER: OFF
+SLEEP TIMER: GOOD NIGHT	SLEEP TIMER: GOOD NIGHT
+SEEK TO: {}/{} ({}%)	SEEK TO: {}/{} ({}%)
+Internet Radio › Search	インターネットラジオ › 検索
+Generate HTML playlist	HTML プレイリストを作成
+Read extended info on selected files	選択したファイルの詳細情報を読み込む
+From file…	ファイルから…
+HTML PLAYLIST: {} TRACKS	HTML PLAYLIST: {} TRACKS
+COULDN'T WRITE {}: {}	COULDN'T WRITE {}: {}
+READ INFO ON {} FILE	READ INFO ON {} FILE
+READ INFO ON {} FILES	READ INFO ON {} FILES
+SAVED PLAYLIST: {}	SAVED PLAYLIST: {}
+CAN'T SAVE: {}	CAN'T SAVE: {}
+Spectrum analyzer	スペクトラムアナライザー
+Oscilloscope	オシロスコープ
+Off	オフ
+Load skin…	スキンを読み込む…
+Skin Museum…	Skin Museum…
+Keep this skin	このスキンを保存
+Original skin (GAMP Classic)	オリジナルスキン（GAMP Classic）
+About Gamp…	Gamp について…
+Report a problem… ({})	問題を報告…（{}）
+Report a problem…	問題を報告…
+Play file…	ファイルを再生…
+Play folder…	フォルダを再生…
+Jump to file…	ファイルへジャンプ…
+File info…	ファイル情報…
+Main window	メインウインドウ
+Playlist editor	プレイリストエディタ
+Equalizer	イコライザ
+G-Drop visualizer	G-Drop ビジュアライザ
+Media Library	メディアライブラリ
+Gather windows	ウインドウを集める
+Options	オプション
+Always on top	常に手前に表示
+Double size	2倍サイズ
+Stop after current track	この曲の後で停止
+{} minutes	{} 分
+Time elapsed	経過時間
+Time remaining	残り時間
+Language	言語 (Language)
+Same as the system	システムと同じ
+Playback	再生
+Previous	前へ
+Pause	一時停止
+Stop	停止
+Next	次へ
+Back 5 seconds	5秒戻る
+Left	左
+Forward 5 seconds	5秒進む
+Right	右
+Repeat	リピート
+Shuffle	シャッフル
+Visualization	ビジュアライズ
+Update to Gamp {}…	Gamp {} にアップデート…
+Check for updates…	アップデートを確認…
+Exit	終了
+Sleep timer ({} min left)	スリープタイマー（残り {} 分）
+Sleep timer	スリープタイマー
+Flat (reset)	フラット（リセット）
+Load	読み込む
+Save…	保存…
+Reset	リセット
+NOT AN EQUALIZER PRESET FILE	NOT AN EQUALIZER PRESET FILE
+PRESET: {}	PRESET: {}
+ADDED {} PRESETS	ADDED {} PRESETS
+SAVED PRESET: {}	SAVED PRESET: {}
+COULDN'T SAVE THE PRESET: {}	COULDN'T SAVE THE PRESET: {}
+REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER	REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER
+SKIN: ORIGINAL	SKIN: ORIGINAL
+SKIN KEPT IN THE SKINS MENU	SKIN KEPT IN THE SKINS MENU
+Gamp Equalizer	Gamp イコライザ
+Gamp Playlist	Gamp プレイリスト
+Gamp Media Library	Gamp メディアライブラリ
+Gamp Jump to File	Gamp ファイルへジャンプ
+Gamp File Info	Gamp ファイル情報
+SEEKING...	SEEKING...
+SIZE: {}%	SIZE: {}%
+Normal (100%)	標準（100%）
+CAN'T OPEN: {}	CAN'T OPEN: {}
+Double (200%)	2倍（200%）
+EMPTY PLAYLIST	EMPTY PLAYLIST
+NOT A SKIN: {}	NOT A SKIN: {}
+Open files	ファイルを開く
+Audio and playlists	オーディオとプレイリスト
+Winamp skins	Winamp スキン
+Save playlist	プレイリストを保存
+M3U playlist	M3U プレイリスト
+My playlist	マイプレイリスト
+Save equalizer preset	イコライザプリセットを保存
+Winamp EQ preset	Winamp EQ プリセット
+My preset	マイプリセット
+A new Gamp is out	新しい Gamp が出ました
+Update now	今すぐアップデート
+Later	あとで
+G-DROP: CYCLES PRESETS	G-DROP: CYCLES PRESETS
+G-DROP: STAYS ON THIS PRESET	G-DROP: STAYS ON THIS PRESET
+Leave full screen (Esc)	フルスクリーンを終了（Esc）
+Full screen (F)	フルスクリーン（F）
+Next preset (Space)	次のプリセット（Space）
+Previous preset (←)	前のプリセット（←）
+Random preset (H)	ランダムなプリセット（H）
+Presets	プリセット
+Cycle presets (R)	プリセットを順に切り替え（R）
+Year	年
+Track	トラック
+Comment	コメント
+NOTHING TO SHOW	NOTHING TO SHOW
+Source	ソース
+Internet stream	インターネットストリーム
+Network track	ネットワーク上の曲
+Can't save: {}	保存できません：{}
+{} channels	{} チャンネル
+Size	サイズ
+Type part of a title	タイトルの一部を入力
+{} of {}	{} / {}
+Music folders and network drives	音楽フォルダとネットワークドライブ
+No folders yet.	フォルダはまだありません。
+Search	検索
+Remove	削除
+Scanning… {} files, {} tracks	スキャン中… {} ファイル、{} 曲
+{} tracks	{} 曲
+Add folder…	フォルダを追加…
+Rescan	再スキャン
+Add path	パスを追加
+Connect to share	共有に接続
+Media servers (at home or over the internet)	メディアサーバー（自宅でもインターネット経由でも）
+Plex, Jellyfin, Navidrome and other Subsonic servers, Synology Audio Station, WebDAV and Nextcloud. DLNA servers on your network appear by themselves.	Plex、Jellyfin、Navidrome などの Subsonic サーバー、Synology Audio Station、WebDAV、Nextcloud。ネットワーク上の DLNA サーバーは自動で表示されます。
+Sign in with Plex	Plex でサインイン
+Adds every Plex server on your account.	アカウントのすべての Plex サーバーを追加します。
+Type: {} ›	種類：{} ›
+Accept a self-signed certificate	自己署名証明書を許可
+Add server	サーバーを追加
+Search the network again	ネットワークを再検索
+Dropbox, Google Drive and OneDrive	Dropbox、Google Drive、OneDrive
+Disconnect	切断
+Install the Dropbox, Google Drive or OneDrive app and sign in: its folder shows up under Network & Cloud by itself. Songs download as you play them.	Dropbox、Google Drive、OneDrive のアプリをインストールしてサインインすると、そのフォルダが「ネットワークとクラウド」に自動で表示されます。曲は再生時にダウンロードされます。
+Get Dropbox	Dropbox を入手
+Look again	もう一度探す
+None on this computer yet	このコンピュータにはまだありません
+Found: {}	見つかりました：{}
+Spotify (Premium)	Spotify（Premium）
+Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.	Web ブラウザで一度サインインしてください。お気に入りの曲、プレイリスト、検索がここに表示され、曲は Gamp のイコライザとビジュアライザを通して再生されます。
+Disconnect Spotify	Spotify を切断
+Connect Spotify	Spotify に接続
+Connected	接続済み
+Not connected	未接続
+No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).	アカウントは不要です。SoundCloud を検索するか、曲・プレイリスト・アーティストのリンクを検索欄に貼り付けてください。いいねやプレイリストを見るには、プロフィールのアドレスを追加します（公開されている必要があります）。
+Save	保存
+Internet radio, podcasts and the Internet Archive	インターネットラジオ、ポッドキャスト、Internet Archive
+Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.	設定は不要です。「インターネット」の下にあります。ストリームのアドレスを インターネットラジオ › 検索 に貼り付けると再生できます。
+Skins	スキン
+Local Media › Audio	ローカルメディア › オーディオ
+Scanning…	スキャン中…
+Connecting. Then add the share's folder.	接続中です。続いて共有のフォルダを追加してください。
+Connecting…	接続中…
+Looking for DLNA servers…	DLNA サーバーを探しています…
+SKIN: {}	SKIN: {}
+Connect…	接続…
+Local Media	ローカルメディア
+Network & Cloud	ネットワークとクラウド
+Media servers	メディアサーバー
+Add a server…	サーバーを追加…
+Internet	インターネット
+Settings	設定
+Type a station or genre, or paste a stream address	局名かジャンルを入力、またはストリームのアドレスを貼り付け
+Type a podcast name, or paste a feed address	ポッドキャスト名を入力、またはフィードのアドレスを貼り付け
+Paste a SoundCloud link (track, playlist or artist), or search	SoundCloud のリンク（曲・プレイリスト・アーティスト）を貼り付けるか検索
+Search Spotify: songs, artists, your playlists	Spotify を検索：曲、アーティスト、プレイリスト
+Search the Skin Museum: a band, a game, a colour, a name	Skin Museum を検索：バンド、ゲーム、色、名前
+Type and press Enter to search	入力して Enter で検索
+Loading…	読み込み中…
+Artist	アーティスト
+Genre	ジャンル
+Album	アルバム
+Format	形式
+Length	長さ
+Items	項目数
+Posted	投稿日
+Plays	再生数
+Likes	いいね
+Skin	スキン
+File	ファイル
+Name	名前
+Station	局
+Title	タイトル
+Use skin	スキンを使う
+Surprise me	おまかせ
+Original skin	オリジナルスキン
+Play	再生
+Enqueue	キューに追加
+Play all	すべて再生
+scanning… {} files	スキャン中… {} ファイル
+{} items	{} 項目
+Jellyfin or Emby	Jellyfin または Emby
+Synology Audio Station	Synology Audio Station
+Plex (address and token)	Plex（アドレスとトークン）
+{} (preview)	{}（試聴）
+Open it to play what's inside.	開くと中身を再生できます。
+Add to playlist (Shift+Enter)	プレイリストに追加（Shift+Enter）
+Latest from {}	{} の新着
+FETCHING SKIN…	FETCHING SKIN…
+Skin Museum › Most popular	Skin Museum › 人気順
+SoundCloud › Search	SoundCloud › 検索
+Select some tracks first.	先に曲を選択してください。
+Select a skin first.	先にスキンを選択してください。
+Select something first.	先に何か選択してください。
+Name (optional)	名前（省略可）
+User name	ユーザー名
+Loading	読み込み中
+Searching	検索中
+Connecting	接続中
+Scanning	スキャン中
+Password	パスワード
+Two-step code (if you use one)	2段階認証コード（使っている場合）
+Or type a path	またはパスを入力
+Searching…	検索中…
+Sort list by title	タイトルで並べ替え
+Sort list by filename	ファイル名で並べ替え
+Sort list by path and filename	パスとファイル名で並べ替え
+Reverse list	逆順にする
+Randomize list	ランダムに並べる
+What's new:	新機能：
+Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.	Gamp {} が出ました（現在は {}）。今すぐアップデートしますか？ Gamp は終了し、アップデートしてから再び起動します。
+GAMP {} IS OUT - RIGHT-CLICK › UPDATE	GAMP {} IS OUT - RIGHT-CLICK › UPDATE
+GAMP {} IS UP TO DATE	GAMP {} IS UP TO DATE
+CAN'T CHECK FOR UPDATES: {}	CAN'T CHECK FOR UPDATES: {}
+DOWNLOADING UPDATE {}%	DOWNLOADING UPDATE {}%
+Add folders in Settings › Music folders.	設定 › 音楽フォルダ でフォルダを追加してください。
+Files	ファイル
+Playlists	プレイリスト
+Liked Songs	お気に入りの曲
+Skin Museum	Skin Museum
+Most popular	人気順
+No folders or music here.	フォルダも音楽もありません。
+That cloud folder isn't on this computer any more	そのクラウドフォルダはもうこのコンピュータにありません
+From the Winamp Skin Museum, skins.webamp.org	Winamp Skin Museum（skins.webamp.org）より
+SoundCloud only allows a 30-second preview of this track	SoundCloud ではこの曲は30秒の試聴のみです
+That link isn't a SoundCloud track, playlist or artist	そのリンクは SoundCloud の曲・プレイリスト・アーティストではありません
+No such SoundCloud profile	その SoundCloud プロフィールはありません
+SoundCloud only plays this on soundcloud.com	SoundCloud はこの曲を soundcloud.com でのみ再生します
+SoundCloud has no stream for this track	SoundCloud にこの曲のストリームがありません
+SoundCloud changed its web player; Gamp needs an update to play links	SoundCloud の Web プレーヤーが変わりました。リンクを再生するには Gamp のアップデートが必要です
+SoundCloud doesn't have that (or it's private)	SoundCloud にありません（または非公開です）
+SoundCloud refused	SoundCloud に拒否されました
+No playable audio in this item.	この項目には再生できる音声がありません。
+Nothing here.	何もありません。
+Your Dropbox app needs the files.metadata.read and files.content.read permissions (Permissions tab), then connect again	Dropbox アプリに files.metadata.read と files.content.read の権限（Permissions タブ）を与えてから、もう一度接続してください
+Paste your Dropbox app key in Settings first	先に設定で Dropbox のアプリキーを貼り付けてください
+This Dropbox sign-in expired. Try again.	Dropbox のサインインが期限切れです。もう一度お試しください。
+Mark songs or albums as favourites on your server to see them here.	サーバーで曲やアルバムをお気に入りにすると、ここに表示されます。
+Wrong user name or password	ユーザー名またはパスワードが違います
+The server didn't sign you in	サーバーにサインインできませんでした
+Type the server's address	サーバーのアドレスを入力してください
+That kind of source is added another way	その種類のソースは別の方法で追加します
+Starred	スター付き
+Recently Added	最近追加
+Artists	アーティスト
+Favorites	お気に入り
+All Songs	すべての曲
+Albums	アルバム
+Folders	フォルダ
+Browse	ブラウズ
+Top Stations	人気の局
+Genres	ジャンル
+Countries	国
+Subscriptions	購読中
+Top Podcasts	人気のポッドキャスト
+Live Music Archive	Live Music Archive
+78 RPM Records	78回転レコード
+Netlabels	ネットレーベル
+Old Time Radio	オールドタイムラジオ
+Select something first	先に何か選択してください
+Nothing to do here	ここでできることはありません
+it refused (sign in again in Settings)	拒否されました（設定でもう一度サインインしてください）
+Internet Radio	インターネットラジオ
+Podcasts	ポッドキャスト
+Internet Archive	Internet Archive
+No host in the stream address	ストリームのアドレスにホストがありません
+The station took too long to answer	局の応答に時間がかかりすぎました
+The station sent no audio	局から音声が届きませんでした
+Signed in, but this Plex account has no servers	サインインしましたが、この Plex アカウントにはサーバーがありません
+Use Sign in with Plex, or put your X-Plex-Token in the password box	「Plex でサインイン」を使うか、パスワード欄に X-Plex-Token を入力してください
+plex.tv didn't start a sign-in	plex.tv がサインインを開始しませんでした
+This Plex sign-in expired. Try again.	Plex のサインインが期限切れです。もう一度お試しください。
+Plex didn't finish the sign-in	Plex のサインインが完了しませんでした
+Unsubscribe	購読を解除
+Search for a podcast (or paste its feed address), select it and press Subscribe.	ポッドキャストを検索（またはフィードのアドレスを貼り付け）し、選択して「購読」を押してください。
+Subscribe	購読
+This podcast has no episodes to play.	このポッドキャストには再生できるエピソードがありません。
+That playlist lists no streams	そのプレイリストにはストリームがありません
+No radio directory	ラジオディレクトリがありません
+Select stations anywhere in Internet Radio and press Add to Favorites. You can also paste a stream address into Search.	インターネットラジオで局を選択し「お気に入りに追加」を押してください。ストリームのアドレスを検索欄に貼り付けることもできます。
+Add to Favorites	お気に入りに追加
+Type your user name	ユーザー名を入力してください
+Star songs or albums on your server to see them here.	サーバーで曲やアルバムにスターを付けると、ここに表示されます。
+Type your DSM user name	DSM のユーザー名を入力してください
+wrong user name or password	ユーザー名またはパスワードが違います
+this account is disabled	このアカウントは無効です
+this account can't use Audio Station	このアカウントは Audio Station を使えません
+type your two-step code too (it's asked for once)	2段階認証コードも入力してください（一度だけ求められます）
+that two-step code didn't work	その2段階認証コードは使えませんでした
+this address is blocked by the NAS after too many tries	試行回数が多すぎるため、このアドレスは NAS にブロックされています
+Audio Station isn't installed on this NAS	この NAS に Audio Station がインストールされていません
+Audio Station isn't installed on this NAS (Package Center › Audio Station)	この NAS に Audio Station がインストールされていません（パッケージセンター › Audio Station）
+No folders or music files here.	フォルダも音楽ファイルもありません。
+This Spotify sign-in expired. Try again.	Spotify のサインインが期限切れです。もう一度お試しください。
+Connect Spotify in Settings.	設定で Spotify に接続してください。
+Copy	コピー
+Cancel	キャンセル
+File Info	ファイル情報
+Close	閉じる
+Jump to File	ファイルへジャンプ
+‹ Back	‹ 戻る
+Copied	コピーしました
+Saved	保存しました
+mono	モノラル
+stereo	ステレオ
+Audio	オーディオ
+Add a music folder	音楽フォルダを追加
+DOWNLOADING UPDATE…	DOWNLOADING UPDATE…
+GAMP {} DIDN'T INSTALL	GAMP {} DIDN'T INSTALL
+OPENED GAMP {} IN YOUR SOFTWARE INSTALLER	OPENED GAMP {} IN YOUR SOFTWARE INSTALLER
+OPENED THE DOWNLOAD PAGE	OPENED THE DOWNLOAD PAGE
+Open a folder	フォルダを開く
+UPDATE FAILED ({})	UPDATE FAILED ({})
+Winamp EQ presets	Winamp EQ プリセット
+{} - OPENED THE DOWNLOAD PAGE	{} - OPENED THE DOWNLOAD PAGE
+Your profile: soundcloud.com/you	あなたのプロフィール: soundcloud.com/you
+Add any folder. Network drives work once mounted in Finder (Go › Connect to Server, or use Connect below); they appear under /Volumes.	任意のフォルダを追加できます。ネットワークドライブは Finder で接続すると使えます（移動 › サーバへ接続、または下の「接続」）。/Volumes に表示されます。
+Add any folder, a mapped drive, or a \\server\share path.	任意のフォルダ、割り当てたドライブ、または \\server\share のパスを追加できます。
+Add any folder, including network shares mounted under /mnt or /media.	/mnt や /media にマウントしたネットワーク共有を含め、任意のフォルダを追加できます。
+Finder is connecting. Then Add folder… › /Volumes.	Finder が接続しています。次に フォルダを追加… › /Volumes。
+QuickConnect ID, or http://diskstation:5000	QuickConnect ID、または http://diskstation:5000
