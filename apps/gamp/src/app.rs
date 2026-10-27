@@ -574,7 +574,10 @@ impl App {
     }
 
     fn redock(&mut self, screens: Vec<Rect>) {
-        if self.drag.is_some() || self.resize.is_some() || screens.is_empty() {
+        // A full-screen G-Drop gets its own Space, which hides the menu bar
+        // and changes the visible area: that's not a display change, and
+        // pulling it back beside the main window flips Spaces back and forth.
+        if self.drag.is_some() || self.resize.is_some() || screens.is_empty() || self.drop.fullscreen {
             return;
         }
         if screens != self.docked.0 && !self.docked.0.is_empty() {
@@ -3335,6 +3338,11 @@ mod tests {
         app.wins.get_mut(&Kind::Eq).unwrap().move_to(900, 40);
         app.redock(vec![Rect { x: 0, y: 0, w: 2560, h: 1440 }]);
         assert_eq!(pos(&app, Kind::Eq), (900, 40));
+        // Full-screen G-Drop on its own Space: the menu bar hides, nothing moves.
+        app.drop.fullscreen = true;
+        app.wins.get_mut(&Kind::Eq).unwrap().move_to(901, 40);
+        app.redock(vec![Rect { x: 0, y: 0, w: 2560, h: 1415 }]);
+        assert_eq!(pos(&app, Kind::Eq), (901, 40));
     }
 
     #[test]
