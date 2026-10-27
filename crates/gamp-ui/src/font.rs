@@ -3,7 +3,7 @@
 //! Chinese, Korean…) come from a font the system already has, read glyph by
 //! glyph (ab_glyph), so the 20+ MB font costs no more memory than its file.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
 
 use fontdue::{Font, FontSettings};
@@ -79,24 +79,59 @@ fn cache() -> &'static Mutex<HashMap<(char, u32, bool), Glyph>> {
     C.get_or_init(Default::default)
 }
 
+/// Letters no font here has (no system font in a browser): asked for once,
+/// for the page to draw with the browser's fonts and hand back (`provide`).
+fn missing() -> &'static Mutex<(HashSet<(char, u32, bool)>, Vec<(char, f32, bool)>)> {
+    static M: OnceLock<Mutex<(HashSet<(char, u32, bool)>, Vec<(char, f32, bool)>)>> = OnceLock::new();
+    M.get_or_init(Default::default)
+}
+
+/// The letters asked for since the last call: (letter, px, bold).
+pub fn take_missing() -> Vec<(char, f32, bool)> {
+    std::mem::take(&mut missing().lock().unwrap().1)
+}
+
+/// A letter drawn elsewhere: its advance, its box (left of the pen, bottom
+/// above the baseline, width, height) and coverage, a row at a time.
+#[allow(clippy::too_many_arguments)]
+pub fn provide(c: char, px: f32, bold: bool, advance: f32, xmin: i32, ymin: i32, width: usize, height: usize, coverage: Vec<u8>) {
+    let m = fontdue::Metrics { advance_width: advance, xmin, ymin, width, height, ..Default::default() };
+    cache().lock().unwrap().insert((c, (px * 4.0) as u32, bold), (m, coverage));
+}
+
+/// Whether Liberation Sans lacks `c`.
+fn foreign(c: char) -> bool {
+    !c.is_ascii() && fonts()[0].lookup_glyph_index(c) == 0
+}
+
 fn glyph(c: char, px: f32, bold: bool) -> Glyph {
     let key = (c, (px * 4.0) as u32, bold);
     let mut cache = cache().lock().unwrap();
-    cache
-        .entry(key)
-        .or_insert_with(|| match borrowed(c) {
-            Some(f) => borrowed_glyph(f, c, px),
-            None => fonts()[bold as usize].rasterize(c, px),
-        })
-        .clone()
+    if let Some(g) = cache.get(&key) {
+        return g.clone();
+    }
+    let g = match borrowed(c) {
+        Some(f) => borrowed_glyph(f, c, px),
+        None if foreign(c) && fallback().is_none() => {
+            // Ask for it, and show the empty box meanwhile (not kept: the real one may come).
+            let mut m = missing().lock().unwrap();
+            if m.0.insert(key) {
+                m.1.push((c, px, bold));
+            }
+            return fonts()[bold as usize].rasterize(c, px);
+        }
+        None => fonts()[bold as usize].rasterize(c, px),
+    };
+    cache.insert(key, g.clone());
+    g
 }
 
 /// Width of `text` at `px` pixels.
 pub fn measure(text: &str, px: f32, bold: bool) -> i32 {
     text.chars()
-        .map(|c| match borrowed(c) {
-            Some(_) => glyph(c, px, bold).0.advance_width,
-            None => fonts()[bold as usize].metrics(c, px).advance_width,
+        .map(|c| match foreign(c) {
+            true => glyph(c, px, bold).0.advance_width,
+            false => fonts()[bold as usize].metrics(c, px).advance_width,
         })
         .sum::<f32>()
         .round() as i32
