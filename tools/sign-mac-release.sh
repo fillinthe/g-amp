@@ -28,12 +28,15 @@ gh release download "$TAG" -p '*macOS*.dmg' -D "$WORK"
 for dmg in "$WORK"/*.dmg; do
     name=$(basename "$dmg")
     echo "== $name"
-    # Sign the app inside, in place (the dmg's layout stays as the workflow made it).
+    # Sign the app inside, in place, and add the install window's layout
+    # (background and icon places; Finder's file, made once on a Mac, since
+    # the build machines can't run Finder).
     hdiutil convert -quiet "$dmg" -format UDRW -o "$WORK/rw.dmg"
     hdiutil resize -quiet -size 300m "$WORK/rw.dmg"
     hdiutil attach -quiet -nobrowse -mountpoint "$WORK/mnt" "$WORK/rw.dmg"
     codesign --force --deep --options runtime --timestamp --keychain "$KC" --sign "$ID" "$WORK/mnt/Gamp.app"
     codesign --verify --deep --strict "$WORK/mnt/Gamp.app"
+    cp "$(dirname "$0")/../apps/gamp/packaging/dmg/DS_Store" "$WORK/mnt/.DS_Store"
     hdiutil detach -quiet "$WORK/mnt"
     rm "$dmg"
     hdiutil convert -quiet "$WORK/rw.dmg" -format UDZO -o "$dmg"
