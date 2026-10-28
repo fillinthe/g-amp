@@ -70,6 +70,15 @@ role = "viewer"
 minimumSystemVersion = "11.0"
 infoPlistPath = "packaging/Info.plist"
 
+# The install window: drag Gamp onto Applications. The picture is drawn
+# from packaging/dmg/background.html at 2x (144 dpi, so Finder shows it
+# sharp); the window's height adds the title bar.
+[package.metadata.packager.dmg]
+background = "packaging/dmg/background.png"
+windowSize = { width = 660, height = 428 }
+appPosition = { x = 170, y = 215 }
+appFolderPosition = { x = 490, y = 215 }
+
 [package.metadata.packager.deb]
 depends = ["libasound2 | libasound2t64"]
 section = "sound"
