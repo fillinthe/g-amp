@@ -208,8 +208,10 @@ impl App {
                 Reply::Message(m) => {
                     self.lib.view.status = m.clone();
                     self.main.message = None;
-                    // The settings form covers the status line: say it in the display.
-                    if self.lib.page == Page::Settings && !m.is_empty() {
+                    // The settings form covers the status line, or the library is
+                    // closed (Add to Favorites from the playlist): say it in the display.
+                    let lib_hidden = !self.wins.get(&Kind::Library).is_some_and(|w| w.visible);
+                    if (self.lib.page == Page::Settings || lib_hidden) && !m.is_empty() {
                         self.say(&m);
                     }
                     // Favourites and subscriptions changed: reload them.
@@ -689,7 +691,8 @@ impl App {
             .filter(is_playable)
             .filter(|i| i.info != gamp_core::soundcloud_web::PROTECTED)
             .filter_map(|i| {
-                let url = i.url.clone()?;
+                // A loose file favorited from the playlist.
+                let Some(url) = i.url.clone() else { return i.id.strip_prefix("file\u{1f}").map(|p| Entry::read(std::path::Path::new(p))) };
                 // A station shows by its name alone, as SHOUTcast did.
                 let artist = if i.live { String::new() } else { i.artist.clone() };
                 // A SoundCloud preview stops after 30 seconds: say so where it plays.
