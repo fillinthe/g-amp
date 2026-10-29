@@ -161,6 +161,7 @@ async fn public_config(dropbox_redirect: String) -> Value {
         "folders": c.folders,
         "spotify": { "connected": spotify::connected().await },
         "soundcloud": { "profile": c.soundcloud_profile },
+        "jamendo": { "client": c.jamendo_client },
         "cloud": crate::cloud::folders().iter().map(|f| json!({ "name": f.name, "path": f.path })).collect::<Vec<_>>(),
         "dropbox": { "key": c.dropbox_key, "builtIn": !sources::dropbox::APP_KEY.is_empty(), "redirectUri": dropbox_redirect },
         "dlnaSearching": sources::dlna::searching(),
@@ -177,6 +178,7 @@ struct ConfigPatch {
     folders: Option<Vec<String>>,
     soundcloud_profile: Option<String>,
     dropbox_key: Option<String>,
+    jamendo_client: Option<String>,
 }
 
 async fn post_config(Json(patch): Json<ConfigPatch>, dropbox_redirect: String) -> Result<Json<Value>, ApiError> {
@@ -195,6 +197,9 @@ async fn post_config(Json(patch): Json<ConfigPatch>, dropbox_redirect: String) -
         let p = p.trim().to_owned();
         c.soundcloud_user = if p.is_empty() { 0 } else { crate::soundcloud_web::user_id(&p).await? };
         c.soundcloud_profile = p;
+    }
+    if let Some(k) = patch.jamendo_client {
+        c.jamendo_client = k.trim().to_owned();
     }
     if let Some(k) = patch.dropbox_key {
         c.dropbox_key = k.trim().to_owned();
