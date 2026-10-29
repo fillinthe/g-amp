@@ -758,6 +758,9 @@ impl App {
 
     pub(crate) fn load_current(&mut self, play: bool) {
         let Some(entry) = self.playlist.current().cloned() else { return };
+        // The list follows the track that plays, as Winamp's did.
+        self.pl.reveal(self.playlist.current);
+        self.mark(Kind::Playlist);
         // A seek still on its way was for the track before.
         self.seek_wait = None;
         match self.input_for(&entry) {
@@ -3043,6 +3046,16 @@ mod tests {
         app.lib_artist();
         assert_eq!(app.lib.view.search.value, "https://soundcloud.com/porter-robinson");
         assert!(!app.pending_stream);
+    }
+
+    #[test]
+    fn the_playlist_scrolls_to_the_track_that_plays() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        let songs: Vec<gamp_core::sources::Item> = (0..99).map(|i| gamp_core::sources::Item { url: Some(format!("/media/test-tone.wav?{i}")), ..gamp_core::sources::Item::track(i.to_string(), "Song") }).collect();
+        app.lib_send(songs, true);
+        app.playlist.current = 54;
+        app.load_current(false);
+        assert!(app.pl.top <= 54 && 54 < app.pl.top + app.pl.visible_rows());
     }
 
     #[test]

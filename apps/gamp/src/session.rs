@@ -193,6 +193,7 @@ impl App {
             self.playlist.set(entries);
             self.playlist.current = s.current.min(self.playlist.entries.len() - 1);
             self.sync_playlist();
+            self.pl.reveal(self.playlist.current);
             self.update_title();
             // Back where you were: the track loaded, paused at its place
             // (the display shows it), and Play goes on from there.
