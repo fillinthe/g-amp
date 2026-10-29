@@ -1479,6 +1479,7 @@ impl App {
         let at = self.win(k).map(Win::global_cursor).unwrap_or_default();
         let items = match k {
             Kind::Library => self.lib_row_menu(),
+            Kind::Playlist => self.pl_row_menu(),
             Kind::Vis => Some(self.drop_menu()),
             _ => None,
         }
@@ -1841,6 +1842,35 @@ impl App {
             _ => {}
         }
         self.sync_playlist();
+    }
+
+    /// Right-click on a track: select it (unless it's in the selection),
+    /// then Add to Favorites / Remove above the main menu.
+    fn pl_row_menu(&mut self) -> Option<Vec<Item>> {
+        let (x, y) = self.win(Kind::Playlist)?.cursor;
+        let Some(plw::Control::Track(i)) = plw::hit(&self.pl, x, y) else { return None };
+        if !self.pl.selected.contains(&i) {
+            self.pl.selected = BTreeSet::from([i]);
+            self.mark(Kind::Playlist);
+        }
+        let mut items = vec![Item::action("pl:fav", "Add to Favorites"), Item::action("pl:remove", "Remove"), Item::Separator];
+        items.extend(self.main_menu());
+        Some(items)
+    }
+
+    /// The selected tracks into Favorites, playing from where they play now.
+    fn pl_favorite(&mut self) {
+        let items: Vec<gamp_core::sources::Item> = (self.pl.selected.iter())
+            .filter_map(|&i| self.playlist.entries.get(i))
+            .map(|e| {
+                // A loose file keeps its path; lib_send reads it back.
+                let id = match &e.url { Some(u) => format!("playlist\u{1f}{u}"), None => format!("file\u{1f}{}", e.path.display()) };
+                gamp_core::sources::Item { url: e.url.clone(), live: e.live, duration: e.duration, ..gamp_core::sources::Item::track(id, &e.title).by(&e.artist) }
+            })
+            .collect();
+        if let (Some(b), false) = (&self.backend, items.is_empty()) {
+            b.action("playlist".into(), "fav:add".into(), items);
+        }
     }
 
     fn clear_playlist(&mut self) {
@@ -2337,6 +2367,8 @@ impl App {
             "lib:enqueue" => self.lib_button("enqueue"),
             "lib:artist" => self.lib_artist(),
             "lib:fav" => self.lib_button("action:fav:add"),
+            "pl:fav" => self.pl_favorite(),
+            "pl:remove" => self.remove_selected(),
             "lib:unfav" => self.lib_button("action:fav:remove"),
             "misc:reread" => self.reread_selected(),
             id if id.starts_with("sort:") => {
@@ -2978,6 +3010,17 @@ mod tests {
         app.lib_artist();
         assert_eq!(app.lib.view.search.value, "https://soundcloud.com/porter-robinson");
         assert!(!app.pending_stream);
+    }
+
+    #[test]
+    fn a_loose_file_favorited_from_the_playlist_plays_again() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        let path = std::env::temp_dir().join(format!("gamp-fav-{}.mp3", std::process::id()));
+        std::fs::write(&path, b"").unwrap();
+        let fav = gamp_core::sources::Item::track(format!("file\u{1f}{}", path.display()), "Song");
+        app.lib_send(vec![fav], true);
+        assert_eq!(app.playlist.entries[0].path, path);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
