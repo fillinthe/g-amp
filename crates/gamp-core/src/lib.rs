@@ -6,6 +6,7 @@
 
 pub mod catalog;
 pub mod cloud;
+pub mod favorites;
 pub mod http;
 pub mod library;
 pub mod server;

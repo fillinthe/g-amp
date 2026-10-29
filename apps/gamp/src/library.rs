@@ -20,6 +20,8 @@ pub const MUSEUM_DIR: &str = "museum";
 
 /// Recent searches kept for each source, shown under its Search.
 const RECENT: usize = 5;
+/// A recent search, listed on its Search page.
+const RECENT_KIND: &str = "search";
 
 /// What a tree row opens.
 #[derive(Clone, Debug, PartialEq)]
@@ -128,6 +130,9 @@ impl Default for LibState {
         }
     }
 }
+
+/// The Favorites page's cache key.
+const FAVORITES_KEY: &str = "favorites\u{1f}favorites";
 
 fn is_playable(i: &Item) -> bool {
     i.kind == "track"
@@ -280,6 +285,7 @@ impl App {
             rows.push(TreeRow { label: label.into(), depth, group: false, open: false, selected });
             targets.push(t);
         };
+        leaf(&mut rows, &mut targets, Target::Open { sid: "favorites".into(), node: "favorites".into(), title: "Favorites".into() }, "Favorites", 0);
         let src = self.lib.sources.clone();
         let source_rows = |rows: &mut Vec<TreeRow>, targets: &mut Vec<Target>, s: &Source, depth: u8| {
             for (node, title) in &s.roots {
@@ -371,6 +377,11 @@ impl App {
                 self.lib.view.search.value.clear();
                 self.lib.view.search.caret = 0;
                 self.lib_focus(Some("search".into()));
+                // Opened fresh: the recent searches, to run again.
+                if from_tree {
+                    let items = self.lib.recent.get(sid).into_iter().flatten().map(|q| Item { kind: RECENT_KIND.into(), id: q.clone(), title: q.clone(), info: "Search again".into(), ..Default::default() }).collect();
+                    self.lib.cache.insert(page.key(), Listing::of(items));
+                }
                 if self.lib.cache.contains_key(&page.key()) {
                     self.lib_show();
                 } else {
@@ -493,6 +504,10 @@ impl App {
             .collect();
         for a in &self.lib.actions {
             buttons.push((format!("action:{}", a.id), a.label.to_owned()));
+        }
+        let listed = matches!(&self.lib.page, Page::List { .. } | Page::Search { .. });
+        if listed && self.lib.page.key() != FAVORITES_KEY && !self.lib.actions.iter().any(|a| a.id == "fav:add") {
+            buttons.push(("action:fav:add".into(), "Add to Favorites".into()));
         }
         self.lib.view.buttons = buttons;
         let total: f64 = self.lib.items.iter().filter_map(|i| i.duration).sum();
@@ -642,6 +657,12 @@ impl App {
         if item.kind == museum::KIND {
             return self.skin_fetch(Some(item));
         }
+        if item.kind == RECENT_KIND {
+            if let Page::Search { sid, title } = self.lib.page.clone() {
+                self.lib_search_again(sid, title, item.title);
+            }
+            return;
+        }
         if !is_playable(&item) {
             let sid = match &self.lib.page {
                 Page::List { sid, .. } | Page::Search { sid, .. } => sid.clone(),
@@ -651,8 +672,9 @@ impl App {
             self.lib_open(Page::List { sid, node: item.id.clone(), title: item.title.clone() }, false);
             return;
         }
-        // A station plays alone; a song plays with the ones after it.
-        let tracks: Vec<Item> = if item.live { vec![item] } else { self.lib.items[i..].iter().filter(|t| is_playable(t)).cloned().collect() };
+        // What's selected plays (the one clicked, usually), not the whole list.
+        let sel = self.lib_selected();
+        let tracks = if self.lib.view.table.selected.contains(&i) && !item.live { sel } else { vec![item] };
         self.lib_send(tracks, false);
     }
 
@@ -707,13 +729,18 @@ impl App {
             self.lib.anchor = Some(i);
             self.mark(Kind::Library);
         }
-        if self.lib_selected().iter().any(|i| i.kind == museum::KIND) {
-            return Some(vec![M::action("lib:skin", "Use skin"), M::action("skin:surprise", "Surprise me"), M::action("skin:default", "Original skin")]);
-        }
-        if !self.lib_selected().iter().any(is_playable) {
+        let sel = self.lib_selected();
+        if sel.iter().any(|i| i.kind == RECENT_KIND) {
             return None;
         }
-        let mut menu = vec![M::action("lib:play", "Play"), M::action("lib:enqueue", "Add to playlist (Shift+Enter)")];
+        let fav = if self.lib.page.key() == FAVORITES_KEY { M::action("lib:unfav", "Remove from Favorites") } else { M::action("lib:fav", "Add to Favorites") };
+        if sel.iter().any(|i| i.kind == museum::KIND) {
+            return Some(vec![M::action("lib:skin", "Use skin"), M::action("skin:surprise", "Surprise me"), M::action("skin:default", "Original skin"), fav]);
+        }
+        if !sel.iter().any(is_playable) {
+            return Some(vec![fav]);
+        }
+        let mut menu = vec![M::action("lib:play", "Play"), M::action("lib:enqueue", "Add to playlist (Shift+Enter)"), fav];
         if let Some(t) = self.lib.items.get(i).filter(|t| !t.artist_link.is_empty()) {
             let who = t.artist_link.rsplit('/').next().unwrap_or_default();
             menu.push(M::action("lib:artist", &tf("Latest from {}", &[&who])));
@@ -1204,6 +1231,25 @@ mod tests {
         app.lib_search_again(sid, title, query);
         assert_eq!(app.lib.recent["soundcloud"][0], "Deep House");
         assert_eq!(app.lib.view.search.value, "Deep House");
+    }
+
+    #[test]
+    fn search_page_lists_recent_searches_and_a_double_click_plays_one_track() {
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.lib.recent.insert("soundcloud".into(), vec!["bluebird".into()]);
+        let page = Page::Search { sid: "soundcloud".into(), title: "SoundCloud › Search".into() };
+        app.lib_open(page.clone(), true);
+        assert_eq!(app.lib.items.len(), 1);
+        assert_eq!(app.lib.items[0].kind, RECENT_KIND);
+        app.lib_activate(0);
+        assert_eq!(app.lib.view.search.value, "bluebird");
+        // Results in: double-clicking one plays it alone.
+        let track = |n: &str| Item { url: Some(format!("http://x/{n}")), ..Item::track(n, n) };
+        app.lib.cache.insert(page.key(), Listing::of(vec![track("a"), track("b"), track("c")]));
+        app.lib_show();
+        app.lib.view.table.selected = BTreeSet::from([1]);
+        app.lib_activate(1);
+        assert_eq!(app.playlist.entries.len(), 1);
     }
 
     #[test]
