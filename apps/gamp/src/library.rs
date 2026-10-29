@@ -100,7 +100,6 @@ impl Default for LibState {
             ("folder_path", "Or type a path", false),
             ("share", "smb://diskstation/music", false),
             ("sc_profile", "Your profile: soundcloud.com/you", false),
-            ("jm_client", "Jamendo client ID", false),
         ] {
             fields.insert(id.to_owned(), Field { placeholder: ph.into(), password: pw, ..Default::default() });
         }
@@ -195,9 +194,6 @@ impl App {
                 Reply::Config(c) => {
                     if let Some(k) = c["soundcloud"]["profile"].as_str() {
                         self.lib_field_default("sc_profile", k);
-                    }
-                    if let Some(k) = c["jamendo"]["client"].as_str() {
-                        self.lib_field_default("jm_client", k);
                     }
                     // Still looking for DLNA servers: look at the list again shortly.
                     if c["dlnaSearching"] == true && self.pending_refresh.is_none() {
@@ -1030,7 +1026,6 @@ impl App {
             "folder_path" => self.lib_form_action("folder:path"),
             "share" => self.lib_form_action("share:connect"),
             "sc_profile" => self.lib_form_action("sc:save"),
-            "jm_client" => self.lib_form_action("jm:save"),
             _ => {}
         }
     }
@@ -1132,10 +1127,6 @@ impl App {
         f.push(W::Text("No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).".into()));
         f.push(W::Row(vec![self.field("sc_profile"), W::button("sc:save", "Save")]));
 
-        f.push(W::Heading("Jamendo".into()));
-        f.push(W::Text("Free Creative Commons music. Jamendo asks each app for its own client ID: make a free one at devportal.jamendo.com and paste it here.".into()));
-        f.push(W::Row(vec![self.field("jm_client"), W::button("jm:save", "Save")]));
-
         f.push(W::Heading("Internet radio, podcasts, the Internet Archive and Audius".into()));
         f.push(W::Text("Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.".into()));
         f.push(W::Heading("Skins".into()));
@@ -1199,7 +1190,6 @@ impl App {
             "sp:connect" => open_in_browser(&b.url("/auth/spotify/login")),
             "sp:disconnect" => b.post("/api/spotify/logout", json!({}), true),
             "sc:save" => b.post("/api/config", json!({ "soundcloudProfile": self.value("sc_profile") }), true),
-            "jm:save" => b.post("/api/config", json!({ "jamendoClient": self.value("jm_client") }), true),
             other => {
                 if let Some(i) = other.strip_prefix("folder:rm:").and_then(|i| i.parse::<usize>().ok()) {
                     let f: Vec<String> = folders.iter().enumerate().filter(|(n, _)| *n != i).map(|(_, p)| p.clone()).collect();
