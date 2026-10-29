@@ -123,6 +123,9 @@ impl Backend {
 
     pub fn action(&self, sid: String, action: String, items: Vec<gamp_core::sources::Item>) {
         self.spawn(async move {
+            if action.starts_with("fav:") {
+                return Reply::Message(gamp_core::favorites::action(&sid, &action, items).await.unwrap_or_else(|e| e.1));
+            }
             match gamp_core::sources::action(&sid, &action, items).await {
                 Ok(v) => Reply::Message(v["message"].as_str().unwrap_or("Done").to_owned()),
                 Err(e) => Reply::Message(e.1),

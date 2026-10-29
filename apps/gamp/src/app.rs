@@ -2336,6 +2336,8 @@ impl App {
             "lib:play" => self.lib_button("play"),
             "lib:enqueue" => self.lib_button("enqueue"),
             "lib:artist" => self.lib_artist(),
+            "lib:fav" => self.lib_button("action:fav:add"),
+            "lib:unfav" => self.lib_button("action:fav:remove"),
             "misc:reread" => self.reread_selected(),
             id if id.starts_with("sort:") => {
                 if let Some(how) = playlist::Sort::from_id(id) {

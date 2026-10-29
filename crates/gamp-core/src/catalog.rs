@@ -106,6 +106,7 @@ fn sp_track(t: &Value) -> Option<Item> {
 pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
     match sid {
         "local" => Ok(Listing::of(local_items().await).hint("Add folders in Settings › Music folders.")),
+        "favorites" => crate::favorites::browse(node).await,
         "soundcloud" => {
             let (kind, arg) = node.split_once(':').unwrap_or((node, ""));
             // The profile's public lists, read like the web player.

@@ -78,7 +78,7 @@ pub async fn browse(node: &str) -> Result<Listing, ApiError> {
         "country" => Listing::of(stations(&directory(&format!("/json/stations/bycountrycodeexact/{arg}?{q}")).await?)),
         _ => return Err(not_found("That list")),
     }
-    .with("favorite", "Add to Favorites"))
+    .with("fav:add", "Add to Favorites"))
 }
 
 /// The stream addresses inside a .pls or .m3u playlist.
@@ -112,7 +112,7 @@ async fn from_url(url: &str) -> Result<Listing, ApiError> {
             i
         })
         .collect();
-    Ok(Listing::of(items).with("favorite", "Add to Favorites"))
+    Ok(Listing::of(items).with("fav:add", "Add to Favorites"))
 }
 
 pub async fn search(q: &str) -> Result<Listing, ApiError> {
@@ -139,7 +139,7 @@ pub async fn search(q: &str) -> Result<Listing, ApiError> {
         let v = directory(&format!("/json/stations/bytag/{}?hidebroken=true&order=clickcount&reverse=true&limit=300", urlencoding::encode(q))).await?;
         items = stations(&v);
     }
-    Ok(Listing::of(items).with("favorite", "Add to Favorites"))
+    Ok(Listing::of(items).with("fav:add", "Add to Favorites"))
 }
 
 pub async fn action(action: &str, items: Vec<Item>) -> Result<String, ApiError> {
