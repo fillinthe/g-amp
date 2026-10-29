@@ -2235,8 +2235,22 @@ impl App {
     }
 
     fn push_menu(&mut self, items: Vec<Item>, at: (i32, i32), el: Option<&ActiveEventLoop>) {
-        let (w, h) = menu::size(&items);
         let z = self.zoom();
+        // Kept on the display it opens on: too long a list goes on in "More",
+        // and one past the bottom or right edge moves up or left.
+        let mut at = at;
+        let mut items = items;
+        let sf = self.win(Kind::Main).and_then(|w| w.window.as_ref()).map_or(1.0, |w| w.scale_factor());
+        let per = z * crate::win::units(sf);
+        let screens = self.screens();
+        if let Some(s) = screens.iter().find(|s| at.0 >= s.x && at.0 < s.right() && at.1 >= s.y && at.1 < s.bottom()).or(screens.first()) {
+            items = fit_menu(items, (s.h as f64 / per) as u32);
+            let (w, h) = menu::size(&items);
+            let (w, h) = ((w as f64 * per) as i32, (h as f64 * per) as i32);
+            at.0 = at.0.min(s.right() - w).max(s.x);
+            at.1 = at.1.min(s.bottom() - h).max(s.y);
+        }
+        let (w, h) = menu::size(&items);
         let win = Win::open(el, "Gamp menu", LogicalSize::new((w as f64 * z).round() as u32, (h as f64 * z).round() as u32), at, true);
         if let Some(window) = &win.window {
             window.focus_window();
@@ -2568,6 +2582,25 @@ impl App {
 pub fn clock(secs: f64) -> String {
     let s = secs.max(0.0) as u64;
     if s >= 3600 { format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60) } else { format!("{}:{:02}", s / 60, s % 60) }
+}
+
+/// A menu no taller than `max_h` (menu pixels): what doesn't fit goes on in "More".
+fn fit_menu(mut items: Vec<Item>, max_h: u32) -> Vec<Item> {
+    if menu::size(&items).1 <= max_h {
+        return items;
+    }
+    let mut rest = Vec::new();
+    while items.len() > 1 {
+        rest.insert(0, items.pop().unwrap());
+        items.push(Item::submenu("More", Vec::new()));
+        let fits = menu::size(&items).1 <= max_h;
+        items.pop();
+        if fits {
+            break;
+        }
+    }
+    items.push(Item::submenu("More", fit_menu(rest, max_h)));
+    items
 }
 
 #[cfg(test)]
@@ -3010,6 +3043,18 @@ mod tests {
         app.lib_artist();
         assert_eq!(app.lib.view.search.value, "https://soundcloud.com/porter-robinson");
         assert!(!app.pending_stream);
+    }
+
+    #[test]
+    fn a_long_menu_goes_on_in_more() {
+        let items: Vec<Item> = (0..40).map(|i| Item::action(format!("x{i}"), "Preset")).collect();
+        let fit = super::fit_menu(items, 300);
+        assert!(menu::size(&fit).1 <= 300);
+        assert!(matches!(fit.last(), Some(Item::Submenu { .. })));
+        fn count(items: &[Item]) -> usize {
+            items.iter().map(|i| if let Item::Submenu { items, .. } = i { count(items) } else { 1 }).sum()
+        }
+        assert_eq!(count(&fit), 40);
     }
 
     #[test]
