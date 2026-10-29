@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
@@ -120,6 +120,9 @@ impl Tap {
     }
 }
 
+/// How long the output stays open after playback stops or pauses.
+const REST_AFTER: Duration = Duration::from_secs(5);
+
 /// Starts the output; returns its sample rate. The stream lives on its
 /// own thread for the life of the program.
 pub fn start(kind: OutputKind, shared: Arc<Shared>, ring: rtrb::Consumer<f32>, analysis: rtrb::Producer<f32>) -> anyhow::Result<u32> {
@@ -131,6 +134,7 @@ pub fn start(kind: OutputKind, shared: Arc<Shared>, ring: rtrb::Consumer<f32>, a
         return Ok(rate);
     }
     let (tx, rx) = std::sync::mpsc::channel();
+    let shared_out = shared.clone();
     std::thread::Builder::new().name("gamp-output".into()).spawn(move || {
         let result = (|| -> anyhow::Result<(cpal::Stream, u32)> {
             let host = cpal::default_host();
@@ -166,10 +170,23 @@ pub fn start(kind: OutputKind, shared: Arc<Shared>, ring: rtrb::Consumer<f32>, a
         match result {
             Ok((stream, rate)) => {
                 let _ = tx.send(Ok(rate));
-                // Keep the stream alive.
-                let _keep = stream;
+                // An open output keeps the computer awake (macOS and Windows
+                // both count it as playing), so it rests while nothing plays.
+                let (mut on, mut active) = (true, Instant::now());
                 loop {
-                    std::thread::park();
+                    std::thread::park_timeout(Duration::from_millis(50));
+                    // A flush (stop, seek, new track) needs the output to take it.
+                    if !shared_out.paused.load(Ordering::Relaxed) || shared_out.flush.load(Ordering::Acquire) {
+                        active = Instant::now();
+                    }
+                    let want = active.elapsed() < REST_AFTER;
+                    if want != on {
+                        let r = if want { stream.play() } else { stream.pause() };
+                        if let Err(e) = r {
+                            log::warn!("audio output: {e}");
+                        }
+                        on = want;
+                    }
                 }
             }
             Err(e) => {
