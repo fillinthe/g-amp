@@ -16,7 +16,6 @@ pub mod audius;
 pub mod dlna;
 pub mod dropbox;
 pub mod icy;
-pub mod jamendo;
 pub mod jellyfin;
 pub mod plex;
 pub mod podcasts;
@@ -58,7 +57,6 @@ pub enum Kind {
     Podcasts,
     Archive,
     Audius,
-    Jamendo,
 }
 
 impl Kind {
@@ -75,7 +73,6 @@ impl Kind {
             Kind::Podcasts => "Podcasts",
             Kind::Archive => "Internet Archive",
             Kind::Audius => "Audius",
-            Kind::Jamendo => "Jamendo",
         }
     }
 }
@@ -117,7 +114,6 @@ impl Account {
             Kind::Radio => "radio",
             Kind::Podcasts => "podcasts",
             Kind::Audius => "audius",
-            Kind::Jamendo => "jamendo",
             _ => "archive",
         };
         Account { id: id.into(), kind, name: kind.label().into(), ..Default::default() }
@@ -373,7 +369,6 @@ pub async fn find(id: &str) -> Result<Account, ApiError> {
         "podcasts" => return Ok(Account::builtin(Kind::Podcasts)),
         "archive" => return Ok(Account::builtin(Kind::Archive)),
         "audius" => return Ok(Account::builtin(Kind::Audius)),
-        "jamendo" => return Ok(Account::builtin(Kind::Jamendo)),
         _ => {}
     }
     if let Some(a) = dlna::find(id) {
@@ -466,7 +461,6 @@ pub fn roots(kind: Kind) -> Vec<Root> {
             r("c:oldtimeradio", "Old Time Radio"),
         ],
         Kind::Audius => vec![r("trending", "Trending"), r("underground", "Underground Trending")],
-        Kind::Jamendo => vec![r("popular", "Popular This Week"), r("new", "New Releases")],
     }
 }
 
@@ -476,7 +470,7 @@ fn searchable(kind: Kind) -> bool {
 
 fn info(acc: &Account) -> Value {
     let group = match acc.kind {
-        Kind::Radio | Kind::Podcasts | Kind::Archive | Kind::Audius | Kind::Jamendo => "internet",
+        Kind::Radio | Kind::Podcasts | Kind::Archive | Kind::Audius => "internet",
         _ => "network",
     };
     json!({
@@ -486,7 +480,7 @@ fn info(acc: &Account) -> Value {
         "name": acc.name,
         "address": if acc.kind == Kind::Dropbox { acc.username.clone() } else { acc.url.clone() },
         "group": group,
-        "removable": !matches!(acc.kind, Kind::Radio | Kind::Podcasts | Kind::Archive | Kind::Audius | Kind::Jamendo | Kind::Dlna),
+        "removable": !matches!(acc.kind, Kind::Radio | Kind::Podcasts | Kind::Archive | Kind::Audius | Kind::Dlna),
         "roots": roots(acc.kind),
         "search": searchable(acc.kind),
     })
@@ -496,7 +490,7 @@ pub async fn list() -> Value {
     dlna::refresh_soon();
     let mut out: Vec<Value> = accounts().await.iter().map(info).collect();
     out.extend(dlna::servers().iter().map(info));
-    for k in [Kind::Radio, Kind::Podcasts, Kind::Archive, Kind::Audius, Kind::Jamendo] {
+    for k in [Kind::Radio, Kind::Podcasts, Kind::Archive, Kind::Audius] {
         out.push(info(&Account::builtin(k)));
     }
     Value::Array(out)
@@ -601,7 +595,6 @@ pub async fn browse(sid: &str, node: &str) -> Result<Listing, ApiError> {
         Kind::Podcasts => podcasts::browse(node).await?,
         Kind::Archive => archive::browse(node).await?,
         Kind::Audius => audius::browse(node).await?,
-        Kind::Jamendo => jamendo::browse(node).await?,
     };
     Ok(finish(sid, listing))
 }
@@ -627,7 +620,6 @@ pub async fn search(sid: &str, q: &str) -> Result<Listing, ApiError> {
         Kind::Podcasts => podcasts::search(q).await?,
         Kind::Archive => archive::search(q).await?,
         Kind::Audius => audius::search(q).await?,
-        Kind::Jamendo => jamendo::search(q).await?,
         Kind::Webdav | Kind::Dlna => Listing::default(),
     };
     Ok(finish(sid, listing))
@@ -654,7 +646,7 @@ async fn upstream(acc: &Account, id: &str) -> Result<Upstream, ApiError> {
         Kind::Synology => synology::media(acc, id).await?,
         Kind::Webdav => webdav::media(acc, id),
         Kind::Dropbox => dropbox::media(acc, id).await?,
-        Kind::Dlna | Kind::Podcasts | Kind::Archive | Kind::Audius | Kind::Jamendo => Upstream::get(id),
+        Kind::Dlna | Kind::Podcasts | Kind::Archive | Kind::Audius => Upstream::get(id),
         Kind::Radio => Upstream { live: true, ..Upstream::get(id) },
     };
     up.insecure |= acc.insecure;

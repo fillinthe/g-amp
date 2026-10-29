@@ -60,8 +60,6 @@ pub struct Config {
     pub soundcloud_user: u64,
     /// Your Dropbox app's key (Dropbox gives every app its own).
     pub dropbox_key: String,
-    /// Your Jamendo client ID (Jamendo gives every app its own, free).
-    pub jamendo_client: String,
 }
 
 static CONFIG: OnceLock<RwLock<Config>> = OnceLock::new();
