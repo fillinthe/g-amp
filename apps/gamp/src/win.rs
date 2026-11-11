@@ -69,6 +69,23 @@ fn visible_area(area: (i32, i32, i32, i32)) -> Option<(i32, i32, i32, i32)> {
     Some(flip(s.visibleFrame()))
 }
 
+/// Windows zooms and fades every new window in; a menu just appears.
+/// (Asked of the window before it first shows.)
+#[cfg(windows)]
+fn no_animation(window: &Window) {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    #[link(name = "dwmapi")]
+    unsafe extern "system" {
+        fn DwmSetWindowAttribute(hwnd: isize, attribute: u32, value: *const std::ffi::c_void, size: u32) -> i32;
+    }
+    const DWMWA_TRANSITIONS_FORCEDISABLED: u32 = 3;
+    if let Ok(RawWindowHandle::Win32(h)) = window.window_handle().map(|h| h.as_raw()) {
+        let on: i32 = 1;
+        // SAFETY: a live window's handle, and a BOOL of the size given.
+        unsafe { DwmSetWindowAttribute(h.hwnd.get(), DWMWA_TRANSITIONS_FORCEDISABLED, (&on as *const i32).cast(), 4) };
+    }
+}
+
 /// Gamp's icon for the taskbar (Windows, Linux).
 fn icon() -> Option<winit::window::Icon> {
     static PNG: &[u8] = include_bytes!("../../../assets/logo/gamp-icon-256.png");
@@ -110,8 +127,9 @@ impl Win {
             .with_inner_size(size)
             .with_position(if POINTS { LogicalPosition::new(pos.0, pos.1).into() } else { winit::dpi::Position::from(PhysicalPosition::new(pos.0, pos.1)) })
             // Hidden until shown: a window made visible and hidden straight
-            // after can stay on screen on macOS. Menus open at once.
-            .with_visible(popup);
+            // after can stay on screen on macOS. Menus open at once (on
+            // Windows, once their opening animation is off: see below).
+            .with_visible(popup && !cfg!(windows));
         w.visible = popup;
         if popup {
             attrs = attrs.with_window_level(WindowLevel::AlwaysOnTop);
@@ -127,6 +145,11 @@ impl Win {
         }
         match el.create_window(attrs) {
             Ok(window) => {
+                #[cfg(windows)]
+                if popup {
+                    no_animation(&window);
+                    window.set_visible(true);
+                }
                 let window = Rc::new(window);
                 let surface = softbuffer::Context::new(window.clone()).ok().and_then(|ctx| Surface::new(&ctx, window.clone()).ok());
                 if let Ok(p) = window.outer_position() {
