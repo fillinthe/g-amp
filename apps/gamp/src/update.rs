@@ -69,8 +69,10 @@ pub fn pick_asset(names: &[String]) -> Option<usize> {
         &["setup.exe", ".msi"]
     } else if std::env::var_os("APPIMAGE").is_some() {
         &[".appimage"]
+    } else if cfg!(target_arch = "aarch64") {
+        &["arm64.deb"]
     } else {
-        &[".deb", ".appimage"]
+        &["amd64.deb", ".appimage"]
     };
     want.iter().find_map(|w| names.iter().position(|n| n.to_lowercase().ends_with(w)))
 }
@@ -358,8 +360,11 @@ mod tests {
         assert!(newer("0.10.0", "0.9.9"));
         assert!(!newer("v0.2.0", "0.2.0"));
         assert!(!newer("0.1.9", "0.2.0"));
-        let names: Vec<String> = ["Gamp-v0.3.0-macOS-apple-silicon.dmg", "Gamp-v0.3.0-macOS-intel.dmg", "Gamp-v0.3.0-Windows-setup.exe", "Gamp-v0.3.0-Linux-amd64.deb", "Gamp-v0.3.0-Linux-x86_64.AppImage"].map(String::from).to_vec();
+        let names: Vec<String> = ["Gamp-v0.3.0-macOS-apple-silicon.dmg", "Gamp-v0.3.0-macOS-intel.dmg", "Gamp-v0.3.0-Windows-setup.exe", "Gamp-v0.3.0-Linux-arm64.deb", "Gamp-v0.3.0-Linux-amd64.deb", "Gamp-v0.3.0-Linux-x86_64.AppImage"].map(String::from).to_vec();
         let i = pick_asset(&names).unwrap();
+        if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+            assert_eq!(names[i], "Gamp-v0.3.0-Linux-amd64.deb");
+        }
         if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
             assert_eq!(names[i], "Gamp-v0.3.0-macOS-apple-silicon.dmg");
         }
