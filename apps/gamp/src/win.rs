@@ -115,6 +115,13 @@ impl Win {
         w.visible = popup;
         if popup {
             attrs = attrs.with_window_level(WindowLevel::AlwaysOnTop);
+            // On X11 a menu goes up past the window manager: one that takes
+            // the focus gets it taken back at once (Xfce), and closes.
+            #[cfg(all(unix, not(target_os = "macos")))]
+            {
+                use winit::platform::x11::WindowAttributesExtX11;
+                attrs = attrs.with_override_redirect(true);
+            }
         } else {
             attrs = attrs.with_window_icon(icon());
         }

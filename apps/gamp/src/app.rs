@@ -167,6 +167,11 @@ pub struct App {
     /// The saved session, waiting for the windows to exist.
     pub(crate) session: Option<crate::session::Session>,
     pub(crate) last_save: Instant,
+    /// The last click or key: the display keeps up for a while after it,
+    /// for what it started and hasn't shown yet (Play, from stopped).
+    pub(crate) stirred: Instant,
+    /// When the last menu opened (Linux: focus settling isn't Gamp losing it).
+    menu_opened: Instant,
     /// The last thing that went wrong, for Report a problem….
     pub(crate) last_error: Option<String>,
     /// For dialogs to answer through (macOS opens them after the event).
@@ -269,6 +274,8 @@ impl App {
             lib_open_at_start: false,
             session: None,
             last_save: Instant::now(),
+            stirred: Instant::now(),
+            menu_opened: Instant::now(),
             last_error: None,
             proxy: None,
             media: None,
@@ -1358,7 +1365,7 @@ impl App {
     }
 
     pub fn busy(&self) -> bool {
-        self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.message.as_ref().unwrap_or(&self.main.title).chars().count() * 5 > 154 || self.drag.is_some()
+        self.stirred.elapsed() < Duration::from_secs(10) || self.pending_refresh.is_some() || self.pending_scan.is_some() || self.main.state != PlayState::Stopped || self.main.analyzer.peaks.iter().any(|p| *p > 0.0) || self.main.message.as_ref().unwrap_or(&self.main.title).chars().count() * 5 > 154 || self.drag.is_some()
     }
 
     // ---- pointer --------------------------------------------------------
@@ -2255,9 +2262,11 @@ impl App {
         }
         let (w, h) = menu::size(&items);
         let win = Win::open(el, "Gamp menu", LogicalSize::new((w as f64 * z).round() as u32, (h as f64 * z).round() as u32), at, true);
-        if let Some(window) = &win.window {
+        // (On Linux a menu takes no focus: see Win::open.)
+        if let Some(window) = win.window.as_ref().filter(|_| !MENUS_UNFOCUSED) {
             window.focus_window();
         }
+        self.menu_opened = Instant::now();
         self.menus.push(MenuLevel { items, hover: None, win, child_of: None });
         let i = self.menus.len() - 1;
         self.mark(Kind::Menu(i));
@@ -2459,6 +2468,10 @@ impl App {
         }
         let ctrl = self.modifiers.control_key() || self.modifiers.super_key();
         let alt = self.modifiers.alt_key();
+        if !self.menus.is_empty() && matches!(key, Key::Named(NamedKey::Escape)) {
+            self.close_menus();
+            return;
+        }
         if let Kind::Menu(_) = k {
             if matches!(key, Key::Named(NamedKey::Escape)) {
                 self.close_menus();
@@ -2523,6 +2536,10 @@ impl App {
     }
 
     pub fn set_focus(&mut self, k: Kind, focused: bool) {
+        // Linux menus have no focus to lose: they close when Gamp's windows lose theirs.
+        if MENUS_UNFOCUSED && !focused && !matches!(k, Kind::Menu(_)) && self.menu_opened.elapsed() > Duration::from_millis(300) {
+            self.close_menus();
+        }
         match k {
             Kind::Main => self.main.focused = focused,
             Kind::Eq => self.eq.focused = focused,
@@ -2535,7 +2552,8 @@ impl App {
             }
             Kind::Info => self.info.view.focused = focused,
             Kind::Menu(_) => {
-                if !focused {
+                // (Linux says a new menu lost the focus it never had.)
+                if !focused && !MENUS_UNFOCUSED {
                     self.menu_lost_focus(k);
                 }
                 return;
@@ -2586,6 +2604,9 @@ pub fn clock(secs: f64) -> String {
     let s = secs.max(0.0) as u64;
     if s >= 3600 { format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60) } else { format!("{}:{:02}", s / 60, s % 60) }
 }
+
+/// Linux (X11): menus are override-redirect windows, which never get the focus.
+const MENUS_UNFOCUSED: bool = cfg!(all(unix, not(target_os = "macos")));
 
 /// A menu no taller than `max_h` (menu pixels): what doesn't fit goes on in "More".
 fn fit_menu(mut items: Vec<Item>, max_h: u32) -> Vec<Item> {

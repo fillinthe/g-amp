@@ -106,6 +106,9 @@ impl ApplicationHandler<UserEvent> for Shell {
         if k == Kind::Library && !matches!(event, WindowEvent::RedrawRequested) || matches!(k, Kind::Menu(_)) && matches!(event, WindowEvent::MouseInput { .. }) {
             app.mark(Kind::Library);
         }
+        if matches!(event, WindowEvent::MouseInput { .. } | WindowEvent::KeyboardInput { .. }) {
+            app.stirred = Instant::now();
+        }
         match event {
             WindowEvent::CloseRequested => {
                 if k == Kind::Main {
