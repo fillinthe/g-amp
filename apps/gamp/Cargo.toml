@@ -80,7 +80,9 @@ appPosition = { x = 170, y = 215 }
 appFolderPosition = { x = 490, y = 215 }
 
 [package.metadata.packager.deb]
-depends = ["libasound2 | libasound2t64"]
+# Sound, and what the windows load when they open (X11): a bare system
+# without them installs Gamp but can't show it.
+depends = ["libasound2 | libasound2t64", "libx11-6", "libx11-xcb1", "libxcursor1", "libxi6", "libxkbcommon0", "libxkbcommon-x11-0"]
 section = "sound"
 
 [package.metadata.packager.nsis]
