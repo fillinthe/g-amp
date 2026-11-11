@@ -19,8 +19,9 @@ jobs:
       - name: Linux build dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libasound2-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev
+          # The package servers time out now and then: try again before giving up.
+          for n in 1 2 3; do sudo apt-get update && break || sleep 20; done
+          sudo apt-get install -y -o Acquire::Retries=5 pkg-config libasound2-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev
       - run: cargo test --workspace --locked
       - run: cargo build -p gamp --locked
       # The real app, headless: plays a file, scans a folder, plays it

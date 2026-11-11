@@ -44,8 +44,9 @@ jobs:
       - name: Linux build dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libasound2-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libfuse2
+          # The package servers time out now and then: try again before giving up.
+          for n in 1 2 3; do sudo apt-get update && break || sleep 20; done
+          sudo apt-get install -y -o Acquire::Retries=5 pkg-config libasound2-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libfuse2
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-packager
