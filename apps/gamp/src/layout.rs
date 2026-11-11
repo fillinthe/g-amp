@@ -95,13 +95,17 @@ pub fn below_top(rects: &[Rect], screens: &[Rect]) -> i32 {
 }
 
 /// Where a window `w` wide docks beside `group`: on its right, or on its
-/// left when the right would run off `screen` and the left fits.
+/// left when the right would run off `screen` and the left fits. Where
+/// neither side has room (a small screen), at the screen's right edge,
+/// over the group: all of it shows.
 pub fn beside(group: &[Rect], w: i32, screen: Option<Rect>) -> i32 {
     let right = group.iter().map(Rect::right).max().unwrap_or(0);
     let left = group.iter().map(|r| r.x).min().unwrap_or(0) - w;
     match screen {
-        Some(s) if right + w > s.right() && left >= s.x => left,
-        _ => right,
+        Some(s) if right + w <= s.right() => right,
+        Some(s) if left >= s.x => left,
+        Some(s) => (s.right() - w).max(s.x),
+        None => right,
     }
 }
 
@@ -128,8 +132,8 @@ mod tests {
         // Near the right edge: the left side.
         let edge = Rect { x: 1100, ..MAIN };
         assert_eq!(beside(&[edge], 300, Some(s)), 800);
-        // Fits on neither side: the right, as before.
-        assert_eq!(beside(&[Rect { x: 200, w: 1100, ..MAIN }], 400, Some(s)), 1300);
+        // Fits on neither side: at the screen's right edge, all of it showing.
+        assert_eq!(beside(&[Rect { x: 200, w: 1100, ..MAIN }], 400, Some(s)), 1040);
     }
 
     #[test]

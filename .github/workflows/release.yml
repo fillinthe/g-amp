@@ -1,7 +1,8 @@
 name: Release
 
-# Push a tag like v0.2.0: builds Gamp for macOS, Windows and Linux and
-# attaches the installers to a draft GitHub release.
+# Push a tag like v0.2.0: builds Gamp for macOS, Windows and Linux,
+# installs each package and runs the self-check, and attaches the
+# installers to a draft GitHub release.
 on:
   push:
     tags: ["v*"]
@@ -28,6 +29,9 @@ jobs:
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             formats: deb,appimage
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            formats: deb
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -69,6 +73,35 @@ jobs:
             hdiutil convert rw.dmg -quiet -format UDZO -o "$f"
             rm rw.dmg
           done
+      # The package itself, installed the way a download is, has to play:
+      # a release never gets a file that didn't.
+      - name: Install the package and run the self-check (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem target/packages/*.exe | Select-Object -First 1).FullName
+          $p = Start-Process $setup -ArgumentList '/S' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "setup exited $($p.ExitCode)" }
+          $exe = "$env:LOCALAPPDATA\Gamp\gamp.exe"
+          $p = Start-Process $exe -ArgumentList '--selftest' -RedirectStandardOutput out.txt -RedirectStandardError err.txt -PassThru -Wait
+          Get-Content out.txt, err.txt
+          if ($p.ExitCode -ne 0) { throw "self-check exited $($p.ExitCode)" }
+      - name: Install the package and run the self-check (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./target/packages/*.deb
+          gamp --selftest
+          for f in target/packages/*.AppImage; do
+            [ -e "$f" ] || continue
+            chmod +x "$f" && "$f" --selftest
+          done
+      - name: Run the self-check from the dmg (Mac)
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          m=$(mktemp -d)
+          hdiutil attach -quiet -nobrowse -mountpoint "$m" target/packages/*.dmg
+          "$m/Gamp.app/Contents/MacOS/gamp" --selftest
+          hdiutil detach -quiet "$m"
       - name: Name the files by platform
         shell: bash
         run: |
@@ -79,7 +112,7 @@ jobs:
             case "$f" in
               *.dmg) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-macOS-$([ ${{ matrix.target }} = aarch64-apple-darwin ] && echo apple-silicon || echo intel).dmg" ;;
               *.exe) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-Windows-setup.exe" ;;
-              *.deb) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-Linux-amd64.deb" ;;
+              *.deb) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-Linux-$([ ${{ matrix.target }} = aarch64-unknown-linux-gnu ] && echo arm64 || echo amd64).deb" ;;
               *.AppImage) cp "$f" "../../out/Gamp-${GITHUB_REF_NAME}-Linux-x86_64.AppImage" ;;
             esac
           done
