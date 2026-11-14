@@ -2506,6 +2506,8 @@ impl App {
                 "3" if alt => self.info_show_selected(),
                 _ => {}
             },
+            Key::Named(NamedKey::Space) if self.player.status().state == State::Stopped => self.play(),
+            Key::Named(NamedKey::Space) => self.pause(),
             Key::Named(NamedKey::ArrowLeft) => self.seek_by(-5.0),
             Key::Named(NamedKey::ArrowRight) => self.seek_by(5.0),
             Key::Named(NamedKey::ArrowUp) if k == Kind::Playlist => self.pl_cursor(-1),
