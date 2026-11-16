@@ -112,6 +112,8 @@ pub struct App {
     /// A seek still on its way: (target, when).
     seek_wait: Option<(f64, Instant)>,
     pub on_top: bool,
+    /// The owner of this computer took Donate out of the main menu; it stays under Options.
+    pub donate_hidden: bool,
     /// The language picked in Options › Language (none: the system's).
     pub lang: Option<String>,
     pub modifiers: ModifiersState,
@@ -241,6 +243,7 @@ impl App {
             sleep_at: None,
             seek_wait: None,
             on_top: false,
+            donate_hidden: false,
             modifiers: ModifiersState::empty(),
             drag: None,
             resize: None,
@@ -2110,13 +2113,13 @@ impl App {
             let name = p.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
             skins.push(Item::action(format!("skin:{}", p.display()), name).checked(self.skin_path.as_ref() == Some(&p)));
         }
-        vec![
+        let mut items = vec![
             Item::action("about", "About Gamp…"),
             Item::action("report", match &self.last_error {
                 Some(e) => tf("Report a problem… ({})", &[&e.chars().take(28).collect::<String>().trim_end()]),
                 None => "Report a problem…".into(),
             }),
-            Item::action("donate", "Donate…"),
+            Item::submenu("Donate", vec![Item::action("donate", "Donate…"), Item::action("donate:hide", "Hide this")]),
             Item::Separator,
             Item::action("open:file", "Play file…").shortcut("L"),
             Item::action("open:folder", "Play folder…").shortcut("Shift+L"),
@@ -2149,6 +2152,7 @@ impl App {
                         langs.extend(gamp_ui::lang::LANGS.iter().map(|&(code, name)| Item::action(format!("lang:{code}"), name).checked(self.lang.as_deref() == Some(code))));
                         langs
                     }),
+                    Item::action("donate", "Donate…"),
                 ],
             ),
             Item::submenu(
@@ -2174,7 +2178,11 @@ impl App {
                 None => Item::action("update:check", "Check for updates…"),
             },
             Item::action("exit", "Exit"),
-        ]
+        ];
+        if self.donate_hidden {
+            items.remove(2);
+        }
+        items
     }
 
     /// "Sleep timer", with the time left while it runs.
@@ -2327,6 +2335,7 @@ impl App {
     pub fn menu_action(&mut self, id: &str, _el: Option<&ActiveEventLoop>) {
         match id {
             "about" => self.main.message = Some(format!("GAMP {} - FILLINTHE/G-AMP", env!("CARGO_PKG_VERSION"))),
+            "donate:hide" => self.donate_hidden = true,
             "donate" => crate::backend::open_in_browser("https://donate.stripe.com/eVqdRb8kv3XW08LcNaaEE04"),
             "report" => {
                 crate::backend::open_in_browser(&self.report_url());
@@ -3081,6 +3090,21 @@ mod tests {
         app.playlist.current = 54;
         app.load_current(false);
         assert!(app.pl.top <= 54 && 54 < app.pl.top + app.pl.visible_rows());
+    }
+
+    #[test]
+    fn donate_can_be_hidden_and_stays_under_options() {
+        fn count(items: &[Item]) -> usize {
+            items.iter().map(|i| match i {
+                Item::Action { id, .. } => (id == "donate") as usize,
+                Item::Submenu { items, .. } => count(items),
+                _ => 0,
+            }).sum()
+        }
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        assert_eq!(count(&app.main_menu()), 2);
+        app.menu_action("donate:hide", None);
+        assert_eq!(count(&app.main_menu()), 1);
     }
 
     #[test]

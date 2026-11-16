@@ -21,6 +21,7 @@ pub struct Session {
     pub double: bool,
     pub size: f64,
     pub on_top: bool,
+    pub donate_hidden: bool,
     pub volume: f32,
     pub balance: f32,
     pub shuffle: bool,
@@ -91,6 +92,7 @@ impl App {
             double: self.size == 2.0,
             size: self.size,
             on_top: self.on_top,
+            donate_hidden: self.donate_hidden,
             volume: self.main.volume,
             balance: self.main.balance,
             shuffle: self.main.shuffle,
@@ -145,6 +147,7 @@ impl App {
         let s: Session = serde_json::from_slice(&bytes).ok()?;
         self.size = if s.size >= 1.0 { s.size.min(3.0) } else if s.double { 2.0 } else { 1.0 };
         self.on_top = s.on_top;
+        self.donate_hidden = s.donate_hidden;
         self.main.volume = s.volume.clamp(0.0, 1.0);
         self.main.balance = s.balance.clamp(-1.0, 1.0);
         self.eq.volume = self.main.volume;
