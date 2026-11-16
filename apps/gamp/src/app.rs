@@ -2116,6 +2116,7 @@ impl App {
                 Some(e) => tf("Report a problem… ({})", &[&e.chars().take(28).collect::<String>().trim_end()]),
                 None => "Report a problem…".into(),
             }),
+            Item::action("donate", "Donate…"),
             Item::Separator,
             Item::action("open:file", "Play file…").shortcut("L"),
             Item::action("open:folder", "Play folder…").shortcut("Shift+L"),
@@ -2326,6 +2327,7 @@ impl App {
     pub fn menu_action(&mut self, id: &str, _el: Option<&ActiveEventLoop>) {
         match id {
             "about" => self.main.message = Some(format!("GAMP {} - FILLINTHE/G-AMP", env!("CARGO_PKG_VERSION"))),
+            "donate" => crate::backend::open_in_browser("https://donate.stripe.com/eVqdRb8kv3XW08LcNaaEE04"),
             "report" => {
                 crate::backend::open_in_browser(&self.report_url());
                 self.say("REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER");
