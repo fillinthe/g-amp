@@ -14,19 +14,27 @@ pub const LANGS: &[(&str, &str)] = &[
     ("es", "Español"),
     ("fr", "Français"),
     ("it", "Italiano"),
+    ("nl", "Nederlands"),
+    ("pl", "Polski"),
     ("pt-BR", "Português (Brasil)"),
+    ("tr", "Türkçe"),
     ("ja", "日本語"),
+    ("ko", "한국어"),
     ("zh-CN", "简体中文"),
 ];
 
-const FILES: [&str; 8] = [
+const FILES: [&str; 12] = [
     "",
     include_str!("../../../assets/lang/de.tsv"),
     include_str!("../../../assets/lang/es.tsv"),
     include_str!("../../../assets/lang/fr.tsv"),
     include_str!("../../../assets/lang/it.tsv"),
+    include_str!("../../../assets/lang/nl.tsv"),
+    include_str!("../../../assets/lang/pl.tsv"),
     include_str!("../../../assets/lang/pt-BR.tsv"),
+    include_str!("../../../assets/lang/tr.tsv"),
     include_str!("../../../assets/lang/ja.tsv"),
+    include_str!("../../../assets/lang/ko.tsv"),
     include_str!("../../../assets/lang/zh-CN.tsv"),
 ];
 
@@ -91,7 +99,7 @@ pub fn fill(s: &str, args: &[&dyn Display]) -> String {
 /// `s` translated in languages written with those letters (accents are
 /// shown without them), in English otherwise.
 pub fn tm(s: &str) -> &str {
-    if matches!(code(), "ja" | "zh-CN") { s } else { t(s) }
+    if matches!(code(), "ja" | "ko" | "zh-CN") { s } else { t(s) }
 }
 
 /// `tm` with `{}` filled in.
@@ -109,7 +117,9 @@ mod tests {
         assert_eq!(matching("pt_PT"), "pt-BR");
         assert_eq!(matching("de_AT.UTF-8"), "de");
         assert_eq!(matching("zh-Hans-CN"), "zh-CN");
-        assert_eq!(matching("ko-KR"), "en");
+        assert_eq!(matching("ko-KR"), "ko");
+        assert_eq!(matching("tr_TR"), "tr");
+        assert_eq!(matching("sv-SE"), "en");
         assert_eq!(fill("{} of {}", &[&1, &5]), "1 of 5");
         assert_eq!(fill("{1}の{0}", &[&"a", &"b"]), "bのa");
     }

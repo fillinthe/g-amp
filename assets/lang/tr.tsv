@@ -1,0 +1,360 @@
+# Gamp in tr: English<TAB>translation, one per line. \n is a line break;
+# {} are filled in, in order ({0}, {1}… to change the order).
+VOLUME: {}%	SES: %{}
+BALANCE: CENTER	DENGE: ORTA
+BALANCE: {}% LEFT	DENGE: %{} SOL
+BALANCE: {}% RIGHT	DENGE: %{} SAĞ
+STOPPED AFTER THE TRACK	PARÇADAN SONRA DURDU
+CAN'T PLAY: {}	ÇALINAMIYOR: {}
+STOP AFTER THIS TRACK: ON	BU PARÇADAN SONRA DUR: AÇIK
+STOP AFTER THIS TRACK: OFF	BU PARÇADAN SONRA DUR: KAPALI
+SLEEP TIMER: {} MINUTES	UYKU ZAMANLAYICISI: {} DAKİKA
+SLEEP TIMER: OFF	UYKU ZAMANLAYICISI: KAPALI
+SLEEP TIMER: GOOD NIGHT	UYKU ZAMANLAYICISI: İYİ GECELER
+SEEK TO: {}/{} ({}%)	KONUM: {}/{} (%{})
+Internet Radio › Search	İnternet Radyosu › Ara
+Generate HTML playlist	HTML çalma listesi oluştur
+Read extended info on selected files	Seçili dosyaların ayrıntılı bilgisini oku
+From file…	Dosyadan…
+HTML PLAYLIST: {} TRACKS	HTML ÇALMA LİSTESİ: {} PARÇA
+COULDN'T WRITE {}: {}	{} YAZILAMADI: {}
+READ INFO ON {} FILE	{} DOSYANIN BİLGİSİ OKUNDU
+READ INFO ON {} FILES	{} DOSYANIN BİLGİSİ OKUNDU
+SAVED PLAYLIST: {}	ÇALMA LİSTESİ KAYDEDİLDİ: {}
+CAN'T SAVE: {}	KAYDEDİLEMİYOR: {}
+Spectrum analyzer	Spektrum analizörü
+Oscilloscope	Osiloskop
+Off	Kapalı
+Load skin…	Kaplama yükle…
+Skin Museum…	Skin Museum…
+Keep this skin	Bu kaplamayı sakla
+Original skin (GAMP Classic)	Özgün kaplama (GAMP Classic)
+About Gamp…	Gamp hakkında…
+Report a problem… ({})	Sorun bildir… ({})
+Report a problem…	Sorun bildir…
+Play file…	Dosya çal…
+Play folder…	Klasör çal…
+Jump to file…	Dosyaya atla…
+File info…	Dosya bilgisi…
+Main window	Ana pencere
+Playlist editor	Çalma listesi düzenleyici
+Equalizer	Ekolayzer
+G-Drop visualizer	G-Drop görselleştirici
+Media Library	Medya Kitaplığı
+Gather windows	Pencereleri topla
+Options	Seçenekler
+Always on top	Her zaman üstte
+Double size	Çift boyut
+Stop after current track	Geçerli parçadan sonra dur
+{} minutes	{} dakika
+Time elapsed	Geçen süre
+Time remaining	Kalan süre
+Language	Dil
+Same as the system	Sistemle aynı
+Playback	Çalma
+Previous	Önceki
+Pause	Duraklat
+Stop	Durdur
+Next	Sonraki
+Back 5 seconds	5 saniye geri
+Left	Sol
+Forward 5 seconds	5 saniye ileri
+Right	Sağ
+Repeat	Tekrarla
+Shuffle	Karıştır
+Visualization	Görselleştirme
+Update to Gamp {}…	Gamp {} sürümüne güncelle…
+Check for updates…	Güncellemeleri denetle…
+Exit	Çık
+Sleep timer ({} min left)	Uyku zamanlayıcısı ({} dk kaldı)
+Sleep timer	Uyku zamanlayıcısı
+Flat (reset)	Düz (sıfırla)
+Load	Yükle
+Save…	Kaydet…
+Reset	Sıfırla
+NOT AN EQUALIZER PRESET FILE	EKOLAYZER ÖN AYAR DOSYASI DEĞİL
+PRESET: {}	ÖN AYAR: {}
+ADDED {} PRESETS	{} ÖN AYAR EKLENDİ
+SAVED PRESET: {}	ÖN AYAR KAYDEDİLDİ: {}
+COULDN'T SAVE THE PRESET: {}	ÖN AYAR KAYDEDİLEMEDİ: {}
+REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER	BİLDİRİM: OLANLARI TARAYICINIZDA YAZIN
+SKIN: ORIGINAL	KAPLAMA: ÖZGÜN
+SKIN KEPT IN THE SKINS MENU	KAPLAMA, KAPLAMALAR MENÜSÜNDE SAKLANDI
+Gamp Equalizer	Gamp Ekolayzer
+Gamp Playlist	Gamp Çalma Listesi
+Gamp Media Library	Gamp Medya Kitaplığı
+Gamp Jump to File	Gamp Dosyaya Atla
+Gamp File Info	Gamp Dosya Bilgisi
+SEEKING...	ARANIYOR...
+SIZE: {}%	BOYUT: %{}
+Normal (100%)	Normal (%100)
+CAN'T OPEN: {}	AÇILAMIYOR: {}
+Double (200%)	Çift (%200)
+EMPTY PLAYLIST	ÇALMA LİSTESİ BOŞ
+NOT A SKIN: {}	KAPLAMA DEĞİL: {}
+Open files	Dosya aç
+Audio and playlists	Ses ve çalma listeleri
+Winamp skins	Winamp kaplamaları
+Save playlist	Çalma listesini kaydet
+M3U playlist	M3U çalma listesi
+My playlist	Çalma listem
+Save equalizer preset	Ekolayzer ön ayarını kaydet
+Winamp EQ preset	Winamp EQ ön ayarı
+My preset	Ön ayarım
+A new Gamp is out	Yeni bir Gamp çıktı
+Update now	Şimdi güncelle
+Later	Sonra
+G-DROP: CYCLES PRESETS	G-DROP: ÖN AYARLAR ARASINDA GEZER
+G-DROP: STAYS ON THIS PRESET	G-DROP: BU ÖN AYARDA KALIR
+Leave full screen (Esc)	Tam ekrandan çık (Esc)
+Full screen (F)	Tam ekran (F)
+Next preset (Space)	Sonraki ön ayar (Boşluk)
+Previous preset (←)	Önceki ön ayar (←)
+Random preset (H)	Rastgele ön ayar (H)
+Presets	Ön ayarlar
+Cycle presets (R)	Ön ayarlar arasında gez (R)
+Year	Yıl
+Track	Parça
+Comment	Yorum
+NOTHING TO SHOW	GÖSTERİLECEK BİR ŞEY YOK
+Source	Kaynak
+Internet stream	İnternet yayını
+Network track	Ağ parçası
+Can't save: {}	Kaydedilemiyor: {}
+{} channels	{} kanal
+Size	Boyut
+Type part of a title	Başlığın bir kısmını yazın
+{} of {}	{} / {}
+Music folders and network drives	Müzik klasörleri ve ağ sürücüleri
+No folders yet.	Henüz klasör yok.
+Search	Ara
+Remove	Kaldır
+Scanning… {} files, {} tracks	Taranıyor… {} dosya, {} parça
+{} tracks	{} parça
+Add folder…	Klasör ekle…
+Rescan	Yeniden tara
+Add path	Yol ekle
+Connect to share	Paylaşıma bağlan
+Media servers (at home or over the internet)	Medya sunucuları (evde veya internet üzerinden)
+Plex, Jellyfin, Navidrome and other Subsonic servers, Synology Audio Station, WebDAV and Nextcloud. DLNA servers on your network appear by themselves.	Plex, Jellyfin, Navidrome ve diğer Subsonic sunucuları, Synology Audio Station, WebDAV ve Nextcloud. Ağınızdaki DLNA sunucuları kendiliğinden görünür.
+Sign in with Plex	Plex ile oturum aç
+Adds every Plex server on your account.	Hesabınızdaki tüm Plex sunucularını ekler.
+Type: {} ›	Tür: {} ›
+Accept a self-signed certificate	Kendinden imzalı sertifikayı kabul et
+Add server	Sunucu ekle
+Search the network again	Ağı yeniden ara
+Dropbox, Google Drive and OneDrive	Dropbox, Google Drive ve OneDrive
+Disconnect	Bağlantıyı kes
+Install the Dropbox, Google Drive or OneDrive app and sign in: its folder shows up under Network & Cloud by itself. Songs download as you play them.	Dropbox, Google Drive veya OneDrive uygulamasını yükleyip oturum açın: klasörü Ağ ve Bulut altında kendiliğinden görünür. Şarkılar çaldıkça indirilir.
+Get Dropbox	Dropbox'ı indir
+Look again	Yeniden bak
+None on this computer yet	Bu bilgisayarda henüz yok
+Found: {}	Bulundu: {}
+Spotify (Premium)	Spotify (Premium)
+Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.	Web tarayıcınızda bir kez oturum açın. Beğenilen Şarkılarınız, çalma listeleriniz ve arama burada görünür; şarkılar Gamp'in ekolayzeri ve görselleştiricileriyle çalar.
+Disconnect Spotify	Spotify bağlantısını kes
+Connect Spotify	Spotify'a bağlan
+Connected	Bağlı
+Not connected	Bağlı değil
+No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).	Hesap gerekmez: SoundCloud'da arayın veya Ara alanına herhangi bir parça, çalma listesi ya da sanatçı bağlantısı yapıştırın. Beğenileriniz ve çalma listeleriniz için profilinizin adresini ekleyin (herkese açık olmaları gerekir).
+Save	Kaydet
+Internet radio, podcasts and the Internet Archive	İnternet radyosu, podcast'ler ve Internet Archive
+Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.	Ayarlanacak bir şey yok: İnternet altında dururlar. Çalmak için herhangi bir yayın adresini İnternet Radyosu › Ara alanına yapıştırın.
+Skins	Kaplamalar
+Local Media › Audio	Yerel Medya › Ses
+Scanning…	Taranıyor…
+Connecting. Then add the share's folder.	Bağlanıyor. Sonra paylaşımın klasörünü ekleyin.
+Connecting…	Bağlanıyor…
+Looking for DLNA servers…	DLNA sunucuları aranıyor…
+SKIN: {}	KAPLAMA: {}
+Connect…	Bağlan…
+Local Media	Yerel Medya
+Network & Cloud	Ağ ve Bulut
+Media servers	Medya sunucuları
+Add a server…	Sunucu ekle…
+Internet	İnternet
+Settings	Ayarlar
+Type a station or genre, or paste a stream address	Bir istasyon veya tür yazın ya da yayın adresi yapıştırın
+Type a podcast name, or paste a feed address	Bir podcast adı yazın ya da akış adresi yapıştırın
+Paste a SoundCloud link (track, playlist or artist), or search	Bir SoundCloud bağlantısı (parça, çalma listesi veya sanatçı) yapıştırın ya da arayın
+Search Spotify: songs, artists, your playlists	Spotify'da ara: şarkılar, sanatçılar, çalma listeleriniz
+Search the Skin Museum: a band, a game, a colour, a name	Skin Museum'da ara: bir grup, bir oyun, bir renk, bir ad
+Type and press Enter to search	Aramak için yazıp Enter'a basın
+Loading…	Yükleniyor…
+Artist	Sanatçı
+Genre	Tür
+Album	Albüm
+Format	Biçim
+Length	Süre
+Items	Öğeler
+Posted	Yayınlanma
+Plays	Çalınma
+Likes	Beğeni
+Skin	Kaplama
+File	Dosya
+Name	Ad
+Station	İstasyon
+Title	Başlık
+Use skin	Kaplamayı kullan
+Surprise me	Beni şaşırt
+Original skin	Özgün kaplama
+Play	Çal
+Enqueue	Sıraya ekle
+Play all	Tümünü çal
+scanning… {} files	taranıyor… {} dosya
+{} items	{} öğe
+Jellyfin or Emby	Jellyfin veya Emby
+Synology Audio Station	Synology Audio Station
+Plex (address and token)	Plex (adres ve belirteç)
+{} (preview)	{} (önizleme)
+Open it to play what's inside.	İçindekileri çalmak için açın.
+Add to playlist (Shift+Enter)	Çalma listesine ekle (Shift+Enter)
+Latest from {}	{} kaynağından en yeniler
+FETCHING SKIN…	KAPLAMA ALINIYOR…
+Skin Museum › Most popular	Skin Museum › En popüler
+SoundCloud › Search	SoundCloud › Ara
+Select some tracks first.	Önce birkaç parça seçin.
+Select a skin first.	Önce bir kaplama seçin.
+Select something first.	Önce bir şey seçin.
+Name (optional)	Ad (isteğe bağlı)
+User name	Kullanıcı adı
+Loading	Yükleniyor
+Searching	Aranıyor
+Connecting	Bağlanıyor
+Scanning	Taranıyor
+Password	Parola
+Two-step code (if you use one)	İki adımlı kod (kullanıyorsanız)
+Or type a path	Ya da bir yol yazın
+Searching…	Aranıyor…
+Sort list by title	Listeyi başlığa göre sırala
+Sort list by filename	Listeyi dosya adına göre sırala
+Sort list by path and filename	Listeyi yola ve dosya adına göre sırala
+Reverse list	Listeyi ters çevir
+Randomize list	Listeyi karıştır
+What's new:	Yenilikler:
+Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.	Gamp {} çıktı (sizdeki sürüm: {}). Şimdi güncellensin mi? Gamp kapanır, güncellenir ve yeniden açılır.
+GAMP {} IS OUT - RIGHT-CLICK › UPDATE	GAMP {} ÇIKTI - SAĞ TIK › GÜNCELLE
+GAMP {} IS UP TO DATE	GAMP {} GÜNCEL
+CAN'T CHECK FOR UPDATES: {}	GÜNCELLEMELER DENETLENEMİYOR: {}
+DOWNLOADING UPDATE {}%	GÜNCELLEME İNDİRİLİYOR %{}
+Add folders in Settings › Music folders.	Klasörleri Ayarlar › Müzik klasörleri bölümünden ekleyin.
+Files	Dosyalar
+Playlists	Çalma listeleri
+Liked Songs	Beğenilen Şarkılar
+Skin Museum	Skin Museum
+Most popular	En popüler
+No folders or music here.	Burada klasör veya müzik yok.
+That cloud folder isn't on this computer any more	O bulut klasörü artık bu bilgisayarda değil
+From the Winamp Skin Museum, skins.webamp.org	Winamp Skin Museum'dan, skins.webamp.org
+SoundCloud only allows a 30-second preview of this track	SoundCloud bu parça için yalnızca 30 saniyelik önizlemeye izin veriyor
+That link isn't a SoundCloud track, playlist or artist	Bu bağlantı bir SoundCloud parçası, çalma listesi veya sanatçısı değil
+No such SoundCloud profile	Böyle bir SoundCloud profili yok
+SoundCloud only plays this on soundcloud.com	SoundCloud bunu yalnızca soundcloud.com'da çalıyor
+SoundCloud has no stream for this track	SoundCloud'da bu parça için yayın yok
+SoundCloud changed its web player; Gamp needs an update to play links	SoundCloud web oynatıcısını değiştirdi; bağlantıları çalmak için Gamp'in güncellenmesi gerekiyor
+SoundCloud doesn't have that (or it's private)	SoundCloud'da bu yok (ya da gizli)
+SoundCloud refused	SoundCloud reddetti
+No playable audio in this item.	Bu öğede çalınabilir ses yok.
+Nothing here.	Burada bir şey yok.
+Your Dropbox app needs the files.metadata.read and files.content.read permissions (Permissions tab), then connect again	Dropbox uygulamanız için files.metadata.read ve files.content.read izinleri gerekir (Permissions sekmesi); sonra yeniden bağlanın
+Paste your Dropbox app key in Settings first	Önce Dropbox uygulama anahtarınızı Ayarlar'a yapıştırın
+This Dropbox sign-in expired. Try again.	Bu Dropbox oturum açma işleminin süresi doldu. Yeniden deneyin.
+Mark songs or albums as favourites on your server to see them here.	Burada görmek için sunucunuzdaki şarkıları veya albümleri favori olarak işaretleyin.
+Wrong user name or password	Kullanıcı adı veya parola yanlış
+The server didn't sign you in	Sunucu oturumunuzu açmadı
+Type the server's address	Sunucunun adresini yazın
+That kind of source is added another way	Bu tür kaynak başka bir yoldan eklenir
+Starred	Yıldızlı
+Recently Added	Son Eklenenler
+Artists	Sanatçılar
+Favorites	Favoriler
+All Songs	Tüm Şarkılar
+Albums	Albümler
+Folders	Klasörler
+Browse	Göz at
+Top Stations	En İyi İstasyonlar
+Genres	Türler
+Countries	Ülkeler
+Subscriptions	Abonelikler
+Top Podcasts	En İyi Podcast'ler
+Live Music Archive	Live Music Archive
+78 RPM Records	78 Devirli Plaklar
+Netlabels	Netlabel'ler
+Old Time Radio	Eski Radyo Programları
+Select something first	Önce bir şey seçin
+Nothing to do here	Burada yapılacak bir şey yok
+it refused (sign in again in Settings)	reddetti (Ayarlar'da yeniden oturum açın)
+Internet Radio	İnternet Radyosu
+Podcasts	Podcast'ler
+Internet Archive	Internet Archive
+No host in the stream address	Yayın adresinde sunucu adı yok
+The station took too long to answer	İstasyonun yanıt vermesi çok uzun sürdü
+The station sent no audio	İstasyon ses göndermedi
+Signed in, but this Plex account has no servers	Oturum açıldı, ancak bu Plex hesabında sunucu yok
+Use Sign in with Plex, or put your X-Plex-Token in the password box	Plex ile oturum aç'ı kullanın ya da X-Plex-Token'ınızı parola kutusuna yazın
+plex.tv didn't start a sign-in	plex.tv oturum açmayı başlatmadı
+This Plex sign-in expired. Try again.	Bu Plex oturum açma işleminin süresi doldu. Yeniden deneyin.
+Plex didn't finish the sign-in	Plex oturum açmayı tamamlamadı
+Unsubscribe	Abonelikten çık
+Search for a podcast (or paste its feed address), select it and press Subscribe.	Bir podcast arayın (ya da akış adresini yapıştırın), seçin ve Abone ol'a basın.
+Subscribe	Abone ol
+This podcast has no episodes to play.	Bu podcast'te çalınacak bölüm yok.
+That playlist lists no streams	Bu çalma listesinde yayın yok
+No radio directory	Radyo dizini yok
+Select stations anywhere in Internet Radio and press Add to Favorites. You can also paste a stream address into Search.	İnternet Radyosu'nun herhangi bir yerinde istasyon seçip Favorilere ekle'ye basın. Ara alanına bir yayın adresi de yapıştırabilirsiniz.
+Add to Favorites	Favorilere ekle
+Type your user name	Kullanıcı adınızı yazın
+Star songs or albums on your server to see them here.	Burada görmek için sunucunuzdaki şarkılara veya albümlere yıldız verin.
+Type your DSM user name	DSM kullanıcı adınızı yazın
+wrong user name or password	kullanıcı adı veya parola yanlış
+this account is disabled	bu hesap devre dışı
+this account can't use Audio Station	bu hesap Audio Station'ı kullanamıyor
+type your two-step code too (it's asked for once)	iki adımlı kodunuzu da yazın (bir kez sorulur)
+that two-step code didn't work	bu iki adımlı kod işe yaramadı
+this address is blocked by the NAS after too many tries	bu adres çok fazla denemeden sonra NAS tarafından engellendi
+Audio Station isn't installed on this NAS	Bu NAS'ta Audio Station yüklü değil
+Audio Station isn't installed on this NAS (Package Center › Audio Station)	Bu NAS'ta Audio Station yüklü değil (Package Center › Audio Station)
+No folders or music files here.	Burada klasör veya müzik dosyası yok.
+This Spotify sign-in expired. Try again.	Bu Spotify oturum açma işleminin süresi doldu. Yeniden deneyin.
+Connect Spotify in Settings.	Spotify'ı Ayarlar'dan bağlayın.
+Copy	Kopyala
+Cancel	İptal
+File Info	Dosya Bilgisi
+Close	Kapat
+Jump to File	Dosyaya Atla
+‹ Back	‹ Geri
+Copied	Kopyalandı
+Saved	Kaydedildi
+mono	mono
+stereo	stereo
+Audio	Ses
+Add a music folder	Müzik klasörü ekle
+DOWNLOADING UPDATE…	GÜNCELLEME İNDİRİLİYOR…
+GAMP {} DIDN'T INSTALL	GAMP {} YÜKLENMEDİ
+OPENED GAMP {} IN YOUR SOFTWARE INSTALLER	GAMP {} YAZILIM YÜKLEYİCİNİZDE AÇILDI
+OPENED THE DOWNLOAD PAGE	İNDİRME SAYFASI AÇILDI
+Open a folder	Klasör aç
+UPDATE FAILED ({})	GÜNCELLEME BAŞARISIZ ({})
+Winamp EQ presets	Winamp EQ ön ayarları
+{} - OPENED THE DOWNLOAD PAGE	{} - İNDİRME SAYFASI AÇILDI
+Your profile: soundcloud.com/you	Profiliniz: soundcloud.com/siz
+Add any folder. Network drives work once mounted in Finder (Go › Connect to Server, or use Connect below); they appear under /Volumes.	Herhangi bir klasör ekleyin. Ağ sürücüleri Finder'da bağlandıktan sonra çalışır (Git › Sunucuya Bağlan ya da aşağıdaki Bağlan'ı kullanın); /Volumes altında görünürler.
+Add any folder, a mapped drive, or a \\server\share path.	Herhangi bir klasör, eşlenmiş bir sürücü ya da bir \\server\share yolu ekleyin.
+Add any folder, including network shares mounted under /mnt or /media.	/mnt veya /media altına bağlanmış ağ paylaşımları dahil herhangi bir klasör ekleyin.
+Finder is connecting. Then Add folder… › /Volumes.	Finder bağlanıyor. Sonra Klasör ekle… › /Volumes.
+QuickConnect ID, or http://diskstation:5000	QuickConnect kimliği ya da http://diskstation:5000
+GAMP IN YOUR BROWSER: DROP MUSIC FILES OR A WINAMP SKIN HERE, OR PRESS EJECT	TARAYICINIZDA GAMP: MÜZİK DOSYALARINI VEYA BİR WINAMP KAPLAMASINI BURAYA BIRAKIN YA DA EJECT'E BASIN
+THAT ONE IS IN THE DESKTOP APP	O, MASAÜSTÜ UYGULAMASINDA
+CAN'T PLAY THAT FILE IN A BROWSER	O DOSYA TARAYICIDA ÇALINAMIYOR
+THAT ISN'T A WINAMP SKIN	BU BİR WINAMP KAPLAMASI DEĞİL
+NEW SKIN ON	YENİ KAPLAMA AÇIK
+Remove from Favorites	Favorilerden kaldır
+Right-click anything in the library and choose Add to Favorites.	Kitaplıkta herhangi bir şeye sağ tıklayıp Favorilere ekle'yi seçin.
+Internet radio, podcasts, the Internet Archive and Audius	İnternet radyosu, podcast'ler, Internet Archive ve Audius
+Trending	Trendler
+Underground Trending	Underground Trendler
+Search again	Yeniden ara
+More	Daha fazla
+Donate…	Bağış yap…
+Donate	Bağış yap
+Hide this	Bunu gizle
