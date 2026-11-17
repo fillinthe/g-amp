@@ -1,0 +1,360 @@
+# Gamp in ko: English<TAB>translation, one per line. \n is a line break;
+# {} are filled in, in order ({0}, {1}… to change the order).
+VOLUME: {}%	음량: {}%
+BALANCE: CENTER	밸런스: 가운데
+BALANCE: {}% LEFT	밸런스: 왼쪽 {}%
+BALANCE: {}% RIGHT	밸런스: 오른쪽 {}%
+STOPPED AFTER THE TRACK	트랙이 끝난 뒤 정지함
+CAN'T PLAY: {}	재생할 수 없음: {}
+STOP AFTER THIS TRACK: ON	이 트랙 후 정지: 켬
+STOP AFTER THIS TRACK: OFF	이 트랙 후 정지: 끔
+SLEEP TIMER: {} MINUTES	취침 타이머: {}분
+SLEEP TIMER: OFF	취침 타이머: 끔
+SLEEP TIMER: GOOD NIGHT	취침 타이머: 안녕히 주무세요
+SEEK TO: {}/{} ({}%)	이동: {}/{} ({}%)
+Internet Radio › Search	인터넷 라디오 › 검색
+Generate HTML playlist	HTML 재생목록 만들기
+Read extended info on selected files	선택한 파일의 상세 정보 읽기
+From file…	파일에서…
+HTML PLAYLIST: {} TRACKS	HTML 재생목록: {}곡
+COULDN'T WRITE {}: {}	{}을(를) 쓸 수 없음: {}
+READ INFO ON {} FILE	파일 {}개의 정보를 읽음
+READ INFO ON {} FILES	파일 {}개의 정보를 읽음
+SAVED PLAYLIST: {}	재생목록 저장됨: {}
+CAN'T SAVE: {}	저장할 수 없음: {}
+Spectrum analyzer	스펙트럼 분석기
+Oscilloscope	오실로스코프
+Off	끔
+Load skin…	스킨 불러오기…
+Skin Museum…	Skin Museum…
+Keep this skin	이 스킨 보관
+Original skin (GAMP Classic)	기본 스킨 (GAMP Classic)
+About Gamp…	Gamp 정보…
+Report a problem… ({})	문제 신고… ({})
+Report a problem…	문제 신고…
+Play file…	파일 재생…
+Play folder…	폴더 재생…
+Jump to file…	파일로 이동…
+File info…	파일 정보…
+Main window	메인 창
+Playlist editor	재생목록 편집기
+Equalizer	이퀄라이저
+G-Drop visualizer	G-Drop 시각화
+Media Library	미디어 라이브러리
+Gather windows	창 모으기
+Options	옵션
+Always on top	항상 위에 표시
+Double size	2배 크기
+Stop after current track	현재 트랙 후 정지
+{} minutes	{}분
+Time elapsed	경과 시간
+Time remaining	남은 시간
+Language	언어
+Same as the system	시스템과 동일
+Playback	재생
+Previous	이전
+Pause	일시 정지
+Stop	정지
+Next	다음
+Back 5 seconds	5초 뒤로
+Left	왼쪽
+Forward 5 seconds	5초 앞으로
+Right	오른쪽
+Repeat	반복
+Shuffle	셔플
+Visualization	시각화
+Update to Gamp {}…	Gamp {}(으)로 업데이트…
+Check for updates…	업데이트 확인…
+Exit	종료
+Sleep timer ({} min left)	취침 타이머 ({}분 남음)
+Sleep timer	취침 타이머
+Flat (reset)	플랫 (초기화)
+Load	불러오기
+Save…	저장…
+Reset	초기화
+NOT AN EQUALIZER PRESET FILE	이퀄라이저 프리셋 파일이 아님
+PRESET: {}	프리셋: {}
+ADDED {} PRESETS	프리셋 {}개 추가됨
+SAVED PRESET: {}	프리셋 저장됨: {}
+COULDN'T SAVE THE PRESET: {}	프리셋을 저장할 수 없음: {}
+REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER	신고: 브라우저에서 무슨 일이 있었는지 적어 주세요
+SKIN: ORIGINAL	스킨: 기본
+SKIN KEPT IN THE SKINS MENU	스킨을 스킨 메뉴에 보관함
+Gamp Equalizer	Gamp 이퀄라이저
+Gamp Playlist	Gamp 재생목록
+Gamp Media Library	Gamp 미디어 라이브러리
+Gamp Jump to File	Gamp 파일로 이동
+Gamp File Info	Gamp 파일 정보
+SEEKING...	탐색 중...
+SIZE: {}%	크기: {}%
+Normal (100%)	보통 (100%)
+CAN'T OPEN: {}	열 수 없음: {}
+Double (200%)	2배 (200%)
+EMPTY PLAYLIST	재생목록이 비어 있음
+NOT A SKIN: {}	스킨이 아님: {}
+Open files	파일 열기
+Audio and playlists	오디오 및 재생목록
+Winamp skins	Winamp 스킨
+Save playlist	재생목록 저장
+M3U playlist	M3U 재생목록
+My playlist	내 재생목록
+Save equalizer preset	이퀄라이저 프리셋 저장
+Winamp EQ preset	Winamp EQ 프리셋
+My preset	내 프리셋
+A new Gamp is out	새 Gamp가 나왔습니다
+Update now	지금 업데이트
+Later	나중에
+G-DROP: CYCLES PRESETS	G-DROP: 프리셋 순환
+G-DROP: STAYS ON THIS PRESET	G-DROP: 이 프리셋 유지
+Leave full screen (Esc)	전체 화면 끝내기 (Esc)
+Full screen (F)	전체 화면 (F)
+Next preset (Space)	다음 프리셋 (스페이스)
+Previous preset (←)	이전 프리셋 (←)
+Random preset (H)	무작위 프리셋 (H)
+Presets	프리셋
+Cycle presets (R)	프리셋 순환 (R)
+Year	연도
+Track	트랙
+Comment	설명
+NOTHING TO SHOW	표시할 내용 없음
+Source	소스
+Internet stream	인터넷 스트림
+Network track	네트워크 트랙
+Can't save: {}	저장할 수 없음: {}
+{} channels	{}채널
+Size	크기
+Type part of a title	제목의 일부를 입력하세요
+{} of {}	{} / {}
+Music folders and network drives	음악 폴더 및 네트워크 드라이브
+No folders yet.	아직 폴더가 없습니다.
+Search	검색
+Remove	제거
+Scanning… {} files, {} tracks	검색 중… 파일 {}개, 트랙 {}개
+{} tracks	트랙 {}개
+Add folder…	폴더 추가…
+Rescan	다시 검색
+Add path	경로 추가
+Connect to share	공유에 연결
+Media servers (at home or over the internet)	미디어 서버 (집 또는 인터넷)
+Plex, Jellyfin, Navidrome and other Subsonic servers, Synology Audio Station, WebDAV and Nextcloud. DLNA servers on your network appear by themselves.	Plex, Jellyfin, Navidrome 및 기타 Subsonic 서버, Synology Audio Station, WebDAV, Nextcloud. 네트워크의 DLNA 서버는 자동으로 나타납니다.
+Sign in with Plex	Plex로 로그인
+Adds every Plex server on your account.	계정의 모든 Plex 서버를 추가합니다.
+Type: {} ›	유형: {} ›
+Accept a self-signed certificate	자체 서명 인증서 허용
+Add server	서버 추가
+Search the network again	네트워크 다시 검색
+Dropbox, Google Drive and OneDrive	Dropbox, Google Drive, OneDrive
+Disconnect	연결 끊기
+Install the Dropbox, Google Drive or OneDrive app and sign in: its folder shows up under Network & Cloud by itself. Songs download as you play them.	Dropbox, Google Drive 또는 OneDrive 앱을 설치하고 로그인하세요. 해당 폴더가 네트워크 및 클라우드 아래에 자동으로 나타납니다. 곡은 재생할 때 다운로드됩니다.
+Get Dropbox	Dropbox 받기
+Look again	다시 찾기
+None on this computer yet	이 컴퓨터에는 아직 없음
+Found: {}	찾음: {}
+Spotify (Premium)	Spotify (Premium)
+Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.	웹 브라우저에서 한 번만 로그인하세요. 좋아요 표시한 곡, 재생목록, 검색이 여기에 표시되고, 곡은 Gamp의 이퀄라이저와 시각화를 거쳐 재생됩니다.
+Disconnect Spotify	Spotify 연결 끊기
+Connect Spotify	Spotify 연결
+Connected	연결됨
+Not connected	연결 안 됨
+No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).	계정이 필요 없습니다. SoundCloud를 검색하거나 트랙, 재생목록, 아티스트 링크를 검색에 붙여넣으세요. 좋아요와 재생목록을 보려면 프로필 주소를 추가하세요(공개 상태여야 합니다).
+Save	저장
+Internet radio, podcasts and the Internet Archive	인터넷 라디오, 팟캐스트, Internet Archive
+Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.	설정할 것이 없습니다. 인터넷 아래에 있습니다. 스트림 주소를 인터넷 라디오 › 검색에 붙여넣으면 재생됩니다.
+Skins	스킨
+Local Media › Audio	로컬 미디어 › 오디오
+Scanning…	검색 중…
+Connecting. Then add the share's folder.	연결 중입니다. 그런 다음 공유 폴더를 추가하세요.
+Connecting…	연결 중…
+Looking for DLNA servers…	DLNA 서버 찾는 중…
+SKIN: {}	스킨: {}
+Connect…	연결…
+Local Media	로컬 미디어
+Network & Cloud	네트워크 및 클라우드
+Media servers	미디어 서버
+Add a server…	서버 추가…
+Internet	인터넷
+Settings	설정
+Type a station or genre, or paste a stream address	방송국이나 장르를 입력하거나 스트림 주소를 붙여넣으세요
+Type a podcast name, or paste a feed address	팟캐스트 이름을 입력하거나 피드 주소를 붙여넣으세요
+Paste a SoundCloud link (track, playlist or artist), or search	SoundCloud 링크(트랙, 재생목록, 아티스트)를 붙여넣거나 검색하세요
+Search Spotify: songs, artists, your playlists	Spotify 검색: 곡, 아티스트, 내 재생목록
+Search the Skin Museum: a band, a game, a colour, a name	Skin Museum 검색: 밴드, 게임, 색상, 이름
+Type and press Enter to search	입력하고 Enter를 눌러 검색
+Loading…	불러오는 중…
+Artist	아티스트
+Genre	장르
+Album	앨범
+Format	형식
+Length	길이
+Items	항목
+Posted	게시일
+Plays	재생 수
+Likes	좋아요
+Skin	스킨
+File	파일
+Name	이름
+Station	방송국
+Title	제목
+Use skin	스킨 사용
+Surprise me	아무거나 보여 줘
+Original skin	기본 스킨
+Play	재생
+Enqueue	대기열에 추가
+Play all	모두 재생
+scanning… {} files	검색 중… 파일 {}개
+{} items	항목 {}개
+Jellyfin or Emby	Jellyfin 또는 Emby
+Synology Audio Station	Synology Audio Station
+Plex (address and token)	Plex (주소 및 토큰)
+{} (preview)	{} (미리 듣기)
+Open it to play what's inside.	열어서 안에 있는 것을 재생하세요.
+Add to playlist (Shift+Enter)	재생목록에 추가 (Shift+Enter)
+Latest from {}	{}의 최신 항목
+FETCHING SKIN…	스킨 가져오는 중…
+Skin Museum › Most popular	Skin Museum › 인기 순
+SoundCloud › Search	SoundCloud › 검색
+Select some tracks first.	먼저 트랙을 선택하세요.
+Select a skin first.	먼저 스킨을 선택하세요.
+Select something first.	먼저 항목을 선택하세요.
+Name (optional)	이름 (선택 사항)
+User name	사용자 이름
+Loading	불러오는 중
+Searching	검색 중
+Connecting	연결 중
+Scanning	스캔 중
+Password	암호
+Two-step code (if you use one)	2단계 인증 코드 (사용하는 경우)
+Or type a path	또는 경로 입력
+Searching…	검색 중…
+Sort list by title	제목순으로 목록 정렬
+Sort list by filename	파일 이름순으로 목록 정렬
+Sort list by path and filename	경로 및 파일 이름순으로 목록 정렬
+Reverse list	목록 뒤집기
+Randomize list	목록 무작위로 섞기
+What's new:	새로운 기능:
+Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.	Gamp {}이(가) 나왔습니다 (현재 {}). 지금 업데이트할까요? Gamp가 닫히고 업데이트된 뒤 다시 열립니다.
+GAMP {} IS OUT - RIGHT-CLICK › UPDATE	GAMP {} 출시 - 오른쪽 클릭 › 업데이트
+GAMP {} IS UP TO DATE	GAMP {}은(는) 최신 버전입니다
+CAN'T CHECK FOR UPDATES: {}	업데이트를 확인할 수 없음: {}
+DOWNLOADING UPDATE {}%	업데이트 다운로드 중 {}%
+Add folders in Settings › Music folders.	설정 › 음악 폴더에서 폴더를 추가하세요.
+Files	파일
+Playlists	재생목록
+Liked Songs	좋아요 표시한 곡
+Skin Museum	Skin Museum
+Most popular	인기 순
+No folders or music here.	여기에는 폴더나 음악이 없습니다.
+That cloud folder isn't on this computer any more	그 클라우드 폴더는 이제 이 컴퓨터에 없습니다
+From the Winamp Skin Museum, skins.webamp.org	Winamp Skin Museum(skins.webamp.org) 제공
+SoundCloud only allows a 30-second preview of this track	SoundCloud는 이 트랙의 30초 미리 듣기만 허용합니다
+That link isn't a SoundCloud track, playlist or artist	이 링크는 SoundCloud 트랙, 재생목록 또는 아티스트가 아닙니다
+No such SoundCloud profile	그런 SoundCloud 프로필이 없습니다
+SoundCloud only plays this on soundcloud.com	SoundCloud는 이 곡을 soundcloud.com에서만 재생합니다
+SoundCloud has no stream for this track	SoundCloud에 이 트랙의 스트림이 없습니다
+SoundCloud changed its web player; Gamp needs an update to play links	SoundCloud가 웹 플레이어를 변경했습니다. 링크를 재생하려면 Gamp를 업데이트해야 합니다
+SoundCloud doesn't have that (or it's private)	SoundCloud에 없습니다 (또는 비공개입니다)
+SoundCloud refused	SoundCloud가 거부했습니다
+No playable audio in this item.	이 항목에는 재생할 수 있는 오디오가 없습니다.
+Nothing here.	여기에는 아무것도 없습니다.
+Your Dropbox app needs the files.metadata.read and files.content.read permissions (Permissions tab), then connect again	Dropbox 앱에 files.metadata.read 및 files.content.read 권한이 필요합니다(Permissions 탭). 그런 다음 다시 연결하세요
+Paste your Dropbox app key in Settings first	먼저 설정에 Dropbox 앱 키를 붙여넣으세요
+This Dropbox sign-in expired. Try again.	이 Dropbox 로그인이 만료되었습니다. 다시 시도하세요.
+Mark songs or albums as favourites on your server to see them here.	서버에서 곡이나 앨범을 즐겨찾기로 표시하면 여기에 나타납니다.
+Wrong user name or password	사용자 이름 또는 암호가 틀렸습니다
+The server didn't sign you in	서버가 로그인을 처리하지 않았습니다
+Type the server's address	서버 주소를 입력하세요
+That kind of source is added another way	이런 종류의 소스는 다른 방법으로 추가합니다
+Starred	별표 표시
+Recently Added	최근 추가됨
+Artists	아티스트
+Favorites	즐겨찾기
+All Songs	모든 곡
+Albums	앨범
+Folders	폴더
+Browse	둘러보기
+Top Stations	인기 방송국
+Genres	장르
+Countries	국가
+Subscriptions	구독
+Top Podcasts	인기 팟캐스트
+Live Music Archive	Live Music Archive
+78 RPM Records	78회전 음반
+Netlabels	넷레이블
+Old Time Radio	옛날 라디오 방송
+Select something first	먼저 항목을 선택하세요
+Nothing to do here	여기서는 할 일이 없습니다
+it refused (sign in again in Settings)	거부되었습니다 (설정에서 다시 로그인하세요)
+Internet Radio	인터넷 라디오
+Podcasts	팟캐스트
+Internet Archive	Internet Archive
+No host in the stream address	스트림 주소에 호스트가 없습니다
+The station took too long to answer	방송국의 응답이 너무 오래 걸렸습니다
+The station sent no audio	방송국이 오디오를 보내지 않았습니다
+Signed in, but this Plex account has no servers	로그인했지만 이 Plex 계정에 서버가 없습니다
+Use Sign in with Plex, or put your X-Plex-Token in the password box	Plex로 로그인을 사용하거나 암호 칸에 X-Plex-Token을 입력하세요
+plex.tv didn't start a sign-in	plex.tv가 로그인을 시작하지 않았습니다
+This Plex sign-in expired. Try again.	이 Plex 로그인이 만료되었습니다. 다시 시도하세요.
+Plex didn't finish the sign-in	Plex가 로그인을 완료하지 않았습니다
+Unsubscribe	구독 취소
+Search for a podcast (or paste its feed address), select it and press Subscribe.	팟캐스트를 검색하고(또는 피드 주소를 붙여넣고) 선택한 다음 구독을 누르세요.
+Subscribe	구독
+This podcast has no episodes to play.	이 팟캐스트에는 재생할 에피소드가 없습니다.
+That playlist lists no streams	그 재생목록에는 스트림이 없습니다
+No radio directory	라디오 디렉터리 없음
+Select stations anywhere in Internet Radio and press Add to Favorites. You can also paste a stream address into Search.	인터넷 라디오 어디에서든 방송국을 선택하고 즐겨찾기에 추가를 누르세요. 검색에 스트림 주소를 붙여넣어도 됩니다.
+Add to Favorites	즐겨찾기에 추가
+Type your user name	사용자 이름을 입력하세요
+Star songs or albums on your server to see them here.	서버에서 곡이나 앨범에 별표를 표시하면 여기에 나타납니다.
+Type your DSM user name	DSM 사용자 이름을 입력하세요
+wrong user name or password	사용자 이름 또는 암호가 틀렸습니다
+this account is disabled	이 계정은 사용 중지되었습니다
+this account can't use Audio Station	이 계정은 Audio Station을 사용할 수 없습니다
+type your two-step code too (it's asked for once)	2단계 인증 코드도 입력하세요 (한 번만 묻습니다)
+that two-step code didn't work	그 2단계 인증 코드가 맞지 않습니다
+this address is blocked by the NAS after too many tries	시도 횟수가 너무 많아 NAS가 이 주소를 차단했습니다
+Audio Station isn't installed on this NAS	이 NAS에 Audio Station이 설치되어 있지 않습니다
+Audio Station isn't installed on this NAS (Package Center › Audio Station)	이 NAS에 Audio Station이 설치되어 있지 않습니다 (Package Center › Audio Station)
+No folders or music files here.	여기에는 폴더나 음악 파일이 없습니다.
+This Spotify sign-in expired. Try again.	이 Spotify 로그인이 만료되었습니다. 다시 시도하세요.
+Connect Spotify in Settings.	설정에서 Spotify를 연결하세요.
+Copy	복사
+Cancel	취소
+File Info	파일 정보
+Close	닫기
+Jump to File	파일로 이동
+‹ Back	‹ 뒤로
+Copied	복사됨
+Saved	저장됨
+mono	모노
+stereo	스테레오
+Audio	오디오
+Add a music folder	음악 폴더 추가
+DOWNLOADING UPDATE…	업데이트 다운로드 중…
+GAMP {} DIDN'T INSTALL	GAMP {}이(가) 설치되지 않았습니다
+OPENED GAMP {} IN YOUR SOFTWARE INSTALLER	소프트웨어 설치 프로그램에서 GAMP {}을(를) 열었습니다
+OPENED THE DOWNLOAD PAGE	다운로드 페이지를 열었습니다
+Open a folder	폴더 열기
+UPDATE FAILED ({})	업데이트 실패 ({})
+Winamp EQ presets	Winamp EQ 프리셋
+{} - OPENED THE DOWNLOAD PAGE	{} - 다운로드 페이지를 열었습니다
+Your profile: soundcloud.com/you	내 프로필: soundcloud.com/you
+Add any folder. Network drives work once mounted in Finder (Go › Connect to Server, or use Connect below); they appear under /Volumes.	아무 폴더나 추가하세요. 네트워크 드라이브는 Finder에서 마운트하면 사용할 수 있습니다(이동 › 서버에 연결, 또는 아래의 연결 사용). /Volumes 아래에 나타납니다.
+Add any folder, a mapped drive, or a \\server\share path.	아무 폴더, 매핑된 드라이브 또는 \\server\share 경로를 추가하세요.
+Add any folder, including network shares mounted under /mnt or /media.	/mnt 또는 /media 아래에 마운트된 네트워크 공유를 포함해 아무 폴더나 추가하세요.
+Finder is connecting. Then Add folder… › /Volumes.	Finder가 연결하는 중입니다. 그런 다음 폴더 추가… › /Volumes.
+QuickConnect ID, or http://diskstation:5000	QuickConnect ID 또는 http://diskstation:5000
+GAMP IN YOUR BROWSER: DROP MUSIC FILES OR A WINAMP SKIN HERE, OR PRESS EJECT	브라우저 속 GAMP: 음악 파일이나 WINAMP 스킨을 여기에 끌어다 놓거나 EJECT를 누르세요
+THAT ONE IS IN THE DESKTOP APP	그 기능은 데스크톱 앱에 있습니다
+CAN'T PLAY THAT FILE IN A BROWSER	브라우저에서는 그 파일을 재생할 수 없습니다
+THAT ISN'T A WINAMP SKIN	WINAMP 스킨이 아닙니다
+NEW SKIN ON	새 스킨 적용됨
+Remove from Favorites	즐겨찾기에서 제거
+Right-click anything in the library and choose Add to Favorites.	라이브러리에서 아무 항목이나 오른쪽 클릭하고 즐겨찾기에 추가를 선택하세요.
+Internet radio, podcasts, the Internet Archive and Audius	인터넷 라디오, 팟캐스트, Internet Archive, Audius
+Trending	인기 급상승
+Underground Trending	언더그라운드 인기 급상승
+Search again	다시 검색
+More	더 보기
+Donate…	후원하기…
+Donate	후원하기
+Hide this	숨기기

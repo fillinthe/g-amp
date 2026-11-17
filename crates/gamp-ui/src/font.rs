@@ -44,13 +44,24 @@ fn fallback() -> Option<&'static ab_glyph::FontVec> {
     .as_ref()
 }
 
+/// Korean, where the font above has none (Windows keeps it in its own font).
+fn hangul() -> Option<&'static ab_glyph::FontVec> {
+    static F: OnceLock<Option<ab_glyph::FontVec>> = OnceLock::new();
+    F.get_or_init(|| {
+        const PATHS: &[&str] = &["C:\\Windows\\Fonts\\malgun.ttf", "/System/Library/Fonts/AppleSDGothicNeo.ttc", "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"];
+        PATHS.iter().find_map(|p| ab_glyph::FontVec::try_from_vec_and_index(std::fs::read(p).ok()?, 0).ok())
+    })
+    .as_ref()
+}
+
 /// Whether Liberation Sans lacks `c` and the system font has it.
 fn borrowed(c: char) -> Option<&'static ab_glyph::FontVec> {
     use ab_glyph::Font as _;
     if c.is_ascii() || fonts()[0].lookup_glyph_index(c) != 0 {
         return None;
     }
-    fallback().filter(|f| f.glyph_id(c).0 != 0)
+    let has = |f: &&ab_glyph::FontVec| f.glyph_id(c).0 != 0;
+    fallback().filter(has).or_else(|| if ('\u{1100}'..='\u{11ff}').contains(&c) || ('\u{3130}'..='\u{318f}').contains(&c) || ('\u{ac00}'..='\u{d7a3}').contains(&c) { hangul().filter(has) } else { None })
 }
 
 /// `c` from the system font, as fontdue would give it: `px` is the em size.
@@ -186,4 +197,15 @@ pub fn ellipsize(text: &str, px: f32, max_w: i32, bold: bool) -> String {
         s.pop();
     }
     format!("{s}…")
+}
+
+#[cfg(test)]
+mod tests {
+    /// Polish, Turkish and Dutch are written with the font Gamp carries.
+    #[test]
+    fn the_built_in_font_has_the_latin_languages_letters() {
+        for c in "ĄąĆćĘęŁłŃńÓóŚśŹźŻżÇçĞğİıÖöŞşÜüËëÏï".chars() {
+            assert!(!super::foreign(c), "{c}");
+        }
+    }
 }

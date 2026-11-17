@@ -1,0 +1,360 @@
+# Gamp in nl: English<TAB>translation, one per line. \n is a line break;
+# {} are filled in, in order ({0}, {1}… to change the order).
+VOLUME: {}%	VOLUME: {}%
+BALANCE: CENTER	BALANS: MIDDEN
+BALANCE: {}% LEFT	BALANS: {}% LINKS
+BALANCE: {}% RIGHT	BALANS: {}% RECHTS
+STOPPED AFTER THE TRACK	GESTOPT NA HET NUMMER
+CAN'T PLAY: {}	KAN NIET AFSPELEN: {}
+STOP AFTER THIS TRACK: ON	STOPPEN NA DIT NUMMER: AAN
+STOP AFTER THIS TRACK: OFF	STOPPEN NA DIT NUMMER: UIT
+SLEEP TIMER: {} MINUTES	SLAAPTIMER: {} MINUTEN
+SLEEP TIMER: OFF	SLAAPTIMER: UIT
+SLEEP TIMER: GOOD NIGHT	SLAAPTIMER: WELTERUSTEN
+SEEK TO: {}/{} ({}%)	NAAR: {}/{} ({}%)
+Internet Radio › Search	Internetradio › Zoeken
+Generate HTML playlist	HTML-afspeellijst maken
+Read extended info on selected files	Uitgebreide info van geselecteerde bestanden lezen
+From file…	Uit bestand…
+HTML PLAYLIST: {} TRACKS	HTML-AFSPEELLIJST: {} NUMMERS
+COULDN'T WRITE {}: {}	KON {} NIET SCHRIJVEN: {}
+READ INFO ON {} FILE	INFO GELEZEN VAN {} BESTAND
+READ INFO ON {} FILES	INFO GELEZEN VAN {} BESTANDEN
+SAVED PLAYLIST: {}	AFSPEELLIJST OPGESLAGEN: {}
+CAN'T SAVE: {}	KAN NIET OPSLAAN: {}
+Spectrum analyzer	Spectrumanalyzer
+Oscilloscope	Oscilloscoop
+Off	Uit
+Load skin…	Skin laden…
+Skin Museum…	Skin Museum…
+Keep this skin	Deze skin bewaren
+Original skin (GAMP Classic)	Originele skin (GAMP Classic)
+About Gamp…	Over Gamp…
+Report a problem… ({})	Een probleem melden… ({})
+Report a problem…	Een probleem melden…
+Play file…	Bestand afspelen…
+Play folder…	Map afspelen…
+Jump to file…	Naar bestand springen…
+File info…	Bestandsinfo…
+Main window	Hoofdvenster
+Playlist editor	Afspeellijst
+Equalizer	Equalizer
+G-Drop visualizer	G-Drop-visualizer
+Media Library	Mediabibliotheek
+Gather windows	Vensters verzamelen
+Options	Opties
+Always on top	Altijd bovenop
+Double size	Dubbele grootte
+Stop after current track	Stoppen na huidig nummer
+{} minutes	{} minuten
+Time elapsed	Verstreken tijd
+Time remaining	Resterende tijd
+Language	Taal
+Same as the system	Zoals het systeem
+Playback	Afspelen
+Previous	Vorige
+Pause	Pauze
+Stop	Stop
+Next	Volgende
+Back 5 seconds	5 seconden terug
+Left	Links
+Forward 5 seconds	5 seconden vooruit
+Right	Rechts
+Repeat	Herhalen
+Shuffle	Willekeurig
+Visualization	Visualisatie
+Update to Gamp {}…	Bijwerken naar Gamp {}…
+Check for updates…	Op updates controleren…
+Exit	Afsluiten
+Sleep timer ({} min left)	Slaaptimer (nog {} min)
+Sleep timer	Slaaptimer
+Flat (reset)	Vlak (herstellen)
+Load	Laden
+Save…	Opslaan…
+Reset	Herstellen
+NOT AN EQUALIZER PRESET FILE	GEEN EQUALIZER-PRESETBESTAND
+PRESET: {}	PRESET: {}
+ADDED {} PRESETS	{} PRESETS TOEGEVOEGD
+SAVED PRESET: {}	PRESET OPGESLAGEN: {}
+COULDN'T SAVE THE PRESET: {}	KON DE PRESET NIET OPSLAAN: {}
+REPORT: FILL IN WHAT HAPPENED IN YOUR BROWSER	MELDING: VUL IN JE BROWSER IN WAT ER GEBEURDE
+SKIN: ORIGINAL	SKIN: ORIGINEEL
+SKIN KEPT IN THE SKINS MENU	SKIN BEWAARD IN HET SKINS-MENU
+Gamp Equalizer	Gamp Equalizer
+Gamp Playlist	Gamp Afspeellijst
+Gamp Media Library	Gamp Mediabibliotheek
+Gamp Jump to File	Gamp Naar bestand springen
+Gamp File Info	Gamp Bestandsinfo
+SEEKING...	ZOEKEN...
+SIZE: {}%	GROOTTE: {}%
+Normal (100%)	Normaal (100%)
+CAN'T OPEN: {}	KAN NIET OPENEN: {}
+Double (200%)	Dubbel (200%)
+EMPTY PLAYLIST	LEGE AFSPEELLIJST
+NOT A SKIN: {}	GEEN SKIN: {}
+Open files	Bestanden openen
+Audio and playlists	Audio en afspeellijsten
+Winamp skins	Winamp-skins
+Save playlist	Afspeellijst opslaan
+M3U playlist	M3U-afspeellijst
+My playlist	Mijn afspeellijst
+Save equalizer preset	Equalizer-preset opslaan
+Winamp EQ preset	Winamp EQ-preset
+My preset	Mijn preset
+A new Gamp is out	Er is een nieuwe Gamp
+Update now	Nu bijwerken
+Later	Later
+G-DROP: CYCLES PRESETS	G-DROP: WISSELT VAN PRESET
+G-DROP: STAYS ON THIS PRESET	G-DROP: BLIJFT OP DEZE PRESET
+Leave full screen (Esc)	Volledig scherm verlaten (Esc)
+Full screen (F)	Volledig scherm (F)
+Next preset (Space)	Volgende preset (Spatie)
+Previous preset (←)	Vorige preset (←)
+Random preset (H)	Willekeurige preset (H)
+Presets	Presets
+Cycle presets (R)	Presets afwisselen (R)
+Year	Jaar
+Track	Nummer
+Comment	Opmerking
+NOTHING TO SHOW	NIETS OM TE TONEN
+Source	Bron
+Internet stream	Internetstream
+Network track	Netwerknummer
+Can't save: {}	Kan niet opslaan: {}
+{} channels	{} kanalen
+Size	Grootte
+Type part of a title	Typ een deel van een titel
+{} of {}	{} van {}
+Music folders and network drives	Muziekmappen en netwerkschijven
+No folders yet.	Nog geen mappen.
+Search	Zoeken
+Remove	Verwijderen
+Scanning… {} files, {} tracks	Scannen… {} bestanden, {} nummers
+{} tracks	{} nummers
+Add folder…	Map toevoegen…
+Rescan	Opnieuw scannen
+Add path	Pad toevoegen
+Connect to share	Verbinden met share
+Media servers (at home or over the internet)	Mediaservers (thuis of via internet)
+Plex, Jellyfin, Navidrome and other Subsonic servers, Synology Audio Station, WebDAV and Nextcloud. DLNA servers on your network appear by themselves.	Plex, Jellyfin, Navidrome en andere Subsonic-servers, Synology Audio Station, WebDAV en Nextcloud. DLNA-servers in je netwerk verschijnen vanzelf.
+Sign in with Plex	Inloggen met Plex
+Adds every Plex server on your account.	Voegt elke Plex-server van je account toe.
+Type: {} ›	Type: {} ›
+Accept a self-signed certificate	Een zelfondertekend certificaat accepteren
+Add server	Server toevoegen
+Search the network again	Netwerk opnieuw doorzoeken
+Dropbox, Google Drive and OneDrive	Dropbox, Google Drive en OneDrive
+Disconnect	Verbinding verbreken
+Install the Dropbox, Google Drive or OneDrive app and sign in: its folder shows up under Network & Cloud by itself. Songs download as you play them.	Installeer de app van Dropbox, Google Drive of OneDrive en log in: de map verschijnt vanzelf onder Netwerk & cloud. Nummers worden gedownload terwijl je ze afspeelt.
+Get Dropbox	Dropbox downloaden
+Look again	Opnieuw kijken
+None on this computer yet	Nog geen op deze computer
+Found: {}	Gevonden: {}
+Spotify (Premium)	Spotify (Premium)
+Sign in once in your web browser. Your Liked Songs, playlists and search then show here, and songs play through Gamp's equalizer and visualizers.	Log één keer in via je webbrowser. Je favoriete nummers, afspeellijsten en zoeken staan daarna hier, en nummers spelen via de equalizer en visualizers van Gamp.
+Disconnect Spotify	Spotify loskoppelen
+Connect Spotify	Spotify verbinden
+Connected	Verbonden
+Not connected	Niet verbonden
+No account needed: search SoundCloud, or paste any track, playlist or artist link into Search. For your likes and playlists, add your profile's address (they need to be public).	Geen account nodig: zoek op SoundCloud, of plak een link naar een nummer, afspeellijst of artiest in Zoeken. Voeg voor je likes en afspeellijsten het adres van je profiel toe (ze moeten openbaar zijn).
+Save	Opslaan
+Internet radio, podcasts and the Internet Archive	Internetradio, podcasts en het Internet Archive
+Nothing to set up: they're under Internet. Paste any stream address into Internet Radio › Search to play it.	Niets in te stellen: ze staan onder Internet. Plak een streamadres in Internetradio › Zoeken om het af te spelen.
+Skins	Skins
+Local Media › Audio	Lokale media › Audio
+Scanning…	Scannen…
+Connecting. Then add the share's folder.	Verbinden. Voeg daarna de map van de share toe.
+Connecting…	Verbinden…
+Looking for DLNA servers…	DLNA-servers zoeken…
+SKIN: {}	SKIN: {}
+Connect…	Verbinden…
+Local Media	Lokale media
+Network & Cloud	Netwerk & cloud
+Media servers	Mediaservers
+Add a server…	Een server toevoegen…
+Internet	Internet
+Settings	Instellingen
+Type a station or genre, or paste a stream address	Typ een zender of genre, of plak een streamadres
+Type a podcast name, or paste a feed address	Typ de naam van een podcast, of plak een feedadres
+Paste a SoundCloud link (track, playlist or artist), or search	Plak een SoundCloud-link (nummer, afspeellijst of artiest), of zoek
+Search Spotify: songs, artists, your playlists	Zoek op Spotify: nummers, artiesten, je afspeellijsten
+Search the Skin Museum: a band, a game, a colour, a name	Zoek in het Skin Museum: een band, een game, een kleur, een naam
+Type and press Enter to search	Typ en druk op Enter om te zoeken
+Loading…	Laden…
+Artist	Artiest
+Genre	Genre
+Album	Album
+Format	Formaat
+Length	Duur
+Items	Items
+Posted	Geplaatst
+Plays	Keer afgespeeld
+Likes	Likes
+Skin	Skin
+File	Bestand
+Name	Naam
+Station	Zender
+Title	Titel
+Use skin	Skin gebruiken
+Surprise me	Verras me
+Original skin	Originele skin
+Play	Afspelen
+Enqueue	In wachtrij
+Play all	Alles afspelen
+scanning… {} files	scannen… {} bestanden
+{} items	{} items
+Jellyfin or Emby	Jellyfin of Emby
+Synology Audio Station	Synology Audio Station
+Plex (address and token)	Plex (adres en token)
+{} (preview)	{} (voorbeeld)
+Open it to play what's inside.	Open het om af te spelen wat erin zit.
+Add to playlist (Shift+Enter)	Aan afspeellijst toevoegen (Shift+Enter)
+Latest from {}	Nieuwste van {}
+FETCHING SKIN…	SKIN OPHALEN…
+Skin Museum › Most popular	Skin Museum › Populairst
+SoundCloud › Search	SoundCloud › Zoeken
+Select some tracks first.	Selecteer eerst een paar nummers.
+Select a skin first.	Selecteer eerst een skin.
+Select something first.	Selecteer eerst iets.
+Name (optional)	Naam (optioneel)
+User name	Gebruikersnaam
+Loading	Laden
+Searching	Zoeken
+Connecting	Verbinden
+Scanning	Scannen
+Password	Wachtwoord
+Two-step code (if you use one)	Tweestapscode (als je die gebruikt)
+Or type a path	Of typ een pad
+Searching…	Zoeken…
+Sort list by title	Lijst sorteren op titel
+Sort list by filename	Lijst sorteren op bestandsnaam
+Sort list by path and filename	Lijst sorteren op pad en bestandsnaam
+Reverse list	Lijst omkeren
+Randomize list	Lijst door elkaar zetten
+What's new:	Wat is er nieuw:
+Gamp {} is out (you have {}). Update now? Gamp closes, updates and opens again.	Gamp {} is uit (je hebt {}). Nu bijwerken? Gamp sluit, werkt bij en opent opnieuw.
+GAMP {} IS OUT - RIGHT-CLICK › UPDATE	GAMP {} IS UIT - RECHTSKLIK › BIJWERKEN
+GAMP {} IS UP TO DATE	GAMP {} IS UP-TO-DATE
+CAN'T CHECK FOR UPDATES: {}	KAN NIET OP UPDATES CONTROLEREN: {}
+DOWNLOADING UPDATE {}%	UPDATE DOWNLOADEN {}%
+Add folders in Settings › Music folders.	Voeg mappen toe in Instellingen › Muziekmappen.
+Files	Bestanden
+Playlists	Afspeellijsten
+Liked Songs	Favoriete nummers
+Skin Museum	Skin Museum
+Most popular	Populairst
+No folders or music here.	Geen mappen of muziek hier.
+That cloud folder isn't on this computer any more	Die cloudmap staat niet meer op deze computer
+From the Winamp Skin Museum, skins.webamp.org	Uit het Winamp Skin Museum, skins.webamp.org
+SoundCloud only allows a 30-second preview of this track	SoundCloud staat van dit nummer alleen een voorbeeld van 30 seconden toe
+That link isn't a SoundCloud track, playlist or artist	Die link is geen nummer, afspeellijst of artiest van SoundCloud
+No such SoundCloud profile	Dat SoundCloud-profiel bestaat niet
+SoundCloud only plays this on soundcloud.com	SoundCloud speelt dit alleen af op soundcloud.com
+SoundCloud has no stream for this track	SoundCloud heeft geen stream voor dit nummer
+SoundCloud changed its web player; Gamp needs an update to play links	SoundCloud heeft zijn webspeler gewijzigd; Gamp heeft een update nodig om links af te spelen
+SoundCloud doesn't have that (or it's private)	SoundCloud heeft dat niet (of het is privé)
+SoundCloud refused	SoundCloud weigerde
+No playable audio in this item.	Geen afspeelbare audio in dit item.
+Nothing here.	Niets hier.
+Your Dropbox app needs the files.metadata.read and files.content.read permissions (Permissions tab), then connect again	Je Dropbox-app heeft de rechten files.metadata.read en files.content.read nodig (tabblad Permissions); verbind daarna opnieuw
+Paste your Dropbox app key in Settings first	Plak eerst je Dropbox-appsleutel in Instellingen
+This Dropbox sign-in expired. Try again.	Deze Dropbox-aanmelding is verlopen. Probeer het opnieuw.
+Mark songs or albums as favourites on your server to see them here.	Markeer nummers of albums op je server als favoriet om ze hier te zien.
+Wrong user name or password	Verkeerde gebruikersnaam of wachtwoord
+The server didn't sign you in	De server heeft je niet ingelogd
+Type the server's address	Typ het adres van de server
+That kind of source is added another way	Dat soort bron wordt op een andere manier toegevoegd
+Starred	Met ster
+Recently Added	Recent toegevoegd
+Artists	Artiesten
+Favorites	Favorieten
+All Songs	Alle nummers
+Albums	Albums
+Folders	Mappen
+Browse	Bladeren
+Top Stations	Topzenders
+Genres	Genres
+Countries	Landen
+Subscriptions	Abonnementen
+Top Podcasts	Toppodcasts
+Live Music Archive	Live Music Archive
+78 RPM Records	78-toerenplaten
+Netlabels	Netlabels
+Old Time Radio	Oude radioprogramma's
+Select something first	Selecteer eerst iets
+Nothing to do here	Hier valt niets te doen
+it refused (sign in again in Settings)	het weigerde (log opnieuw in via Instellingen)
+Internet Radio	Internetradio
+Podcasts	Podcasts
+Internet Archive	Internet Archive
+No host in the stream address	Geen host in het streamadres
+The station took too long to answer	De zender deed er te lang over om te antwoorden
+The station sent no audio	De zender stuurde geen audio
+Signed in, but this Plex account has no servers	Ingelogd, maar dit Plex-account heeft geen servers
+Use Sign in with Plex, or put your X-Plex-Token in the password box	Gebruik Inloggen met Plex, of zet je X-Plex-Token in het wachtwoordvak
+plex.tv didn't start a sign-in	plex.tv heeft geen aanmelding gestart
+This Plex sign-in expired. Try again.	Deze Plex-aanmelding is verlopen. Probeer het opnieuw.
+Plex didn't finish the sign-in	Plex heeft de aanmelding niet afgerond
+Unsubscribe	Abonnement opzeggen
+Search for a podcast (or paste its feed address), select it and press Subscribe.	Zoek een podcast (of plak het feedadres), selecteer hem en druk op Abonneren.
+Subscribe	Abonneren
+This podcast has no episodes to play.	Deze podcast heeft geen afleveringen om af te spelen.
+That playlist lists no streams	Die afspeellijst bevat geen streams
+No radio directory	Geen radiogids
+Select stations anywhere in Internet Radio and press Add to Favorites. You can also paste a stream address into Search.	Selecteer zenders ergens in Internetradio en druk op Aan favorieten toevoegen. Je kunt ook een streamadres in Zoeken plakken.
+Add to Favorites	Aan favorieten toevoegen
+Type your user name	Typ je gebruikersnaam
+Star songs or albums on your server to see them here.	Geef nummers of albums op je server een ster om ze hier te zien.
+Type your DSM user name	Typ je DSM-gebruikersnaam
+wrong user name or password	verkeerde gebruikersnaam of wachtwoord
+this account is disabled	dit account is uitgeschakeld
+this account can't use Audio Station	dit account mag Audio Station niet gebruiken
+type your two-step code too (it's asked for once)	typ ook je tweestapscode (die wordt één keer gevraagd)
+that two-step code didn't work	die tweestapscode werkte niet
+this address is blocked by the NAS after too many tries	dit adres is door de NAS geblokkeerd na te veel pogingen
+Audio Station isn't installed on this NAS	Audio Station is niet geïnstalleerd op deze NAS
+Audio Station isn't installed on this NAS (Package Center › Audio Station)	Audio Station is niet geïnstalleerd op deze NAS (Package Center › Audio Station)
+No folders or music files here.	Geen mappen of muziekbestanden hier.
+This Spotify sign-in expired. Try again.	Deze Spotify-aanmelding is verlopen. Probeer het opnieuw.
+Connect Spotify in Settings.	Verbind Spotify in Instellingen.
+Copy	Kopiëren
+Cancel	Annuleren
+File Info	Bestandsinfo
+Close	Sluiten
+Jump to File	Naar bestand springen
+‹ Back	‹ Terug
+Copied	Gekopieerd
+Saved	Opgeslagen
+mono	mono
+stereo	stereo
+Audio	Audio
+Add a music folder	Een muziekmap toevoegen
+DOWNLOADING UPDATE…	UPDATE DOWNLOADEN…
+GAMP {} DIDN'T INSTALL	GAMP {} IS NIET GEÏNSTALLEERD
+OPENED GAMP {} IN YOUR SOFTWARE INSTALLER	GAMP {} GEOPEND IN JE SOFTWARE-INSTALLATIEPROGRAMMA
+OPENED THE DOWNLOAD PAGE	DE DOWNLOADPAGINA IS GEOPEND
+Open a folder	Een map openen
+UPDATE FAILED ({})	UPDATE MISLUKT ({})
+Winamp EQ presets	Winamp EQ-presets
+{} - OPENED THE DOWNLOAD PAGE	{} - DE DOWNLOADPAGINA IS GEOPEND
+Your profile: soundcloud.com/you	Je profiel: soundcloud.com/jij
+Add any folder. Network drives work once mounted in Finder (Go › Connect to Server, or use Connect below); they appear under /Volumes.	Voeg een willekeurige map toe. Netwerkschijven werken zodra ze in Finder zijn gekoppeld (Ga › Verbind met server, of gebruik Verbinden hieronder); ze verschijnen onder /Volumes.
+Add any folder, a mapped drive, or a \\server\share path.	Voeg een willekeurige map, een gekoppelde schijf of een pad als \\server\share toe.
+Add any folder, including network shares mounted under /mnt or /media.	Voeg een willekeurige map toe, ook netwerkshares die onder /mnt of /media zijn gekoppeld.
+Finder is connecting. Then Add folder… › /Volumes.	Finder maakt verbinding. Daarna Map toevoegen… › /Volumes.
+QuickConnect ID, or http://diskstation:5000	QuickConnect-ID, of http://diskstation:5000
+GAMP IN YOUR BROWSER: DROP MUSIC FILES OR A WINAMP SKIN HERE, OR PRESS EJECT	GAMP IN JE BROWSER: SLEEP MUZIEKBESTANDEN OF EEN WINAMP-SKIN HIERHEEN, OF DRUK OP EJECT
+THAT ONE IS IN THE DESKTOP APP	DIE ZIT IN DE DESKTOP-APP
+CAN'T PLAY THAT FILE IN A BROWSER	KAN DAT BESTAND NIET AFSPELEN IN EEN BROWSER
+THAT ISN'T A WINAMP SKIN	DAT IS GEEN WINAMP-SKIN
+NEW SKIN ON	NIEUWE SKIN AAN
+Remove from Favorites	Uit favorieten verwijderen
+Right-click anything in the library and choose Add to Favorites.	Klik met rechts op iets in de bibliotheek en kies Aan favorieten toevoegen.
+Internet radio, podcasts, the Internet Archive and Audius	Internetradio, podcasts, het Internet Archive en Audius
+Trending	Trending
+Underground Trending	Underground-trending
+Search again	Opnieuw zoeken
+More	Meer
+Donate…	Doneren…
+Donate	Doneren
+Hide this	Verbergen
