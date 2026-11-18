@@ -617,9 +617,10 @@ fn gen_bmp() -> Canvas {
         let mut x = 1;
         for l in 'A'..='Z' {
             let w = font::width(l) as i32;
-            c.rect(x, y, w, 7, BODY_DARK);
+            // One column of backing after the letter keeps titles from running together.
+            c.rect(x, y, w + 1, 7, BODY_DARK);
             c.pattern(x, y + 1, font::glyph(l), col, col);
-            x += w + 1;
+            x += w + 2;
         }
     }
     c
