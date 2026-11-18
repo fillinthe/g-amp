@@ -50,6 +50,22 @@ impl Biquad {
         }
     }
 
+    /// RBJ cookbook high-pass.
+    fn highpass(freq: f32, q: f32, rate: f32) -> Biquad {
+        let w0 = std::f32::consts::TAU * freq / rate;
+        let (sin, cos) = w0.sin_cos();
+        let alpha = sin / (2.0 * q);
+        let a0 = 1.0 + alpha;
+        Biquad {
+            b0: (1.0 + cos) / 2.0 / a0,
+            b1: -(1.0 + cos) / a0,
+            b2: (1.0 + cos) / 2.0 / a0,
+            a1: (-2.0 * cos) / a0,
+            a2: (1.0 - alpha) / a0,
+            ..Default::default()
+        }
+    }
+
     #[inline]
     fn run(&mut self, ch: usize, x: f32) -> f32 {
         // Transposed direct form II: good numerically in f32.
@@ -66,11 +82,13 @@ pub struct Equalizer {
     settings: EqSettings,
     filters: Vec<Biquad>,
     preamp: f32,
+    /// A gentle high-pass at 25 Hz.
+    rumble: Biquad,
 }
 
 impl Equalizer {
     pub fn new(rate: u32, settings: EqSettings) -> Equalizer {
-        let mut eq = Equalizer { rate: rate as f32, settings, filters: Vec::new(), preamp: 1.0 };
+        let mut eq = Equalizer { rate: rate as f32, settings, filters: Vec::new(), preamp: 1.0, rumble: Biquad::default() };
         eq.rebuild();
         eq
     }
@@ -101,6 +119,8 @@ impl Equalizer {
     }
 
     fn rebuild(&mut self) {
+        let (z1, z2) = (self.rumble.z1, self.rumble.z2);
+        self.rumble = Biquad { z1, z2, ..Biquad::highpass(25.0, std::f32::consts::FRAC_1_SQRT_2, self.rate) };
         let s = self.settings;
         self.preamp = 10f32.powf(s.preamp.clamp(-12.0, 12.0) / 20.0);
         // About an octave wide, like Winamp's bands; bands near the top of
@@ -115,6 +135,12 @@ impl Equalizer {
 
     /// Filters interleaved stereo in place.
     pub fn process(&mut self, stereo: &mut [f32]) {
+        // Below hearing, rumble only shakes the speakers: always taken out.
+        for frame in stereo.chunks_exact_mut(2) {
+            for (ch, s) in frame.iter_mut().enumerate() {
+                *s = self.rumble.run(ch, *s);
+            }
+        }
         if !self.settings.on {
             return;
         }
@@ -171,6 +197,14 @@ mod tests {
         s.bands = [12.0; 10];
         s.on = false;
         assert!(gain_at(440.0, s).abs() < 0.01);
+    }
+
+    /// Rumble under hearing is taken out, even with the EQ off; bass stays.
+    #[test]
+    fn rumble_goes_bass_stays() {
+        let off = EqSettings { on: false, ..Default::default() };
+        assert!(gain_at(12.0, off) < -6.0, "{}", gain_at(12.0, off));
+        assert!(gain_at(60.0, off).abs() < 0.5, "{}", gain_at(60.0, off));
     }
 
     #[test]

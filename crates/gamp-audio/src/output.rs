@@ -63,11 +63,50 @@ struct Tap {
     shared: Arc<Shared>,
     ring: rtrb::Consumer<f32>,
     analysis: rtrb::Producer<f32>,
+    limiter: Limiter,
+}
+
+/// Eases loud peaks down instead of cutting them off flat (which is what
+/// makes heavy bass crackle and strain speakers): the level drops at once
+/// to keep peaks under `CEILING`, holds a twentieth of a second (longer
+/// than the deepest bass wave, so the next peak needs no squeeze) for as
+/// long as the music stays that loud, then comes back over a quarter second.
+struct Limiter {
+    gain: f32,
+    release: f32,
+    hold: u32,
+    held: u32,
+}
+
+/// About -1 dB: a little room below full scale.
+const CEILING: f32 = 0.89;
+
+impl Limiter {
+    fn new(rate: u32) -> Limiter {
+        Limiter { gain: 1.0, release: 1.0 - (-1.0 / (0.25 * rate as f32)).exp(), hold: rate / 20, held: 0 }
+    }
+
+    #[inline]
+    fn run(&mut self, l: f32, r: f32) -> (f32, f32) {
+        let peak = l.abs().max(r.abs()) * self.gain;
+        if peak > CEILING {
+            self.gain *= CEILING / peak;
+            self.held = self.hold;
+        } else if peak > CEILING * 0.9 {
+            // Still loud: coming back now would only squeeze the next peak flat.
+            self.held = self.hold;
+        } else if self.held > 0 {
+            self.held -= 1;
+        } else {
+            self.gain += (1.0 - self.gain) * self.release;
+        }
+        (l * self.gain, r * self.gain)
+    }
 }
 
 impl Tap {
     /// Fills `out` (interleaved, `channels` per frame) with up to its length
-    /// in frames; returns frames that held music.
+    /// in frames.
     #[inline]
     fn fill<T: SizedSample + FromSample<f32>>(&mut self, out: &mut [T], channels: usize) {
         let s = &self.shared;
@@ -102,7 +141,7 @@ impl Tap {
                 }
             };
             let _ = self.analysis.push((l + r) * 0.5);
-            let (l, r) = ((l * gl).clamp(-1.0, 1.0), (r * gr).clamp(-1.0, 1.0));
+            let (l, r) = self.limiter.run(l * gl, r * gr);
             if channels == 1 {
                 frame[0] = T::from_sample((l + r) * 0.5);
             } else {
@@ -126,7 +165,7 @@ const REST_AFTER: Duration = Duration::from_secs(5);
 /// Starts the output; returns its sample rate. The stream lives on its
 /// own thread for the life of the program.
 pub fn start(kind: OutputKind, shared: Arc<Shared>, ring: rtrb::Consumer<f32>, analysis: rtrb::Producer<f32>) -> anyhow::Result<u32> {
-    let tap = Tap { shared: shared.clone(), ring, analysis };
+    let mut tap = Tap { shared: shared.clone(), ring, analysis, limiter: Limiter::new(48000) };
     if kind != OutputKind::Device {
         let rate = 48000;
         shared.rate.store(rate, Ordering::Relaxed);
@@ -142,6 +181,7 @@ pub fn start(kind: OutputKind, shared: Arc<Shared>, ring: rtrb::Consumer<f32>, a
             let config = device.default_output_config()?;
             let rate = config.sample_rate();
             let channels = config.channels() as usize;
+            tap.limiter = Limiter::new(rate);
             let mut stream_config: cpal::StreamConfig = config.config();
             // About 20 ms per callback: responsive, gentle on the CPU.
             stream_config.buffer_size = cpal::BufferSize::Default;
@@ -205,5 +245,33 @@ fn null_output(mut tap: Tap, rate: u32, fast: bool) {
     loop {
         tap.fill(&mut buf, 2);
         std::thread::sleep(if fast { Duration::from_micros(200) } else { Duration::from_millis(10) });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A bass note far over full scale comes out under it, with no flat tops.
+    #[test]
+    fn the_limiter_eases_peaks_under_full_scale() {
+        let mut lim = Limiter::new(48000);
+        let mut top = 0f32;
+        let mut flat = 0;
+        let mut last = 0f32;
+        for i in 0..48000 {
+            let x = 1.8 * (std::f32::consts::TAU * 50.0 * i as f32 / 48000.0).sin();
+            let (y, _) = lim.run(x, x);
+            top = top.max(y.abs());
+            if i > 4800 && y == last {
+                flat += 1;
+            }
+            last = y;
+        }
+        assert!(top <= CEILING + 1e-3, "{top}");
+        assert!(flat < 10, "{flat} samples held flat");
+        // Quiet music passes untouched.
+        let mut lim = Limiter::new(48000);
+        assert_eq!(lim.run(0.5, -0.4), (0.5, -0.4));
     }
 }

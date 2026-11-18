@@ -117,6 +117,7 @@ impl Player {
             eq: Equalizer::new(rate, EqSettings::default()),
             current: None,
             queued: None,
+            opening: None,
             resampler: None,
             backlog: Vec::new(),
             written: 0,
@@ -238,6 +239,9 @@ struct Worker {
     eq: Equalizer,
     current: Option<(u64, Source)>,
     queued: Option<(u64, Input)>,
+    /// The queued track, being opened ahead of time (network tracks take a
+    /// moment to connect: opened at the very end, the change would skip).
+    opening: Option<(u64, Receiver<anyhow::Result<Source>>)>,
     resampler: Option<(u32, Resampler)>,
     /// Converted samples that didn't fit in the ring yet.
     backlog: Vec<f32>,
@@ -280,6 +284,9 @@ impl Worker {
                     self.eq.set_rate(rate);
                     self.eq.process(&mut decoded);
                     self.convert(rate, &decoded);
+                    if self.queued.is_some() && self.near_end(id) {
+                        self.open_queued_early();
+                    }
                 }
                 Ok(None) => self.track_done(id),
                 Err(e) => {
@@ -362,8 +369,30 @@ impl Worker {
         self.shared.frames_read.store(self.written, Ordering::Release);
     }
 
+    /// Whether track `id` has less than 20 seconds left to decode.
+    fn near_end(&self, id: u64) -> bool {
+        let t = self.timeline.lock().unwrap();
+        let Some(seg) = t.segments.iter().rev().find(|s| s.id == id) else { return false };
+        let Some(duration) = seg.format.duration else { return false };
+        let at = seg.base + (self.written - seg.start) as f64 / self.rate as f64;
+        duration - at < 20.0
+    }
+
+    fn open_queued_early(&mut self) {
+        let Some((id, input)) = self.queued.take() else { return };
+        let (tx, rx) = crossbeam_channel::bounded(1);
+        let _ = std::thread::Builder::new().name("gamp-open-next".into()).spawn(move || {
+            let _ = tx.send(Source::open(input));
+        });
+        self.opening = Some((id, rx));
+    }
+
     fn open(&mut self, id: u64, input: Input) -> bool {
-        match Source::open(input) {
+        self.opened(id, Source::open(input))
+    }
+
+    fn opened(&mut self, id: u64, source: anyhow::Result<Source>) -> bool {
+        match source {
             Ok(source) => {
                 let format = source.info().clone();
                 self.current = Some((id, source));
@@ -383,6 +412,7 @@ impl Worker {
                 self.flush();
                 self.current = None;
                 self.queued = None;
+                self.opening = None;
                 self.timeline.lock().unwrap().segments.clear();
                 self.announced = None;
                 if self.open(id, input) {
@@ -391,8 +421,9 @@ impl Worker {
                     self.set_state(State::Stopped);
                 }
             }
-            Cmd::Unqueue => self.queued = None,
+            Cmd::Unqueue => (self.queued, self.opening) = (None, None),
             Cmd::Queue { id, input } => {
+                self.opening = None;
                 if self.current.is_none() {
                     if self.open(id, input) {
                         self.set_state(State::Playing);
@@ -414,6 +445,7 @@ impl Worker {
             Cmd::Stop => {
                 self.flush();
                 self.queued = None;
+                self.opening = None;
                 // Back to the start, ready to play again (a live stream is
                 // dropped; it can't rewind).
                 let rewound = match self.current.as_mut() {
@@ -462,7 +494,12 @@ impl Worker {
         }
         self.current = None;
         // Gapless: the next track's audio follows directly in the ring.
-        if let Some((next, input)) = self.queued.take() {
+        if let Some((next, rx)) = self.opening.take() {
+            let source = rx.recv().unwrap_or_else(|_| Err(anyhow::anyhow!("couldn't open the next track")));
+            if self.opened(next, source) {
+                return;
+            }
+        } else if let Some((next, input)) = self.queued.take() {
             if self.open(next, input) {
                 return;
             }
