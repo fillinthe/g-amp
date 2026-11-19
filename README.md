@@ -56,61 +56,6 @@ Right-click › Check for updates… asks now; `gamp --update` updates from a te
 Mac copies older than 0.3.16 aren't signed: if macOS won't open one, download
 Gamp again, or click **Open Anyway** in System Settings › Privacy & Security.
 
-## Using it
-
-- Drag a title bar to move a window; windows dock and snap together.
-  Clicking any window brings all of them in front of other programs.
-  Lost one? Right-click › Gather windows (Alt+W) stacks them all back on
-  the main window; on a Mac, clicking Gamp in the Dock does it when a
-  window is off-screen.
-- Z X C V B: previous, play, pause, stop, next. Shift+V fades out and
-  stops; Ctrl+V stops after the current track. Right-click › Options ›
-  Sleep timer stops the music after 15 to 90 minutes, fading out. L opens files, S shuffle,
-  R repeat. J jumps to a file: type part of a title, Enter plays it.
-  Ctrl+D double size. ⌘+ / ⌘− / ⌘0 (Ctrl on Windows and Linux) make every
-  window bigger or smaller in 10% steps, up to 300%, or back to normal, as
-  in a browser; right-click › Options › Size lists the sizes. Ctrl+T remaining time, Ctrl+A always on top.
-- Alt (⌥) + L Media Library, G Equalizer, E Playlist, K G-Drop.
-- In the library, double-click a folder, album or playlist to open it, and
-  Backspace (or ‹ Back) to return. Double-click a track to play from there.
-  Paste a SoundCloud link or a radio stream address into Search to play it.
-  Right-click a track (or Shift+Enter) to add it to the playlist without
-  interrupting what's playing.
-- In the playlist, MISC › Sort list sorts by title, file name or path,
-  reverses or randomizes the list; the playing track keeps playing.
-  MISC › File info (Alt+3) shows a track's tags, format, size and length;
-  for files the tags can be edited (Tab between fields) and saved.
-  MISC › Misc opts generates an HTML playlist (opens in the browser) or
-  re-reads the tags of the selected files.
-- The playlist is kept when Gamp quits. The playlist's LIST button saves it
-  by name (Save list) and Load list shows your saved playlists, or opens any
-  `.m3u8`, `.m3u` or `.pls` file. Saved lists keep radio stations and library tracks, not
-  only files, and a station address from any other program plays as well.
-- The equalizer's PRESETS button has Winamp's presets, saves your own
-  (Save…) and opens Winamp `.eqf` presets and `.q1` libraries (From file…,
-  or drop one on Gamp).
-- Songs, playlists, skins and presets open from the Finder too (double-click
-  or Open With › Gamp).
-- Skins › Skin Museum… (Alt+S) browses and searches about 100,000
-  classic skins from the [Winamp Skin Museum](https://skins.webamp.org):
-  double-click one to wear it. Skins › Surprise me puts on a random
-  favourite, Keep this skin adds one you like to the Skins menu, and
-  Skins › Original skin always goes back to GAMP Classic. Any `.wsz` you
-  drop onto the player works too.
-- G-Drop has 40 presets. Right-click it for the list, next/previous/random,
-  full screen, and Cycle presets (on: it changes by itself; off: it stays on
-  one; R toggles). The □ button or F goes full screen, Esc leaves. Drag the
-  picture to move it, any edge to resize.
-- Gamp speaks English, Deutsch, Español, Français, Italiano, Português
-  (Brasil), 日本語 and 简体中文: it follows the system's language, and
-  right-click › Options › Language picks another. Song titles in Japanese,
-  Chinese and Korean show in the playlist and library with a font the
-  system already has. The player's little display keeps the skin's own
-  letters (A to Z), so there accents are left off, and in Japanese and
-  Chinese its short messages stay in English.
-- Songs play at an even volume: files with ReplayGain tags (MP3, FLAC, M4A,
-  Ogg...) are leveled by them, and Spotify uses its own leveling.
-
 ## How it works
 
 Everything is our own code: the skin engine, the pixel renderer, the audio
