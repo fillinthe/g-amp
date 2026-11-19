@@ -2115,6 +2115,7 @@ impl App {
         }
         let mut items = vec![
             Item::action("about", "About Gamp…"),
+            Item::action("help", "Help…"),
             Item::action("report", match &self.last_error {
                 Some(e) => tf("Report a problem… ({})", &[&e.chars().take(28).collect::<String>().trim_end()]),
                 None => "Report a problem…".into(),
@@ -2180,7 +2181,7 @@ impl App {
             Item::action("exit", "Exit"),
         ];
         if self.donate_hidden {
-            items.remove(2);
+            items.remove(3);
         }
         items
     }
@@ -2335,6 +2336,11 @@ impl App {
     pub fn menu_action(&mut self, id: &str, _el: Option<&ActiveEventLoop>) {
         match id {
             "about" => self.main.message = Some(format!("GAMP {} - FILLINTHE/G-AMP", env!("CARGO_PKG_VERSION"))),
+            // The guide lives on the website, so it stays current.
+            "help" => crate::backend::open_in_browser(&match gamp_ui::lang::code() {
+                "en" => "https://gampapp.com/manual/".to_string(),
+                c => format!("https://gampapp.com/{}/manual/", c.to_lowercase()),
+            }),
             "donate:hide" => self.donate_hidden = true,
             "donate" => crate::backend::open_in_browser("https://donate.stripe.com/eVqdRb8kv3XW08LcNaaEE04"),
             "report" => {
