@@ -359,13 +359,13 @@ Donate…	Spenden…
 Donate	Spenden
 Hide this	Ausblenden
 Help…	Hilfe…
-Share anonymous usage stats	Anonyme Nutzungsstatistik senden
 Delete my data…	Meine Daten löschen…
-Anonymous usage stats	Anonyme Nutzungsstatistik
-To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address.	Damit wir sehen, was sich verbessern lässt, sendet Gamp beim Start ein paar anonyme Angaben: seine Version, dein System und deine Sprache. Nie deine Musik, Dateien, Konten oder Adresse.
-Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.	Optionen › Anonyme Nutzungsstatistik senden schaltet das ab, und Optionen › Meine Daten löschen… löscht alles.
-OK	OK
-Don't share	Nicht senden
 Delete my data	Meine Daten löschen
-Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.	Gamp vergisst alles: Einstellungen, Anmeldungen, Playlists, Skins und seine anonyme Nutzungsstatistik, und schließt sich dann. Das lässt sich nicht rückgängig machen.
 Delete	Löschen
+Usage and problem reports	Nutzungs- und Problemberichte
+To make Gamp better, it counts each time it opens (with its version, your system and language) and sends a short report when something goes wrong: the error message, Gamp's version and your system. Never your music, file names, accounts or addresses, and nothing that says who sent it. Problem reports are kept for 30 days.	Damit Gamp besser wird, zählt es jeden Start (mit seiner Version, deinem System und deiner Sprache) und sendet einen kurzen Bericht, wenn etwas schiefgeht: die Fehlermeldung, Gamps Version und dein System. Nie deine Musik, Dateinamen, Konten oder Adressen und nichts, was verrät, wer es gesendet hat. Problemberichte werden 30 Tage aufbewahrt.
+Options › Help improve Gamp: send usage and problem reports turns this off, and Options › Delete my data… erases what Gamp keeps on this computer.	Optionen › Gamp verbessern: Nutzungs- und Problemberichte senden schaltet das ab, und Optionen › Meine Daten löschen… löscht, was Gamp auf diesem Computer speichert.
+Got it	Verstanden
+Turn off	Abschalten
+Help improve Gamp: send usage and problem reports	Gamp verbessern: Nutzungs- und Problemberichte senden
+Gamp will forget everything on this computer: settings, sign-ins, playlists and skins, then close. This can't be undone.	Gamp vergisst alles auf diesem Computer: Einstellungen, Anmeldungen, Playlists und Skins, und schließt sich dann. Das lässt sich nicht rückgängig machen.

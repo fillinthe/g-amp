@@ -115,6 +115,7 @@ pub struct App {
     /// The owner of this computer took Donate out of the main menu; it stays under Options.
     pub donate_hidden: bool,
     pub stats_id: String,
+    pub stats_told: bool,
     pub stats_off: bool,
     /// The language picked in Options › Language (none: the system's).
     pub lang: Option<String>,
@@ -247,6 +248,7 @@ impl App {
             on_top: false,
             donate_hidden: false,
             stats_id: String::new(),
+            stats_told: false,
             stats_off: false,
             modifiers: ModifiersState::empty(),
             drag: None,
@@ -972,24 +974,41 @@ impl App {
         self.answered(answer);
     }
 
-    /// At start: tells a new install about usage stats once, then sends them
-    /// unless they're off.
+    /// At start: tells about usage and problem reports once, then sends
+    /// the day's count (and last time's crash) unless they're off.
     pub(crate) fn stats_start(&mut self) {
-        if self.stats_off {
-            return;
+        if !self.stats_id.is_empty() {
+            // 0.3.30 kept a row per install: no longer, so it goes.
+            let id = std::mem::take(&mut self.stats_id);
+            std::thread::spawn(move || crate::stats::forget_old(&id));
         }
-        if self.stats_id.is_empty() {
-            self.stats_id = crate::stats::new_id();
+        if self.stats_off {
+        } else if !self.stats_told {
             self.ask(Ask::Stats);
         } else {
-            crate::stats::send(self.stats_id.clone(), gamp_ui::lang::code());
+            self.reports_go();
         }
     }
 
-    /// Delete my data: erases the stats on the server and everything in
-    /// Gamp's folder (settings, sign-ins, playlists, skins, caches), then quits.
+    fn reports_go(&self) {
+        crate::stats::opened(gamp_ui::lang::code());
+        if let Some(e) = self.last_error.as_deref().filter(|e| e.contains("CRASHED")) {
+            crate::stats::problem(e);
+        }
+    }
+
+    /// A problem the person saw (English), when reports are on.
+    pub(crate) fn problem(&self, message: &str) {
+        if self.stats_told && !self.stats_off {
+            crate::stats::problem(message);
+        }
+    }
+
+    /// Delete my data: everything in Gamp's folder (settings, sign-ins,
+    /// playlists, skins, caches) and anything 0.3.30 sent, then quits. The
+    /// reports server keeps nothing that says who sent what.
     fn forget_everything(&mut self) {
-        crate::stats::forget(&self.stats_id);
+        crate::stats::forget_old(&self.stats_id);
         if std::fs::remove_dir_all(&self.data_dir).is_err() && self.data_dir.exists() {
             // Something held a file open: show the folder so it can go by hand.
             crate::backend::open_in_browser(&format!("file://{}", self.data_dir.display()));
@@ -1032,8 +1051,13 @@ impl App {
                 }
             }
             Ask::Update(_) if a.yes => self.update_install(),
-            Ask::Stats if !a.yes => self.stats_off = true,
-            Ask::Stats => crate::stats::send(self.stats_id.clone(), gamp_ui::lang::code()),
+            Ask::Stats => {
+                self.stats_told = true;
+                self.stats_off = !a.yes;
+                if a.yes {
+                    self.reports_go();
+                }
+            }
             Ask::Forget if a.yes => self.forget_everything(),
             _ => {}
         }
@@ -2187,7 +2211,7 @@ impl App {
                     }),
                     Item::action("donate", "Donate…"),
                     Item::Separator,
-                    Item::action("stats", "Share anonymous usage stats").checked(!self.stats_off),
+                    Item::action("stats", "Help improve Gamp: send usage and problem reports").checked(!self.stats_off),
                     Item::action("forget", "Delete my data…"),
                 ],
             ),
@@ -2378,14 +2402,7 @@ impl App {
             }),
             "stats" => {
                 self.stats_off = !self.stats_off;
-                if self.stats_off {
-                    // Off also erases what was sent; a new id if it's turned on again.
-                    let id = std::mem::take(&mut self.stats_id);
-                    std::thread::spawn(move || crate::stats::forget(&id));
-                } else {
-                    self.stats_id = crate::stats::new_id();
-                    crate::stats::send(self.stats_id.clone(), gamp_ui::lang::code());
-                }
+                self.stats_told = true;
             }
             "forget" => self.ask(Ask::Forget),
             "donate:hide" => self.donate_hidden = true,
@@ -3146,7 +3163,7 @@ mod tests {
     }
 
     /// End to end against the live stats server, one step per run:
-    /// `GAMP_E2E=share|dont|off|on|forget WINAMP_DATA=<empty dir> cargo test -p gamp e2e_stats -- --ignored --nocapture`
+    /// `GAMP_E2E=share|dont|off|on|problem|forget WINAMP_DATA=<empty dir> cargo test -p gamp e2e_stats -- --ignored --nocapture`
     /// (the server's table is checked between steps).
     #[test]
     #[ignore]
@@ -3158,12 +3175,11 @@ mod tests {
         app.load_session();
         let say = |a: &Ask, yes| Answer { ask: a.clone(), paths: Vec::new(), yes };
         match step.as_str() {
-            // First start, answered OK / Don't share (stats_start's dialog, answered).
-            "share" | "dont" => {
-                app.stats_id = crate::stats::new_id();
-                app.answered(say(&Ask::Stats, step == "share"));
-            }
+            // First start, answered Got it / Turn off (stats_start's dialog, answered).
+            "share" | "dont" => app.answered(say(&Ask::Stats, step == "share")),
             "off" | "on" => app.menu_action("stats", None),
+            // A problem with a path and an address in it.
+            "problem" => app.problem("End-to-end test, please ignore. /Users/x/Song.mp3 192.168.1.5"),
             "forget" => {
                 std::thread::sleep(Duration::from_secs(1));
                 app.answered(say(&Ask::Forget, true)); // exits
@@ -3172,7 +3188,7 @@ mod tests {
         }
         std::thread::sleep(Duration::from_secs(4));
         app.save_session();
-        println!("E2E {step}: id={} off={}", app.stats_id, app.stats_off);
+        println!("E2E {step}: told={} off={}", app.stats_told, app.stats_off);
     }
 
     #[test]

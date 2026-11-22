@@ -22,9 +22,11 @@ pub struct Session {
     pub size: f64,
     pub on_top: bool,
     pub donate_hidden: bool,
-    /// This install's anonymous stats id (empty: not told about stats yet).
+    /// Gamp 0.3.30's per-install stats id, erased on the next start.
     pub stats_id: String,
-    /// Usage stats turned off.
+    /// Told about usage and problem reports.
+    pub stats_told: bool,
+    /// Usage and problem reports turned off.
     pub stats_off: bool,
     pub volume: f32,
     pub balance: f32,
@@ -98,6 +100,7 @@ impl App {
             on_top: self.on_top,
             donate_hidden: self.donate_hidden,
             stats_id: self.stats_id.clone(),
+            stats_told: self.stats_told,
             stats_off: self.stats_off,
             volume: self.main.volume,
             balance: self.main.balance,
@@ -155,6 +158,7 @@ impl App {
         self.on_top = s.on_top;
         self.donate_hidden = s.donate_hidden;
         self.stats_id = s.stats_id.clone();
+        self.stats_told = s.stats_told;
         self.stats_off = s.stats_off;
         self.main.volume = s.volume.clamp(0.0, 1.0);
         self.main.balance = s.balance.clamp(-1.0, 1.0);

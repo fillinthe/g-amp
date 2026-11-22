@@ -359,13 +359,13 @@ Donate…	후원하기…
 Donate	후원하기
 Hide this	숨기기
 Help…	도움말…
-Share anonymous usage stats	익명 사용 통계 보내기
 Delete my data…	내 데이터 삭제…
-Anonymous usage stats	익명 사용 통계
-To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address.	개선할 점을 알기 위해 Gamp는 시작할 때 몇 가지 익명 정보를 보냅니다: 버전, 사용 중인 시스템과 언어. 음악, 파일, 계정, 주소는 절대 보내지 않습니다.
-Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.	옵션 › 익명 사용 통계 보내기로 끌 수 있고, 옵션 › 내 데이터 삭제…로 모두 지울 수 있습니다.
-OK	확인
-Don't share	보내지 않기
 Delete my data	내 데이터 삭제
-Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.	Gamp가 설정, 로그인, 재생 목록, 스킨, 익명 사용 통계를 모두 지운 뒤 종료됩니다. 되돌릴 수 없습니다.
 Delete	삭제
+Usage and problem reports	사용 및 문제 보고
+To make Gamp better, it counts each time it opens (with its version, your system and language) and sends a short report when something goes wrong: the error message, Gamp's version and your system. Never your music, file names, accounts or addresses, and nothing that says who sent it. Problem reports are kept for 30 days.	더 나은 Gamp를 위해 실행할 때마다 횟수를 세고(버전, 시스템, 언어와 함께) 문제가 생기면 짧은 보고를 보냅니다: 오류 메시지, Gamp 버전, 사용 중인 시스템. 음악, 파일 이름, 계정, 주소, 그리고 누가 보냈는지 알 수 있는 정보는 절대 보내지 않습니다. 문제 보고는 30일 동안 보관됩니다.
+Options › Help improve Gamp: send usage and problem reports turns this off, and Options › Delete my data… erases what Gamp keeps on this computer.	옵션 › Gamp 개선 돕기: 사용 및 문제 보고 보내기로 끌 수 있고, 옵션 › 내 데이터 삭제…로 Gamp가 이 컴퓨터에 보관한 것을 지울 수 있습니다.
+Got it	확인
+Turn off	끄기
+Help improve Gamp: send usage and problem reports	Gamp 개선 돕기: 사용 및 문제 보고 보내기
+Gamp will forget everything on this computer: settings, sign-ins, playlists and skins, then close. This can't be undone.	Gamp가 이 컴퓨터의 설정, 로그인, 재생 목록, 스킨을 모두 지운 뒤 종료됩니다. 되돌릴 수 없습니다.

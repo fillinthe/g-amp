@@ -359,13 +359,13 @@ Donate…	寄付する…
 Donate	寄付
 Hide this	これを隠す
 Help…	ヘルプ…
-Share anonymous usage stats	匿名の利用統計を送信
 Delete my data…	データを削除…
-Anonymous usage stats	匿名の利用統計
-To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address.	改善点を知るため、Gampは起動時にいくつかの匿名情報を送信します：バージョン、お使いのシステムと言語。音楽、ファイル、アカウント、アドレスは決して送信しません。
-Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.	オプション › 匿名の利用統計を送信 でオフにでき、オプション › データを削除… ですべて消去できます。
-OK	OK
-Don't share	送信しない
 Delete my data	データを削除
-Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.	Gampはすべてを消去します：設定、サインイン、プレイリスト、スキン、匿名の利用統計。その後終了します。元に戻せません。
 Delete	削除
+Usage and problem reports	利用状況と問題のレポート
+To make Gamp better, it counts each time it opens (with its version, your system and language) and sends a short report when something goes wrong: the error message, Gamp's version and your system. Never your music, file names, accounts or addresses, and nothing that says who sent it. Problem reports are kept for 30 days.	Gampをより良くするため、起動ごとに回数を数え（バージョン、システム、言語とともに）、問題が起きたときに短いレポートを送信します：エラーメッセージ、Gampのバージョン、お使いのシステム。音楽、ファイル名、アカウント、アドレス、そして誰が送ったかがわかる情報は決して送りません。問題のレポートは30日間保存されます。
+Options › Help improve Gamp: send usage and problem reports turns this off, and Options › Delete my data… erases what Gamp keeps on this computer.	オプション › Gamp の改善に協力:利用状況と問題のレポートを送信 でオフにでき、オプション › データを削除… でGampがこのコンピュータに保存しているものを消去できます。
+Got it	了解
+Turn off	オフにする
+Help improve Gamp: send usage and problem reports	Gamp の改善に協力:利用状況と問題のレポートを送信
+Gamp will forget everything on this computer: settings, sign-ins, playlists and skins, then close. This can't be undone.	Gampはこのコンピュータ上のすべてを消去します：設定、サインイン、プレイリスト、スキン。その後終了します。元に戻せません。

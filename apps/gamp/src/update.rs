@@ -245,6 +245,8 @@ impl App {
     pub fn say_f(&mut self, text: &str, args: &[&dyn std::fmt::Display]) {
         let english = gamp_ui::lang::fill(text, args);
         if english.starts_with("CAN'T") {
+            // The wording without what filled it in (titles, names): never the music.
+            self.problem(text);
             self.last_error = Some(english);
         }
         let text = gamp_ui::lang::tmf(text, args);

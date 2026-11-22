@@ -359,13 +359,13 @@ Donate…	Bağış yap…
 Donate	Bağış yap
 Hide this	Bunu gizle
 Help…	Yardım…
-Share anonymous usage stats	Anonim kullanım istatistiklerini paylaş
 Delete my data…	Verilerimi sil…
-Anonymous usage stats	Anonim kullanım istatistikleri
-To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address.	Neyi iyileştireceğimizi görmek için Gamp açılırken birkaç anonim bilgi gönderir: sürümü, sisteminiz ve diliniz. Müziğiniz, dosyalarınız, hesaplarınız veya adresiniz asla gönderilmez.
-Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.	Seçenekler › Anonim kullanım istatistiklerini paylaş bunu kapatır, Seçenekler › Verilerimi sil… her şeyi siler.
-OK	Tamam
-Don't share	Paylaşma
 Delete my data	Verilerimi sil
-Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.	Gamp her şeyi unutacak: ayarlar, oturumlar, çalma listeleri, kaplamalar ve anonim kullanım istatistikleri, sonra kapanacak. Bu geri alınamaz.
 Delete	Sil
+Usage and problem reports	Kullanım ve sorun raporları
+To make Gamp better, it counts each time it opens (with its version, your system and language) and sends a short report when something goes wrong: the error message, Gamp's version and your system. Never your music, file names, accounts or addresses, and nothing that says who sent it. Problem reports are kept for 30 days.	Daha iyi olmak için Gamp her açılışı sayar (sürümü, sisteminiz ve dilinizle) ve bir şey ters gittiğinde kısa bir rapor gönderir: hata mesajı, Gamp sürümü ve sisteminiz. Müziğiniz, dosya adlarınız, hesaplarınız veya adresleriniz asla gönderilmez; kimin gönderdiğini söyleyen hiçbir şey de. Sorun raporları 30 gün saklanır.
+Options › Help improve Gamp: send usage and problem reports turns this off, and Options › Delete my data… erases what Gamp keeps on this computer.	Seçenekler › Gamp uygulamasını geliştirmeye yardım et: kullanım ve sorun raporları gönder bunu kapatır, Seçenekler › Verilerimi sil… Gamp'ın bu bilgisayarda tuttuklarını siler.
+Got it	Anladım
+Turn off	Kapat
+Help improve Gamp: send usage and problem reports	Gamp uygulamasını geliştirmeye yardım et: kullanım ve sorun raporları gönder
+Gamp will forget everything on this computer: settings, sign-ins, playlists and skins, then close. This can't be undone.	Gamp bu bilgisayardaki her şeyi unutacak: ayarlar, oturumlar, çalma listeleri ve kaplamalar, sonra kapanacak. Bu geri alınamaz.

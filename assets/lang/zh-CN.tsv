@@ -359,13 +359,13 @@ Donate…	捐赠…
 Donate	捐赠
 Hide this	隐藏此项
 Help…	帮助…
-Share anonymous usage stats	发送匿名使用统计
 Delete my data…	删除我的数据…
-Anonymous usage stats	匿名使用统计
-To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address.	为了解哪些地方需要改进，Gamp 启动时会发送几项匿名信息：版本、你的系统和语言。绝不发送你的音乐、文件、账户或地址。
-Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.	选项 › 发送匿名使用统计 可关闭此功能，选项 › 删除我的数据… 可清除全部数据。
-OK	确定
-Don't share	不发送
 Delete my data	删除我的数据
-Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.	Gamp 将清除所有内容：设置、登录、播放列表、皮肤和匿名使用统计，然后关闭。此操作无法撤销。
 Delete	删除
+Usage and problem reports	使用情况和问题报告
+To make Gamp better, it counts each time it opens (with its version, your system and language) and sends a short report when something goes wrong: the error message, Gamp's version and your system. Never your music, file names, accounts or addresses, and nothing that says who sent it. Problem reports are kept for 30 days.	为了让 Gamp 更好，它会统计每次启动（附带版本、你的系统和语言），并在出错时发送一份简短报告：错误信息、Gamp 版本和你的系统。绝不发送你的音乐、文件名、账户或地址，也不含任何能识别发送者的信息。问题报告保留 30 天。
+Options › Help improve Gamp: send usage and problem reports turns this off, and Options › Delete my data… erases what Gamp keeps on this computer.	选项 › 帮助改进 Gamp:发送使用情况和问题报告 可关闭此功能，选项 › 删除我的数据… 可清除 Gamp 在这台电脑上保存的内容。
+Got it	知道了
+Turn off	关闭
+Help improve Gamp: send usage and problem reports	帮助改进 Gamp:发送使用情况和问题报告
+Gamp will forget everything on this computer: settings, sign-ins, playlists and skins, then close. This can't be undone.	Gamp 将清除这台电脑上的一切：设置、登录、播放列表和皮肤，然后关闭。此操作无法撤销。

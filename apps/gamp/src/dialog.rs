@@ -23,7 +23,7 @@ pub enum Ask {
     SavePreset,
     /// "Gamp X is out: update now?", with what's new.
     Update(String),
-    /// First start: about usage stats (yes: share them).
+    /// First start: about usage and problem reports (yes: keep them on).
     Stats,
     /// Delete my data? (yes: delete).
     Forget,
@@ -75,9 +75,9 @@ pub fn run(ask: Ask, data: &Path) -> Answer {
         }
         Ask::Stats | Ask::Forget => {
             let (level, title, text, ok, no) = if matches!(ask, Ask::Stats) {
-                (rfd::MessageLevel::Info, t("Anonymous usage stats"), format!("{}\n\n{}", t("To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address."), t("Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.")), t("OK"), t("Don't share"))
+                (rfd::MessageLevel::Info, t("Usage and problem reports"), format!("{}\n\n{}", t("To make Gamp better, it counts each time it opens (with its version, your system and language) and sends a short report when something goes wrong: the error message, Gamp's version and your system. Never your music, file names, accounts or addresses, and nothing that says who sent it. Problem reports are kept for 30 days."), t("Options › Help improve Gamp: send usage and problem reports turns this off, and Options › Delete my data… erases what Gamp keeps on this computer.")), t("Got it"), t("Turn off"))
             } else {
-                (rfd::MessageLevel::Warning, t("Delete my data"), t("Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.").to_string(), t("Delete"), t("Cancel"))
+                (rfd::MessageLevel::Warning, t("Delete my data"), t("Gamp will forget everything on this computer: settings, sign-ins, playlists and skins, then close. This can't be undone.").to_string(), t("Delete"), t("Cancel"))
             };
             let answer = rfd::MessageDialog::new().set_level(level).set_title(title).set_description(&text).set_buttons(rfd::MessageButtons::OkCancelCustom(ok.into(), no.into())).show();
             yes = matches!(answer, rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes) || answer == rfd::MessageDialogResult::Custom(ok.into());

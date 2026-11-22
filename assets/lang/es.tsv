@@ -359,13 +359,13 @@ Donate…	Donar…
 Donate	Donar
 Hide this	Ocultar esto
 Help…	Ayuda…
-Share anonymous usage stats	Compartir estadísticas de uso anónimas
 Delete my data…	Borrar mis datos…
-Anonymous usage stats	Estadísticas de uso anónimas
-To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address.	Para saber qué mejorar, Gamp envía unos pocos datos anónimos al abrirse: su versión, tu sistema y tu idioma. Nunca tu música, archivos, cuentas ni dirección.
-Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.	Opciones › Compartir estadísticas de uso anónimas lo desactiva, y Opciones › Borrar mis datos… lo borra todo.
-OK	Aceptar
-Don't share	No compartir
 Delete my data	Borrar mis datos
-Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.	Gamp olvidará todo: ajustes, inicios de sesión, listas, skins y sus estadísticas de uso anónimas, y se cerrará. No se puede deshacer.
 Delete	Borrar
+Usage and problem reports	Informes de uso y de problemas
+To make Gamp better, it counts each time it opens (with its version, your system and language) and sends a short report when something goes wrong: the error message, Gamp's version and your system. Never your music, file names, accounts or addresses, and nothing that says who sent it. Problem reports are kept for 30 days.	Para mejorar Gamp, cuenta cada vez que se abre (con su versión, tu sistema y tu idioma) y envía un breve informe cuando algo falla: el mensaje de error, la versión de Gamp y tu sistema. Nunca tu música, nombres de archivos, cuentas ni direcciones, ni nada que diga quién lo envió. Los informes de problemas se guardan 30 días.
+Options › Help improve Gamp: send usage and problem reports turns this off, and Options › Delete my data… erases what Gamp keeps on this computer.	Opciones › Ayuda a mejorar Gamp: enviar informes de uso y de problemas lo desactiva, y Opciones › Borrar mis datos… borra lo que Gamp guarda en este ordenador.
+Got it	Entendido
+Turn off	Desactivar
+Help improve Gamp: send usage and problem reports	Ayuda a mejorar Gamp: enviar informes de uso y de problemas
+Gamp will forget everything on this computer: settings, sign-ins, playlists and skins, then close. This can't be undone.	Gamp olvidará todo lo de este ordenador: ajustes, inicios de sesión, listas y skins, y se cerrará. No se puede deshacer.
