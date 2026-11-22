@@ -114,6 +114,8 @@ pub struct App {
     pub on_top: bool,
     /// The owner of this computer took Donate out of the main menu; it stays under Options.
     pub donate_hidden: bool,
+    pub stats_id: String,
+    pub stats_off: bool,
     /// The language picked in Options › Language (none: the system's).
     pub lang: Option<String>,
     pub modifiers: ModifiersState,
@@ -244,6 +246,8 @@ impl App {
             seek_wait: None,
             on_top: false,
             donate_hidden: false,
+            stats_id: String::new(),
+            stats_off: false,
             modifiers: ModifiersState::empty(),
             drag: None,
             resize: None,
@@ -968,6 +972,31 @@ impl App {
         self.answered(answer);
     }
 
+    /// At start: tells a new install about usage stats once, then sends them
+    /// unless they're off.
+    pub(crate) fn stats_start(&mut self) {
+        if self.stats_off {
+            return;
+        }
+        if self.stats_id.is_empty() {
+            self.stats_id = crate::stats::new_id();
+            self.ask(Ask::Stats);
+        } else {
+            crate::stats::send(self.stats_id.clone(), gamp_ui::lang::code());
+        }
+    }
+
+    /// Delete my data: erases the stats on the server and everything in
+    /// Gamp's folder (settings, sign-ins, playlists, skins, caches), then quits.
+    fn forget_everything(&mut self) {
+        crate::stats::forget(&self.stats_id);
+        if std::fs::remove_dir_all(&self.data_dir).is_err() && self.data_dir.exists() {
+            // Something held a file open: show the folder so it can go by hand.
+            crate::backend::open_in_browser(&format!("file://{}", self.data_dir.display()));
+        }
+        std::process::exit(0);
+    }
+
     pub(crate) fn answered(&mut self, a: crate::dialog::Answer) {
         let first = a.paths.first().cloned();
         match a.ask {
@@ -1003,6 +1032,9 @@ impl App {
                 }
             }
             Ask::Update(_) if a.yes => self.update_install(),
+            Ask::Stats if !a.yes => self.stats_off = true,
+            Ask::Stats => crate::stats::send(self.stats_id.clone(), gamp_ui::lang::code()),
+            Ask::Forget if a.yes => self.forget_everything(),
             _ => {}
         }
         self.mark_all();
@@ -2154,6 +2186,9 @@ impl App {
                         langs
                     }),
                     Item::action("donate", "Donate…"),
+                    Item::Separator,
+                    Item::action("stats", "Share anonymous usage stats").checked(!self.stats_off),
+                    Item::action("forget", "Delete my data…"),
                 ],
             ),
             Item::submenu(
@@ -2341,6 +2376,18 @@ impl App {
                 "en" => "https://gampapp.com/manual/".to_string(),
                 c => format!("https://gampapp.com/{}/manual/", c.to_lowercase()),
             }),
+            "stats" => {
+                self.stats_off = !self.stats_off;
+                if self.stats_off {
+                    // Off also erases what was sent; a new id if it's turned on again.
+                    let id = std::mem::take(&mut self.stats_id);
+                    std::thread::spawn(move || crate::stats::forget(&id));
+                } else {
+                    self.stats_id = crate::stats::new_id();
+                    crate::stats::send(self.stats_id.clone(), gamp_ui::lang::code());
+                }
+            }
+            "forget" => self.ask(Ask::Forget),
             "donate:hide" => self.donate_hidden = true,
             "donate" => crate::backend::open_in_browser("https://donate.stripe.com/eVqdRb8kv3XW08LcNaaEE04"),
             "report" => {

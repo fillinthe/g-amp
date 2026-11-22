@@ -23,6 +23,10 @@ pub enum Ask {
     SavePreset,
     /// "Gamp X is out: update now?", with what's new.
     Update(String),
+    /// First start: about usage stats (yes: share them).
+    Stats,
+    /// Delete my data? (yes: delete).
+    Forget,
 }
 
 #[derive(Debug)]
@@ -67,6 +71,16 @@ pub fn run(ask: Ask, data: &Path) -> Answer {
                 .set_buttons(rfd::MessageButtons::OkCancelCustom(t("Update now").into(), t("Later").into()))
                 .show();
             yes = matches!(answer, rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes) || answer == rfd::MessageDialogResult::Custom(t("Update now").into());
+            Vec::new()
+        }
+        Ask::Stats | Ask::Forget => {
+            let (level, title, text, ok, no) = if matches!(ask, Ask::Stats) {
+                (rfd::MessageLevel::Info, t("Anonymous usage stats"), format!("{}\n\n{}", t("To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address."), t("Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.")), t("OK"), t("Don't share"))
+            } else {
+                (rfd::MessageLevel::Warning, t("Delete my data"), t("Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.").to_string(), t("Delete"), t("Cancel"))
+            };
+            let answer = rfd::MessageDialog::new().set_level(level).set_title(title).set_description(&text).set_buttons(rfd::MessageButtons::OkCancelCustom(ok.into(), no.into())).show();
+            yes = matches!(answer, rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes) || answer == rfd::MessageDialogResult::Custom(ok.into());
             Vec::new()
         }
     };

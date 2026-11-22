@@ -22,6 +22,10 @@ pub struct Session {
     pub size: f64,
     pub on_top: bool,
     pub donate_hidden: bool,
+    /// This install's anonymous stats id (empty: not told about stats yet).
+    pub stats_id: String,
+    /// Usage stats turned off.
+    pub stats_off: bool,
     pub volume: f32,
     pub balance: f32,
     pub shuffle: bool,
@@ -93,6 +97,8 @@ impl App {
             size: self.size,
             on_top: self.on_top,
             donate_hidden: self.donate_hidden,
+            stats_id: self.stats_id.clone(),
+            stats_off: self.stats_off,
             volume: self.main.volume,
             balance: self.main.balance,
             shuffle: self.main.shuffle,
@@ -148,6 +154,8 @@ impl App {
         self.size = if s.size >= 1.0 { s.size.min(3.0) } else if s.double { 2.0 } else { 1.0 };
         self.on_top = s.on_top;
         self.donate_hidden = s.donate_hidden;
+        self.stats_id = s.stats_id.clone();
+        self.stats_off = s.stats_off;
         self.main.volume = s.volume.clamp(0.0, 1.0);
         self.main.balance = s.balance.clamp(-1.0, 1.0);
         self.eq.volume = self.main.volume;

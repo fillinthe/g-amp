@@ -22,6 +22,7 @@ mod playlist;
 mod selftest;
 mod session;
 mod update;
+mod stats;
 mod stream;
 mod win;
 
@@ -95,6 +96,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if !self.app.update_after_restart() {
                     self.app.update_check(false);
                 }
+                self.app.stats_start();
             }
         }
     }

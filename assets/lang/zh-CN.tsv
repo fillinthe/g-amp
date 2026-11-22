@@ -359,3 +359,13 @@ Donate…	捐赠…
 Donate	捐赠
 Hide this	隐藏此项
 Help…	帮助…
+Share anonymous usage stats	发送匿名使用统计
+Delete my data…	删除我的数据…
+Anonymous usage stats	匿名使用统计
+To see what to improve, Gamp sends a few anonymous facts when it starts: its version, your system and language. Never your music, files, accounts or address.	为了解哪些地方需要改进，Gamp 启动时会发送几项匿名信息：版本、你的系统和语言。绝不发送你的音乐、文件、账户或地址。
+Options › Share anonymous usage stats turns this off, and Options › Delete my data… erases everything.	选项 › 发送匿名使用统计 可关闭此功能，选项 › 删除我的数据… 可清除全部数据。
+OK	确定
+Don't share	不发送
+Delete my data	删除我的数据
+Gamp will forget everything: settings, sign-ins, playlists, skins and its anonymous usage stats, then close. This can't be undone.	Gamp 将清除所有内容：设置、登录、播放列表、皮肤和匿名使用统计，然后关闭。此操作无法撤销。
+Delete	删除
