@@ -71,7 +71,7 @@ minimumSystemVersion = "11.0"
 infoPlistPath = "packaging/Info.plist"
 
 # The install window: drag Gamp onto Applications. The picture is drawn
-# from packaging/dmg/background.html at 2x (144 dpi, so Finder shows it
+# at 2x (144 dpi, so Finder shows it
 # sharp); the window's height adds the title bar.
 [package.metadata.packager.dmg]
 background = "packaging/dmg/background.png"
