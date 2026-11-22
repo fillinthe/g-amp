@@ -3145,6 +3145,36 @@ mod tests {
         assert!(app.pl.top <= 54 && 54 < app.pl.top + app.pl.visible_rows());
     }
 
+    /// End to end against the live stats server, one step per run:
+    /// `GAMP_E2E=share|dont|off|on|forget WINAMP_DATA=<empty dir> cargo test -p gamp e2e_stats -- --ignored --nocapture`
+    /// (the server's table is checked between steps).
+    #[test]
+    #[ignore]
+    fn e2e_stats() {
+        use crate::dialog::{Answer, Ask};
+        let step = std::env::var("GAMP_E2E").unwrap();
+        let mut app = App::new(OutputKind::Null, None).unwrap();
+        app.data_dir = data_dir();
+        app.load_session();
+        let say = |a: &Ask, yes| Answer { ask: a.clone(), paths: Vec::new(), yes };
+        match step.as_str() {
+            // First start, answered OK / Don't share (stats_start's dialog, answered).
+            "share" | "dont" => {
+                app.stats_id = crate::stats::new_id();
+                app.answered(say(&Ask::Stats, step == "share"));
+            }
+            "off" | "on" => app.menu_action("stats", None),
+            "forget" => {
+                std::thread::sleep(Duration::from_secs(1));
+                app.answered(say(&Ask::Forget, true)); // exits
+            }
+            _ => panic!("unknown step"),
+        }
+        std::thread::sleep(Duration::from_secs(4));
+        app.save_session();
+        println!("E2E {step}: id={} off={}", app.stats_id, app.stats_off);
+    }
+
     #[test]
     fn donate_can_be_hidden_and_stays_under_options() {
         fn count(items: &[Item]) -> usize {

@@ -17,7 +17,8 @@ pub fn new_id() -> String {
 }
 
 fn post(path: &str, body: serde_json::Value) {
-    if cfg!(test) {
+    // Tests stay offline, except the end-to-end run against the live server.
+    if cfg!(test) && std::env::var_os("GAMP_E2E").is_none() {
         return;
     }
     let client = reqwest::blocking::Client::builder().timeout(Duration::from_secs(8)).build();
